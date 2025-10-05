@@ -1,0 +1,21 @@
+[ {
+  "name": "Elementor",
+  "slug": "elementor",
+  "required": false,
+  "force_activation": false
+}, {
+  "name": "Kirki Customizer Framework",
+  "slug": "kirki",
+  "required": false,
+  "force_activation": false
+},{
+  "name": "WooCommerce",
+  "slug": "woocommerce",
+  "required": false,
+  "force_activation": false
+},{
+  "name": "YITH WooCommerce Quick View",
+  "slug": "yith-woocommerce-quick-view",
+  "required": false,
+  "force_activation": false
+}]

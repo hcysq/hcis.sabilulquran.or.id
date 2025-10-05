@@ -1,0 +1,22 @@
+# WordPress core
+/wp-admin/
+/wp-includes/
+
+# Uploads & cache
+wp-content/uploads/
+wp-content/cache/
+wp-content/upgrade/
+
+# Config & env
+wp-config.php
+.env
+.env.*
+
+# Vendor & node modules
+node_modules/
+vendor/
+
+# Sistem / OS
+.DS_Store
+Thumbs.db
+error_log

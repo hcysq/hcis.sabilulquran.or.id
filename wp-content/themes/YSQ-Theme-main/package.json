@@ -1,0 +1,8 @@
+{
+  "name": "ysq-theme",
+  "version": "1.2.0",
+  "description": "YSQ WordPress Theme",
+  "scripts": {
+    "build": "echo 'WordPress theme - no build required' && exit 0"
+  }
+}
