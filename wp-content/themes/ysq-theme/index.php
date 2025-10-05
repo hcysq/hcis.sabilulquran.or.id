@@ -17,6 +17,38 @@ $announcement_args = array(
 );
 $ysq_announcements = get_posts($announcement_args);
 
+$ysq_announcement_links = array();
+if (class_exists('HCISYSQ\\Announcements')) {
+    $hcisysq_items = array();
+
+    if (is_callable(array('HCISYSQ\\Announcements', 'published_for_user'))) {
+        $hcisysq_items = \HCISYSQ\Announcements::published_for_user(array());
+    } elseif (is_callable(array('HCISYSQ\\Announcements', 'all'))) {
+        $hcisysq_items = \HCISYSQ\Announcements::all();
+    }
+
+    if (is_array($hcisysq_items)) {
+        foreach ($hcisysq_items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $item_id = isset($item['id']) ? absint($item['id']) : 0;
+            if (!$item_id) {
+                continue;
+            }
+
+            $link_label = isset($item['link_label']) && is_string($item['link_label']) ? $item['link_label'] : '';
+            $link_url   = isset($item['link_url']) && is_string($item['link_url']) ? $item['link_url'] : '';
+
+            $ysq_announcement_links[$item_id] = array(
+                'link_label' => $link_label,
+                'link_url'   => $link_url,
+            );
+        }
+    }
+}
+
 $editing_post = null;
 if (function_exists('ysq_admin_is_logged_in') && ysq_admin_is_logged_in() && isset($_GET['ysq_edit'])) {
     $edit_id = absint($_GET['ysq_edit']);
@@ -156,12 +188,63 @@ if (function_exists('ysq_admin_is_logged_in') && ysq_admin_is_logged_in() && iss
                 <?php if (!empty($ysq_announcements)) : ?>
                     <ul class="announcement-list">
                         <?php foreach ($ysq_announcements as $announcement) : ?>
+                            <?php
+                            $announcement_id    = isset($announcement->ID) ? absint($announcement->ID) : 0;
+                            $announcement_meta  = $announcement_id && isset($ysq_announcement_links[$announcement_id]) ? $ysq_announcement_links[$announcement_id] : null;
+                            $announcement_label = '';
+                            $announcement_link  = '';
+                            $is_training_link   = false;
+
+                            if (is_array($announcement_meta)) {
+                                $announcement_label = isset($announcement_meta['link_label']) ? (string) $announcement_meta['link_label'] : '';
+                                $announcement_link  = isset($announcement_meta['link_url']) ? (string) $announcement_meta['link_url'] : '';
+                                $is_training_link   = ($announcement_link === '__TRAINING_FORM__');
+                            }
+
+                            $training_note_text = __('(tersedia dinamis di dashboard pegawai)', 'ysq');
+                            $training_label     = $announcement_label !== '' ? $announcement_label : __('Form Pelatihan Terbaru', 'ysq');
+                            $training_target    = '';
+
+                            if ($is_training_link && defined('HCISYSQ_LOGIN_SLUG')) {
+                                $training_target = home_url('/' . HCISYSQ_LOGIN_SLUG . '/');
+                            } elseif ($is_training_link) {
+                                $training_target = '';
+                            }
+
+                            $has_valid_link = false;
+                            if ($announcement_link && !$is_training_link) {
+                                $has_valid_link = (bool) wp_http_validate_url($announcement_link);
+                            }
+                            ?>
                             <li>
                                 <h3><?php echo esc_html(get_the_title($announcement)); ?></h3>
                                 <time datetime="<?php echo esc_attr(get_post_time('c', false, $announcement)); ?>"><?php echo esc_html(get_the_date('', $announcement)); ?></time>
                                 <div class="announcement-body">
                                     <?php echo wp_kses_post(wpautop($announcement->post_content)); ?>
                                 </div>
+                                <?php if ($has_valid_link) : ?>
+                                    <p class="announcement-link">
+                                        <a href="<?php echo esc_url($announcement_link); ?>" target="_blank" rel="noopener">
+                                            <?php echo esc_html($announcement_label !== '' ? $announcement_label : __('Buka tautan', 'ysq')); ?>
+                                        </a>
+                                    </p>
+                                <?php elseif ($is_training_link && $training_target) : ?>
+                                    <p class="announcement-link">
+                                        <a href="<?php echo esc_url($training_target); ?>">
+                                            <?php echo esc_html($training_label); ?>
+                                        </a>
+                                        <span class="announcement-note"><?php echo esc_html($training_note_text); ?></span>
+                                    </p>
+                                <?php elseif ($is_training_link) : ?>
+                                    <p class="announcement-link">
+                                        <?php echo esc_html($training_label); ?>
+                                        <span class="announcement-note"><?php echo esc_html($training_note_text); ?></span>
+                                    </p>
+                                <?php elseif ($announcement_label !== '') : ?>
+                                    <p class="announcement-link">
+                                        <?php echo esc_html($announcement_label); ?>
+                                    </p>
+                                <?php endif; ?>
                             </li>
                         <?php endforeach; ?>
                     </ul>
