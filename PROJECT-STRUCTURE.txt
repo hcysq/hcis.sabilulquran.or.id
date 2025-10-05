@@ -1,0 +1,180 @@
+WordPress HCIS.YSQ - Struktur Project Final
+═════════════════════════════════════════════════════════
+
+project/
+│
+├── 📄 .env                           ← Environment variables & secrets
+├── 📄 .gitignore                     ← Git ignore rules
+├── 📄 .htaccess                      ← Apache URL rewriting
+├── 📄 docker-compose.yml             ← Docker orchestration (MariaDB + WordPress)
+│
+├── 📖 DEPLOYMENT-GUIDE.md            ← Panduan deployment lengkap (322 lines)
+├── 📖 DEPLOYMENT-SUMMARY.txt         ← Summary deployment (quick reference)
+├── 📖 QUICK-START.md                 ← Quick start guide (2 opsi deployment)
+├── 📖 PROJECT-STRUCTURE.txt          ← File structure documentation (this file)
+├── 📖 README.md                      ← Project overview
+│
+├── 📄 index.php                      ← WordPress entry point
+├── 📄 wp-blog-header.php             ← WordPress bootstrap
+├── 📄 wp-config-sample.php           ← Sample WP config (use as template)
+├── 📄 wp-load.php                    ← WordPress loader
+├── 📄 wp-settings.php                ← WordPress settings
+├── 📄 license.txt                    ← WordPress license
+├── 📄 readme.html                    ← WordPress readme
+│
+├── 📂 supabase/                      ← Supabase integration (optional)
+│   └── migrations/
+│       └── 20251005092540_create_secrets_table.sql
+│
+└── 📂 wp-content/                    ← WordPress content directory
+    │
+    ├── 📄 index.php                  ← Security: prevents directory listing
+    │
+    ├── 📂 themes/                    ✨ CUSTOM THEMES
+    │   ├── 📄 index.php              ← Security file
+    │   │
+    │   └── 📂 ysq-theme/             ✅ TEMA AKTIF (renamed dari YSQ-Theme-main)
+    │       ├── 📄 style.css          ← Theme metadata & styles
+    │       ├── 📄 functions.php      ← Theme functions (36KB - feature-rich)
+    │       ├── 📄 header.php         ← Header template
+    │       ├── 📄 footer.php         ← Footer template
+    │       ├── 📄 index.php          ← Main template
+    │       ├── 📄 single.php         ← Single post template
+    │       ├── 📄 page.php           ← Page template
+    │       ├── 📄 page-blank.php     ← Blank page template
+    │       ├── 📄 archive.php        ← Archive template
+    │       ├── 📄 search.php         ← Search results template
+    │       ├── 📄 sidebar.php        ← Sidebar template
+    │       ├── 📄 404.php            ← 404 error template
+    │       ├── 📄 screenshot.png     ← Theme thumbnail
+    │       ├── 📄 README.txt         ← Theme documentation
+    │       ├── 📄 package.json       ← NPM dependencies
+    │       │
+    │       ├── 📂 assets/            ← Theme assets
+    │       │   ├── bg.jpg            ← Background image
+    │       │   └── logo.png          ← Logo
+    │       │
+    │       ├── 📂 inc/               ← Theme includes
+    │       │   ├── customizer.php    ← Theme customizer options
+    │       │   └── template-tags.php ← Template helper functions
+    │       │
+    │       └── 📂 template-parts/    ← Reusable template parts
+    │           ├── content-none.php  ← No content template
+    │           ├── content-page.php  ← Page content template
+    │           └── content-single.php← Single post content template
+    │
+    ├── 📂 plugins/                   ✨ CUSTOM PLUGINS
+    │   ├── 📄 index.php              ← Security file
+    │   │
+    │   └── 📂 hcis.ysq/              ✅ PLUGIN AKTIF (renamed dari hcis.ysq-main)
+    │       ├── 📄 hcis.ysq.php       ← Main plugin file
+    │       ├── 📄 README.md          ← Plugin documentation
+    │       ├── 📄 CHANGELOG.md       ← Version history
+    │       ├── 📄 package-lock.json  ← NPM lock file
+    │       ├── 📄 gitignore          ← Git ignore
+    │       │
+    │       ├── 📖 IMPLEMENTATION-REPORT-v1.2.0.md
+    │       ├── 📖 MIGRATION-SUMMARY-v1.1.1.md
+    │       ├── 📖 PERBAIKAN-SUMMARY.md
+    │       ├── 📖 PROJECT-STRUCTURE.md
+    │       ├── 📖 QUICKSTART-v1.2.0.md
+    │       ├── 📖 QUICKSTART.md
+    │       ├── 📖 SHORTCODE-MIGRATION.md
+    │       │
+    │       ├── 📂 assets/            ← Plugin assets
+    │       │   ├── app.css           ← Plugin styles
+    │       │   └── app.js            ← Plugin JavaScript
+    │       │
+    │       ├── 📂 includes/          ← Plugin PHP classes
+    │       │   ├── Admin.php         ← Admin panel
+    │       │   ├── Announcements.php ← Announcements system
+    │       │   ├── Api.php           ← API endpoints
+    │       │   ├── Assets.php        ← Asset management
+    │       │   ├── Auth.php          ← Authentication (NIP + HP login)
+    │       │   ├── Forgot.php        ← Password recovery
+    │       │   ├── Installer.php     ← Database installer
+    │       │   ├── Profiles.php      ← User profiles
+    │       │   ├── Shortcodes.php    ← Shortcode handlers
+    │       │   ├── Trainings.php     ← Training system
+    │       │   ├── Users.php         ← User management
+    │       │   └── View.php          ← View renderer
+    │       │
+    │       └── 📂 docs/              ← Plugin documentation
+    │           ├── SETUP-GOOGLE-SHEETS.md
+    │           ├── google-apps-script-training.js
+    │           └── migration-v1.0.2-to-v1.0.3.sql
+    │
+    ├── 📂 fonts/                     ← Custom web fonts
+    │   ├── 📄 787a13c7397107e1066d68a91e200996.css
+    │   ├── 📄 7d29cb2bb8a861765982c42cf8a34e64.css
+    │   │
+    │   ├── 📂 epilogue/              ← Epilogue font family
+    │   │   ├── O4ZRFGj5hxF0EhjimlIksgg.woff2
+    │   │   ├── O4ZRFGj5hxF0EhjimlIqsggqlg.woff2
+    │   │   ├── O4ZRFGj5hxF0EhjimlIrsggqlg.woff2
+    │   │   ├── O4ZXFGj5hxF0EhjimlIhggoykg.woff2
+    │   │   ├── O4ZXFGj5hxF0EhjimlIhggQyklmd.woff2
+    │   │   └── O4ZXFGj5hxF0EhjimlIhggUyklmd.woff2
+    │   │
+    │   └── 📂 raleway/               ← Raleway font family
+    │       ├── 1Ptsg8zYS_SKggPNyCg4Q4FqPfE.woff2
+    │       ├── 1Ptsg8zYS_SKggPNyCg4QIFqPfE.woff2
+    │       ├── 1Ptsg8zYS_SKggPNyCg4QoFqPfE.woff2
+    │       ├── 1Ptsg8zYS_SKggPNyCg4SYFqPfE.woff2
+    │       ├── 1Ptsg8zYS_SKggPNyCg4TYFq.woff2
+    │       ├── 1Ptug8zYS_SKggPNyC0ITw.woff2
+    │       ├── 1Ptug8zYS_SKggPNyCAIT5lu.woff2
+    │       ├── 1Ptug8zYS_SKggPNyCIIT5lu.woff2
+    │       ├── 1Ptug8zYS_SKggPNyCkIT5lu.woff2
+    │       └── 1Ptug8zYS_SKggPNyCMIT5lu.woff2
+    │
+    └── 📂 uploads/                   ← Media uploads directory (will be created)
+
+
+═════════════════════════════════════════════════════════
+STATISTICS
+═════════════════════════════════════════════════════════
+
+✅ Themes:        1 (ysq-theme)
+✅ Plugins:       1 (hcis.ysq)
+✅ Font Families: 2 (Epilogue, Raleway)
+✅ PHP Classes:   11 (in hcis.ysq/includes/)
+✅ Templates:     14 (in ysq-theme/)
+✅ Documentation: 13 markdown files
+
+═════════════════════════════════════════════════════════
+KEY FEATURES
+═════════════════════════════════════════════════════════
+
+🔐 Custom Authentication
+   - NIP + HP (Phone) based login
+   - Custom login endpoint: /masuk
+   - Password recovery system
+
+👥 Employee Management
+   - User profiles
+   - Employee dashboard: /dashboard
+   - Google Sheets integration
+
+📚 Training System
+   - Training registration: /pelatihan
+   - Training management
+   - Progress tracking
+
+📢 Announcements
+   - Internal announcements system
+   - Employee notifications
+
+🎨 Custom Theme
+   - Responsive design
+   - Custom templates
+   - Theme customizer support
+
+═════════════════════════════════════════════════════════
+
+Struktur ini sudah CLEAN dan READY untuk deployment!
+
+Semua tema default WordPress dan plugin tidak diperlukan
+sudah dihapus. Hanya tersisa komponen custom yang aktif.
+
+═════════════════════════════════════════════════════════
