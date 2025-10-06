@@ -71,5 +71,7 @@ class Installer {
     if (!wp_next_scheduled('hcisysq_users_cron')) {
       wp_schedule_event(time() + 600, 'daily', 'hcisysq_users_cron');
     }
+
+    Publikasi::on_activation();
   }
 }

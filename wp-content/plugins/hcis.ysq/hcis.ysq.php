@@ -82,6 +82,7 @@ require_once HCISYSQ_DIR . 'includes/Admin.php';
 require_once HCISYSQ_DIR . 'includes/Assets.php';
 require_once HCISYSQ_DIR . 'includes/Shortcodes.php';
 require_once HCISYSQ_DIR . 'includes/Forgot.php';
+require_once HCISYSQ_DIR . 'includes/Publikasi.php';
 
 /* =======================================================
  *  Activation (create tables)
@@ -95,6 +96,7 @@ HCISYSQ\Assets::init();
 HCISYSQ\Shortcodes::init();
 HCISYSQ\Forgot::init();
 HCISYSQ\Announcements::init();
+HCISYSQ\Publikasi::init();
 
 /* =======================================================
  *  AJAX endpoints
