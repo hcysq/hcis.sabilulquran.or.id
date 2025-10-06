@@ -40,6 +40,12 @@ add_action('after_setup_theme', 'ysq_setup');
 
 function ysq_enqueue_scripts() {
     wp_enqueue_style('ysq-style', get_stylesheet_uri(), array(), '1.3');
+    wp_enqueue_style(
+        'ysq-footer',
+        get_template_directory_uri() . '/assets/css/ysq-footer.css',
+        array('ysq-style'),
+        '1.0.0'
+    );
     wp_enqueue_script('ysq-theme', get_template_directory_uri() . '/assets/js/theme.js', array(), '1.0.0', true);
 }
 add_action('wp_enqueue_scripts', 'ysq_enqueue_scripts');
@@ -937,7 +943,7 @@ function ysq_custom_styles() {
             color: <?php echo esc_attr($brand_color_rgba); ?>;
         }
 
-        .site-footer {
+        .ysq-footer {
             background-color: <?php echo esc_attr($footer_bg_rgba); ?> !important;
             --footer-title-row-height: <?php echo esc_attr($title_row_height > 0 ? $title_row_height . 'px' : 'auto'); ?>;
             --footer-content-row-height: <?php echo esc_attr($content_row_height > 0 ? $content_row_height . 'px' : 'auto'); ?>;
@@ -954,12 +960,12 @@ function ysq_custom_styles() {
 <?php endforeach; ?>
         }
 
-        .footer-bottom {
+        .ysq-footer__bottom {
             background-color: <?php echo esc_attr($footer_bottom_bg_rgba); ?> !important;
         }
 
-        .footer-bottom,
-        .footer-bottom a {
+        .ysq-footer__bottom,
+        .ysq-footer__bottom a {
             color: <?php echo esc_attr($footer_bottom_text_color); ?> !important;
         }
     </style>
