@@ -150,6 +150,18 @@ Plugin menggunakan WP-Cron untuk sinkronisasi otomatis:
 - `hcisysq_profiles_cron` - Import profil pegawai (daily)
 - `hcisysq_users_cron` - Import data users (daily)
 
+## Pengujian
+
+Gunakan perintah berikut di dalam instalasi WordPress (mis. via `wp eval`) untuk memastikan hash admin lawas otomatis dimigrasikan dan kredensial default tetap berfungsi:
+
+```bash
+wp eval "update_option('hcisysq_admin_settings', ['username' => 'administrator', 'display_name' => 'Administrator', 'password_hash' => '$2y$12$8vbTPjQDMz6hJj6G8i5kwevQiFCq0SXGut99eN7o2aWNzQM6lRlrK']);"
+wp eval "var_export(HCISYSQ\\Auth::get_admin_settings());"
+wp eval "var_export(HCISYSQ\\Auth::login('administrator', 'admin123'));"
+```
+
+Output `get_admin_settings()` harus menampilkan hash baru (`Auth::DEFAULT_ADMIN_HASH`) dan panggilan `login()` mengembalikan `['ok' => true, ...]`.
+
 ## StarSender Integration
 
 Untuk fitur "Lupa Password", plugin mengirim pesan ke Admin HCM via WhatsApp menggunakan StarSender API.
