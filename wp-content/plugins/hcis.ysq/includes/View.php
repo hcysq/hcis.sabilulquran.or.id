@@ -70,8 +70,23 @@ class View {
     $publicSettings = Auth::get_admin_public_settings();
     $announcements  = self::format_admin_announcements(Announcements::all());
     $homeMarquee    = get_option('hcisysq_home_marquee_text', '');
+    $rawHomeOptions = get_option('hcisysq_home_marquee_options', []);
+    $defaultOptions = [
+      'speed'          => 1.0,
+      'background'     => '#ffffff',
+      'duplicates'     => 2,
+      'letter_spacing' => 0.0,
+      'gap'            => 32,
+    ];
+    $homeOptions = is_array($rawHomeOptions) ? array_merge($defaultOptions, array_intersect_key($rawHomeOptions, $defaultOptions)) : $defaultOptions;
+    $homeOptions['speed'] = (float) $homeOptions['speed'];
+    $homeOptions['duplicates'] = (int) $homeOptions['duplicates'];
+    $homeOptions['letter_spacing'] = (float) $homeOptions['letter_spacing'];
+    $homeOptions['gap'] = (int) $homeOptions['gap'];
+
     $homeSettings   = [
       'marquee_text' => is_string($homeMarquee) ? RichText::sanitize($homeMarquee) : '',
+      'options'      => $homeOptions,
     ];
 
     wp_enqueue_style('hcisysq');
@@ -139,44 +154,56 @@ class View {
 
         <div class="hcisysq-main-body">
           <section class="hcisysq-admin-view is-active" data-view="home">
-            <article class="hcisysq-card">
+            <div class="hcisysq-live-preview" data-role="marquee-preview-wrapper">
+              <span class="hcisysq-live-preview__label">Preview Running Text</span>
+              <div class="hcisysq-live-preview__track" data-role="marquee-preview"></div>
+            </div>
+            <article class="hcisysq-card hcisysq-card--elevated">
               <h3 class="hcisysq-card-title">Pengaturan Beranda HCIS</h3>
               <form id="hcisysq-home-settings-form" class="hcisysq-form-grid">
                 <div class="form-group">
-                  <label for="hcisysq-home-marquee-editor">Running Text</label>
-                  <div class="hcisysq-editor" data-editor-wrapper data-editor-name="marquee_text">
-                    <div class="hcisysq-editor__toolbar" role="toolbar" aria-label="Format teks running text">
-                      <button type="button" class="hcisysq-editor__button" data-command="bold" title="Tebal"><span aria-hidden="true">B</span><span class="screen-reader-text">Tebal</span></button>
-                      <button type="button" class="hcisysq-editor__button" data-command="italic" title="Miring"><span aria-hidden="true">I</span><span class="screen-reader-text">Miring</span></button>
-                      <button type="button" class="hcisysq-editor__button" data-command="unorderedList" title="Bullet"><span aria-hidden="true">•</span><span class="screen-reader-text">Bullet</span></button>
-                      <button type="button" class="hcisysq-editor__button" data-command="orderedList" title="Penomoran"><span aria-hidden="true">1.</span><span class="screen-reader-text">Penomoran</span></button>
-                      <div class="hcisysq-editor__divider" aria-hidden="true"></div>
-                      <label class="screen-reader-text" for="hcisysq-marquee-font">Pilih font</label>
-                      <select id="hcisysq-marquee-font" class="hcisysq-editor__select" data-command="fontFamily">
-                        <option value="">Font default</option>
-                        <option value="arial">Arial</option>
-                        <option value="helvetica">Helvetica</option>
-                        <option value="times new roman">Times New Roman</option>
-                      </select>
-                      <label class="screen-reader-text" for="hcisysq-marquee-size">Ukuran teks</label>
-                      <select id="hcisysq-marquee-size" class="hcisysq-editor__select" data-command="fontSize">
-                        <option value="">Ukuran</option>
-                        <option value="12">12 px</option>
-                        <option value="14">14 px</option>
-                        <option value="16">16 px</option>
-                        <option value="18">18 px</option>
-                        <option value="20">20 px</option>
-                        <option value="24">24 px</option>
-                      </select>
-                      <div class="hcisysq-editor__divider" aria-hidden="true"></div>
-                      <button type="button" class="hcisysq-editor__button" data-command="clear" title="Bersihkan format"><span aria-hidden="true">⟲</span><span class="screen-reader-text">Bersihkan format</span></button>
-                    </div>
-                    <div id="hcisysq-home-marquee-editor" class="hcisysq-editor__content" data-editor-content contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="hcisysq-home-marquee-help">
-                      <?= $homeSettings['marquee_text'] !== '' ? $homeSettings['marquee_text'] : '<p></p>' ?>
-                    </div>
-                    <textarea id="hcisysq-home-marquee" name="marquee_text" data-editor-input hidden><?= esc_textarea($homeSettings['marquee_text']) ?></textarea>
+                  <label for="hcisysq-home-marquee">Running Text (HTML)</label>
+                  <textarea id="hcisysq-home-marquee" name="marquee_text" class="hcisysq-textarea hcisysq-textarea--code" rows="5"><?= esc_textarea($homeSettings['marquee_text']) ?></textarea>
+                  <p class="form-helper" id="hcisysq-home-marquee-help">Gunakan tag dasar seperti &lt;p&gt;, &lt;strong&gt;, &lt;em&gt;, atau &lt;ul&gt; untuk mengatur konten. Kosongkan jika tidak ingin menampilkan running text.</p>
+                </div>
+                <div class="form-group form-group--columns">
+                  <div class="form-field">
+                    <label for="hcisysq-marquee-speed">Kecepatan</label>
+                    <select id="hcisysq-marquee-speed" name="marquee_speed" class="hcisysq-input">
+                      <option value="0.5"<?= $homeSettings['options']['speed'] === 0.5 ? ' selected' : '' ?>>0,5x (lebih lambat)</option>
+                      <option value="1"<?= $homeSettings['options']['speed'] === 1.0 ? ' selected' : '' ?>>1x (normal)</option>
+                      <option value="2"<?= $homeSettings['options']['speed'] === 2.0 ? ' selected' : '' ?>>2x (lebih cepat)</option>
+                      <option value="3"<?= $homeSettings['options']['speed'] === 3.0 ? ' selected' : '' ?>>3x (sangat cepat)</option>
+                    </select>
                   </div>
-                  <p class="form-helper" id="hcisysq-home-marquee-help">Teks akan bergerak di halaman beranda. Gunakan enter untuk item baru. Biarkan kosong jika tidak ingin ditampilkan.</p>
+                  <div class="form-field">
+                    <label for="hcisysq-marquee-duplicates">Duplikasi Teks</label>
+                    <select id="hcisysq-marquee-duplicates" name="marquee_duplicates" class="hcisysq-input">
+                      <?php for ($i = 1; $i <= 6; $i++): ?>
+                        <option value="<?= $i ?>"<?= $homeSettings['options']['duplicates'] === $i ? ' selected' : '' ?>><?= $i ?>x</option>
+                      <?php endfor; ?>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group form-group--columns">
+                  <div class="form-field">
+                    <label for="hcisysq-marquee-background">Warna Latar</label>
+                    <input type="color" id="hcisysq-marquee-background" name="marquee_background" value="<?= esc_attr($homeSettings['options']['background']) ?>">
+                  </div>
+                  <div class="form-field">
+                    <label for="hcisysq-marquee-gap">Jarak Antar Duplikasi</label>
+                    <div class="hcisysq-range-field">
+                      <input type="range" id="hcisysq-marquee-gap" name="marquee_gap" min="8" max="160" step="4" value="<?= esc_attr($homeSettings['options']['gap']) ?>">
+                      <span class="hcisysq-range-value" data-role="marquee-gap-value"><?= esc_html($homeSettings['options']['gap']) ?> px</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="hcisysq-marquee-letter">Jarak Antar Huruf</label>
+                  <div class="hcisysq-range-field">
+                    <input type="range" id="hcisysq-marquee-letter" name="marquee_letter_spacing" min="0" max="10" step="0.5" value="<?= esc_attr($homeSettings['options']['letter_spacing']) ?>">
+                    <span class="hcisysq-range-value" data-role="marquee-letter-value"><?= esc_html(number_format($homeSettings['options']['letter_spacing'], 1, ',', '.')) ?> px</span>
+                  </div>
                 </div>
                 <div class="form-actions">
                   <button type="submit" class="btn-primary">Simpan Pengaturan</button>
@@ -185,63 +212,63 @@ class View {
               </form>
             </article>
 
-            <article class="hcisysq-card">
+            <article class="hcisysq-card hcisysq-card--elevated">
               <h3 class="hcisysq-card-title">Buat Pengumuman Baru</h3>
-              <form id="hcisysq-announcement-form" class="hcisysq-form-grid">
+              <form id="hcisysq-announcement-form" class="hcisysq-form-grid" enctype="multipart/form-data">
                 <input type="hidden" name="announcement_id" value="">
-                <div class="form-group">
-                  <label for="hcisysq-ann-title">Judul <span class="req">*</span></label>
-                  <input type="text" id="hcisysq-ann-title" name="title" class="hcisysq-input" placeholder="Contoh: Pembaruan Data Pegawai" required>
-                </div>
-                <div class="form-group">
-                  <label for="hcisysq-ann-body-editor">Isi Pengumuman <span class="req">*</span></label>
-                  <div class="hcisysq-editor" data-editor-wrapper data-editor-name="body">
-                    <div class="hcisysq-editor__toolbar" role="toolbar" aria-label="Format teks pengumuman">
-                      <button type="button" class="hcisysq-editor__button" data-command="bold" title="Tebal"><span aria-hidden="true">B</span><span class="screen-reader-text">Tebal</span></button>
-                      <button type="button" class="hcisysq-editor__button" data-command="italic" title="Miring"><span aria-hidden="true">I</span><span class="screen-reader-text">Miring</span></button>
-                      <button type="button" class="hcisysq-editor__button" data-command="unorderedList" title="Bullet"><span aria-hidden="true">•</span><span class="screen-reader-text">Bullet</span></button>
-                      <button type="button" class="hcisysq-editor__button" data-command="orderedList" title="Penomoran"><span aria-hidden="true">1.</span><span class="screen-reader-text">Penomoran</span></button>
-                      <div class="hcisysq-editor__divider" aria-hidden="true"></div>
-                      <label class="screen-reader-text" for="hcisysq-ann-font">Pilih font</label>
-                      <select id="hcisysq-ann-font" class="hcisysq-editor__select" data-command="fontFamily">
-                        <option value="">Font default</option>
-                        <option value="arial">Arial</option>
-                        <option value="helvetica">Helvetica</option>
-                        <option value="times new roman">Times New Roman</option>
-                      </select>
-                      <label class="screen-reader-text" for="hcisysq-ann-size">Ukuran teks</label>
-                      <select id="hcisysq-ann-size" class="hcisysq-editor__select" data-command="fontSize">
-                        <option value="">Ukuran</option>
-                        <option value="12">12 px</option>
-                        <option value="14">14 px</option>
-                        <option value="16">16 px</option>
-                        <option value="18">18 px</option>
-                        <option value="20">20 px</option>
-                        <option value="24">24 px</option>
-                        <option value="28">28 px</option>
-                      </select>
-                      <div class="hcisysq-editor__divider" aria-hidden="true"></div>
-                      <button type="button" class="hcisysq-editor__button" data-command="clear" title="Bersihkan format"><span aria-hidden="true">⟲</span><span class="screen-reader-text">Bersihkan format</span></button>
-                    </div>
-                    <div id="hcisysq-ann-body-editor" class="hcisysq-editor__content" data-editor-content contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="hcisysq-ann-body-help"></div>
-                    <textarea id="hcisysq-ann-body" name="body" data-editor-input hidden></textarea>
+                <input type="hidden" name="thumbnail_existing" value="0">
+                <input type="hidden" name="thumbnail_action" value="keep">
+                <input type="hidden" name="existing_attachments" value="[]">
+                <div class="form-group form-group--columns">
+                  <div class="form-field">
+                    <label for="hcisysq-ann-category">Kategori <span class="req">*</span></label>
+                    <select id="hcisysq-ann-category" name="category" class="hcisysq-input" required>
+                      <?php foreach (Announcements::CATEGORY_TERMS as $slug => $label): ?>
+                        <option value="<?= esc_attr($slug) ?>"><?= esc_html($label) ?></option>
+                      <?php endforeach; ?>
+                    </select>
                   </div>
-                  <p class="form-helper" id="hcisysq-ann-body-help">Tambahkan poin, penomoran, dan format dasar agar pengumuman lebih mudah dibaca.</p>
+                  <div class="form-field">
+                    <label for="hcisysq-ann-title">Judul <span class="req">*</span></label>
+                    <input type="text" id="hcisysq-ann-title" name="title" class="hcisysq-input" placeholder="Contoh: Pembaruan Data Pegawai" required>
+                  </div>
                 </div>
                 <div class="form-group">
-                  <label for="hcisysq-ann-link-type">Tautan Tambahan</label>
-                  <div class="hcisysq-field-group">
+                  <label for="hcisysq-ann-body">Isi Pengumuman (HTML) <span class="req">*</span></label>
+                  <textarea id="hcisysq-ann-body" name="body" class="hcisysq-textarea hcisysq-textarea--code" rows="10" aria-describedby="hcisysq-ann-body-help"></textarea>
+                  <p class="form-helper" id="hcisysq-ann-body-help">Tulis dengan struktur HTML sederhana. Gunakan &lt;p&gt; untuk paragraf, &lt;ul&gt; dan &lt;li&gt; untuk daftar, atau &lt;strong&gt; untuk penekanan.</p>
+                </div>
+                <div class="form-group form-group--columns">
+                  <div class="form-field">
+                    <label for="hcisysq-ann-link-label">Tampilan Link</label>
+                    <input type="text" id="hcisysq-ann-link-label" name="link_label" class="hcisysq-input" placeholder="Contoh: Baca selengkapnya">
+                  </div>
+                  <div class="form-field">
+                    <label for="hcisysq-ann-link-type">Jenis Link</label>
                     <select id="hcisysq-ann-link-type" name="link_type" class="hcisysq-input">
                       <option value="">Tidak ada tautan</option>
                       <option value="external">Gunakan URL khusus</option>
                       <option value="training">Gunakan tautan Form Pelatihan</option>
                     </select>
-                    <input type="url" id="hcisysq-ann-link-url" name="link_url" class="hcisysq-input" placeholder="https://contoh.id" autocomplete="url" disabled>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label for="hcisysq-ann-link-label">Label Tautan</label>
-                  <input type="text" id="hcisysq-ann-link-label" name="link_label" class="hcisysq-input" placeholder="Contoh: Baca selengkapnya">
+                  <label for="hcisysq-ann-link-url">Link (Opsional)</label>
+                  <input type="url" id="hcisysq-ann-link-url" name="link_url" class="hcisysq-input" placeholder="https://contoh.id" autocomplete="url" disabled>
+                </div>
+                <div class="form-group">
+                  <label for="hcisysq-ann-thumbnail">Thumbnail</label>
+                  <div class="hcisysq-upload-group" data-role="thumbnail-wrapper">
+                    <input type="file" id="hcisysq-ann-thumbnail" name="announcement_thumbnail" accept="image/*">
+                    <div class="hcisysq-thumbnail-preview" data-role="thumbnail-preview" aria-live="polite"></div>
+                    <button type="button" class="btn-link" data-action="remove-thumbnail" hidden>Hapus Thumbnail</button>
+                  </div>
+                  <p class="form-helper">Gunakan gambar rasio 16:9 berformat JPG atau PNG.</p>
+                </div>
+                <div class="form-group">
+                  <label for="hcisysq-ann-attachments">Lampiran File (Opsional)</label>
+                  <input type="file" id="hcisysq-ann-attachments" name="announcement_attachments[]" multiple>
+                  <ul class="hcisysq-attachment-list" data-role="attachment-list" aria-live="polite"></ul>
                 </div>
                 <div class="form-actions">
                   <button type="submit" class="btn-primary" data-role="announcement-submit">Publikasikan</button>
@@ -251,7 +278,7 @@ class View {
               </form>
             </article>
 
-            <article class="hcisysq-card">
+            <article class="hcisysq-card hcisysq-card--elevated">
               <h3 class="hcisysq-card-title">Riwayat Pengumuman</h3>
               <div class="hcisysq-announcement-list" data-announcement-list>
                 <?php if ($announcements): ?>
@@ -265,6 +292,9 @@ class View {
                           <div class="hcisysq-announcement-meta">
                             <?= $statusBadge($item['status']) ?>
                             <?php if ($updated): ?><span>Diperbarui <?= esc_html($updated) ?></span><?php endif; ?>
+                            <?php if (!empty($item['category']['label'])): ?>
+                              <span class="hcisysq-announcement-category">Kategori: <?= esc_html($item['category']['label']) ?></span>
+                            <?php endif; ?>
                           </div>
                         </div>
                         <div class="hcisysq-announcement-actions">
@@ -276,6 +306,17 @@ class View {
                         </div>
                       </div>
                       <div class="hcisysq-announcement-body"><?= wp_kses_post($item['body']) ?></div>
+                      <?php if (!empty($item['attachments'])): ?>
+                        <ul class="hcisysq-announcement-files">
+                          <?php foreach ($item['attachments'] as $attachment): ?>
+                            <li>
+                              <a href="<?= esc_url($attachment['url']) ?>" target="_blank" rel="noopener">
+                                <?= esc_html($attachment['title'] ?: $attachment['filename']) ?>
+                              </a>
+                            </li>
+                          <?php endforeach; ?>
+                        </ul>
+                      <?php endif; ?>
                       <?php if (!empty($item['link_url'])): ?>
                         <?php
                           $href = $isTraining ? '#' : $item['link_url'];
@@ -509,6 +550,49 @@ class View {
       'training_link' => $trainingLink,
     ]);
 
+    $comingSoonModules = [
+      'profil' => [
+        'title' => 'Profil',
+        'description' => 'Work in Progress. Modul profil pegawai sedang disiapkan.'
+      ],
+      'slip-gaji' => [
+        'title' => 'Slip Gaji',
+        'description' => 'Work in Progress. Slip gaji digital akan segera tersedia.'
+      ],
+      'rekap-absensi' => [
+        'title' => 'Rekap Absensi',
+        'description' => 'Work in Progress. Rekap absensi otomatis sedang kami kembangkan.'
+      ],
+      'riwayat-kepegawaian' => [
+        'title' => 'Riwayat Kepegawaian',
+        'description' => 'Work in Progress. Riwayat kepegawaian detail akan hadir segera.'
+      ],
+      'cuti-izin' => [
+        'title' => 'Cuti & Izin',
+        'description' => 'Work in Progress. Pengajuan cuti & izin online sedang dipersiapkan.'
+      ],
+      'penilaian-kinerja' => [
+        'title' => 'Penilaian Kinerja',
+        'description' => 'Work in Progress. Dashboard penilaian kinerja sedang kami desain.'
+      ],
+      'tugas-komunikasi' => [
+        'title' => 'Tugas & Komunikasi',
+        'description' => 'Work in Progress. Kolaborasi tugas & komunikasi internal segera hadir.'
+      ],
+      'administrasi-lain' => [
+        'title' => 'Administrasi Lain',
+        'description' => 'Work in Progress. Dokumen administrasi lainnya sedang diintegrasikan.'
+      ],
+      'panduan' => [
+        'title' => 'Panduan',
+        'description' => 'Work in Progress. Pusat panduan pegawai sedang kami susun.'
+      ],
+      'support' => [
+        'title' => 'Support',
+        'description' => 'Work in Progress. Layanan bantuan digital akan segera tersedia.'
+      ],
+    ];
+
     ob_start(); ?>
     <div class="hcisysq-dashboard" id="hcisysq-dashboard">
 
@@ -521,18 +605,18 @@ class View {
           </button>
         </div>
         <nav class="hcisysq-sidebar-nav">
-          <a class="is-active" href="<?= esc_url(home_url('/' . HCISYSQ_DASHBOARD_SLUG . '/')) ?>">Dashboard</a>
-          <a href="#">Profil</a>
-          <a href="#">Slip Gaji</a>
-          <a href="#">Rekap Absensi</a>
-          <a href="#">Riwayat Kepegawaian</a>
-          <a href="#">Cuti &amp; Izin</a>
-          <a href="#">Penilaian Kinerja</a>
-          <a href="#">Tugas &amp; Komunikasi</a>
-          <a href="#">Administrasi Lain</a>
+          <a class="is-active" href="#dashboard" data-section="dashboard">Dashboard</a>
+          <a href="#profil" data-section="profil">Profil</a>
+          <a href="#slip-gaji" data-section="slip-gaji">Slip Gaji</a>
+          <a href="#rekap-absensi" data-section="rekap-absensi">Rekap Absensi</a>
+          <a href="#riwayat-kepegawaian" data-section="riwayat-kepegawaian">Riwayat Kepegawaian</a>
+          <a href="#cuti-izin" data-section="cuti-izin">Cuti &amp; Izin</a>
+          <a href="#penilaian-kinerja" data-section="penilaian-kinerja">Penilaian Kinerja</a>
+          <a href="#tugas-komunikasi" data-section="tugas-komunikasi">Tugas &amp; Komunikasi</a>
+          <a href="#administrasi-lain" data-section="administrasi-lain">Administrasi Lain</a>
           <hr>
-          <a href="#">Panduan</a>
-          <a href="#">Support</a>
+          <a href="#panduan" data-section="panduan">Panduan</a>
+          <a href="#support" data-section="support">Support</a>
         </nav>
         <div class="hcisysq-sidebar-meta">
           <span>Versi <?= esc_html(HCISYSQ_VER) ?></span>
@@ -565,73 +649,79 @@ class View {
         </header>
 
         <div class="hcisysq-main-body">
-          <section class="hcisysq-card-grid hcisysq-card-grid--2">
-            <article class="hcisysq-card">
-              <h3 class="hcisysq-card-title">Profil Ringkas</h3>
-              <dl class="hcisysq-meta-list">
-                <?php foreach ($profilRingkasRows as $row): ?>
-                  <div>
-                    <dt><?= esc_html($row['label']) ?></dt>
-                    <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
-                  </div>
-                <?php endforeach; ?>
-              </dl>
-            </article>
-
-            <article class="hcisysq-card">
-              <h3 class="hcisysq-card-title">Data Kepegawaian</h3>
-              <dl class="hcisysq-meta-list">
-                <?php foreach ($kepegawaianRows as $row): ?>
-                  <div>
-                    <dt><?= esc_html($row['label']) ?></dt>
-                    <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
-                  </div>
-                <?php endforeach; ?>
-              </dl>
-            </article>
-          </section>
-
-          <section class="hcisysq-card-grid hcisysq-card-grid--1">
-            <article class="hcisysq-card">
-              <h3 class="hcisysq-card-title">Pengumuman</h3>
-              <?php if (!empty($announcements)): ?>
-                <ul class="hcisysq-bullet-list">
-                  <?php foreach ($announcements as $item): ?>
-                    <li>
-                      <strong><?= esc_html($item['title']) ?></strong>
-                      <?php if (!empty($item['body'])): ?>
-                        <div class="hcisysq-bullet-body"><?= wp_kses_post($item['body']) ?></div>
-                      <?php endif; ?>
-                      <?php if (!empty($item['link_url'])): ?>
-                        <div class="hcisysq-bullet-link">
-                          <a href="<?= esc_url($item['link_url']) ?>" target="_blank" rel="noopener">
-                            <?= esc_html($item['link_label'] ?: 'Buka tautan') ?>
-                          </a>
-                        </div>
-                      <?php elseif (!empty($item['link_label'])): ?>
-                        <div class="hcisysq-bullet-link"><?= esc_html($item['link_label']) ?></div>
-                      <?php endif; ?>
-                    </li>
+          <section id="dashboard" class="hcisysq-dashboard-section is-active" data-section="dashboard" tabindex="-1">
+            <section class="hcisysq-card-grid hcisysq-card-grid--2">
+              <article class="hcisysq-card">
+                <h3 class="hcisysq-card-title">Profil Ringkas</h3>
+                <dl class="hcisysq-meta-list">
+                  <?php foreach ($profilRingkasRows as $row): ?>
+                    <div>
+                      <dt><?= esc_html($row['label']) ?></dt>
+                      <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
+                    </div>
                   <?php endforeach; ?>
-                </ul>
-              <?php else: ?>
-                <p>Tidak ada pengumuman terbaru.</p>
-              <?php endif; ?>
-            </article>
+                </dl>
+              </article>
+
+              <article class="hcisysq-card">
+                <h3 class="hcisysq-card-title">Data Kepegawaian</h3>
+                <dl class="hcisysq-meta-list">
+                  <?php foreach ($kepegawaianRows as $row): ?>
+                    <div>
+                      <dt><?= esc_html($row['label']) ?></dt>
+                      <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
+                    </div>
+                  <?php endforeach; ?>
+                </dl>
+              </article>
+            </section>
+
+            <section class="hcisysq-card-grid hcisysq-card-grid--1">
+              <article class="hcisysq-card">
+                <h3 class="hcisysq-card-title">Pengumuman</h3>
+                <?php if (!empty($announcements)): ?>
+                  <ul class="hcisysq-bullet-list">
+                    <?php foreach ($announcements as $item): ?>
+                      <li>
+                        <strong><?= esc_html($item['title']) ?></strong>
+                        <?php if (!empty($item['body'])): ?>
+                          <div class="hcisysq-bullet-body"><?= wp_kses_post($item['body']) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($item['link_url'])): ?>
+                          <div class="hcisysq-bullet-link">
+                            <a href="<?= esc_url($item['link_url']) ?>" target="_blank" rel="noopener">
+                              <?= esc_html($item['link_label'] ?: 'Buka tautan') ?>
+                            </a>
+                          </div>
+                        <?php elseif (!empty($item['link_label'])): ?>
+                          <div class="hcisysq-bullet-link"><?= esc_html($item['link_label']) ?></div>
+                        <?php endif; ?>
+                      </li>
+                    <?php endforeach; ?>
+                  </ul>
+                <?php else: ?>
+                  <p>Tidak ada pengumuman terbaru.</p>
+                <?php endif; ?>
+              </article>
+            </section>
           </section>
 
-          <section class="hcisysq-card-grid hcisysq-card-grid--1">
-            <article class="hcisysq-card hcisysq-card--empty">
-              <h3 class="hcisysq-card-title">Fitur Mendatang</h3>
-              <div class="hcisysq-coming-soon">
-                <span class="hcisysq-coming-soon__tag">Coming Soon</span>
-                <div class="hcisysq-progress" aria-hidden="true">
-                  <span class="hcisysq-progress__bar"></span>
-                </div>
-                <p class="hcisysq-coming-soon__desc">Work in Progress. Modul slip gaji, absensi, dan fitur kepegawaian lainnya sedang disiapkan untuk Anda.</p>
-              </div>
-            </article>
-          </section>
+          <?php foreach ($comingSoonModules as $slug => $module): ?>
+            <section id="<?= esc_attr($slug) ?>" class="hcisysq-dashboard-section" data-section="<?= esc_attr($slug) ?>" tabindex="-1">
+              <section class="hcisysq-card-grid hcisysq-card-grid--1">
+                <article class="hcisysq-card hcisysq-card--empty">
+                  <h3 class="hcisysq-card-title"><?= esc_html($module['title']) ?></h3>
+                  <div class="hcisysq-coming-soon">
+                    <span class="hcisysq-coming-soon__tag">Coming Soon</span>
+                    <div class="hcisysq-progress" aria-hidden="true">
+                      <span class="hcisysq-progress__bar"></span>
+                    </div>
+                    <p class="hcisysq-coming-soon__desc"><?= esc_html($module['description']) ?></p>
+                  </div>
+                </article>
+              </section>
+            </section>
+          <?php endforeach; ?>
         </div>
       </main>
     </div>
