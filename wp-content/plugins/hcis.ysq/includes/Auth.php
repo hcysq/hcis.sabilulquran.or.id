@@ -7,7 +7,10 @@ class Auth {
   const ADMIN_OPTION = 'hcisysq_admin_settings';
   const DEFAULT_ADMIN_USERNAME = 'administrator';
   const DEFAULT_ADMIN_DISPLAY = 'Administrator';
-  const DEFAULT_ADMIN_HASH = '$2y$12$8vbTPjQDMz6hJj6G8i5kwevQiFCq0SXGut99eN7o2aWNzQM6lRlrK';
+  const DEFAULT_ADMIN_HASH = '$2y$12$7fBX0IxS.xqxJUVNYKDkEeMvHD8ecsBfSV6zCMf3vYmMAT6Bxfk5e';
+  const LEGACY_ADMIN_HASHES = [
+    '$2y$12$8vbTPjQDMz6hJj6G8i5kwevQiFCq0SXGut99eN7o2aWNzQM6lRlrK',
+  ];
 
   private static function determine_cookie_domain(){
     if (defined('COOKIE_DOMAIN') && COOKIE_DOMAIN) {
@@ -131,9 +134,19 @@ class Auth {
       $dirty = true;
     }
 
-    $passwordHash = !empty($raw['password_hash']) ? $raw['password_hash'] : self::DEFAULT_ADMIN_HASH;
-    if (empty($raw['password_hash'])) {
-      $dirty = true;
+    $storedHashRaw = isset($raw['password_hash']) ? strval($raw['password_hash']) : '';
+    $storedHash = trim($storedHashRaw);
+
+    if ($storedHash === '' || in_array($storedHash, self::LEGACY_ADMIN_HASHES, true)) {
+      $passwordHash = self::DEFAULT_ADMIN_HASH;
+      if ($storedHash !== self::DEFAULT_ADMIN_HASH) {
+        $dirty = true;
+      }
+    } else {
+      $passwordHash = $storedHash;
+      if ($storedHashRaw !== $storedHash) {
+        $dirty = true;
+      }
     }
 
     $settings = [

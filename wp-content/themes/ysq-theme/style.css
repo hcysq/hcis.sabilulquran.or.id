@@ -4,7 +4,7 @@ Theme URI: https://login.sabilulquran.or.id
 Author: Yayasan Sabilul Qur'an
 Author URI: https://sabilulquran.or.id
 Description: Tema ringan untuk subdomain login HRIS Yayasan Sabilul Qur'an
-Version: 1.3
+Version: 1.5
 License: GNU General Public License v2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: ysq
@@ -166,12 +166,6 @@ body {
   }
   100% {
     transform: translateX(-50%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .site-marquee__track {
-    animation: none;
   }
 }
 
