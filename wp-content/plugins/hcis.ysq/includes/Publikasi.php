@@ -352,8 +352,16 @@ class Publikasi {
   }
 }
 
-if (!function_exists('ysq_get_views')) {
+if (!function_exists(__NAMESPACE__ . '\\ysq_get_views')) {
   function ysq_get_views($post_id) {
     return (int) get_post_meta($post_id, '_ysq_views', true);
+  }
+}
+
+namespace {
+  if (!function_exists('ysq_get_views')) {
+    function ysq_get_views($post_id) {
+      return \HCISYSQ\ysq_get_views($post_id);
+    }
   }
 }
