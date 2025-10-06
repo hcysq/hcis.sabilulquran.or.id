@@ -321,6 +321,7 @@
     const state = {
       announcements: Array.isArray(initial.announcements) ? initial.announcements.slice() : [],
       settings: initial.settings ? { ...initial.settings } : {},
+      home: initial.home ? { ...initial.home } : { marquee_text: '' },
     };
 
     const nav = root.querySelector('[data-admin-nav]');
@@ -351,6 +352,54 @@
 
     const annContainer = root.querySelector('[data-announcement-list]');
     const annMessage = root.querySelector('[data-role="announcement-message"]');
+    const homeForm = root.querySelector('#hcisysq-home-settings-form');
+    const homeMessage = homeForm ? homeForm.querySelector('[data-role="home-message"]') : null;
+
+    function updateHomeUI(data) {
+      state.home = data ? { ...data } : { marquee_text: '' };
+      if (homeForm && homeForm.marquee_text) {
+        homeForm.marquee_text.value = state.home.marquee_text || '';
+      }
+    }
+
+    updateHomeUI(state.home);
+
+    if (homeForm) {
+      homeForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const submitBtn = homeForm.querySelector('button[type="submit"]');
+        const marqueeValue = (homeForm.marquee_text.value || '').trim();
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Menyimpan...';
+        }
+        if (homeMessage) {
+          homeMessage.className = 'msg';
+          homeMessage.textContent = 'Menyimpan pengaturan...';
+        }
+
+        ajax('hcisysq_admin_save_home_settings', {
+          marquee_text: marqueeValue,
+        }).then((res) => {
+          if (res && res.ok) {
+            updateHomeUI(res.home || {});
+            if (homeMessage) {
+              homeMessage.className = 'msg ok';
+              homeMessage.textContent = res.msg || 'Pengaturan beranda tersimpan.';
+            }
+          } else if (homeMessage) {
+            homeMessage.className = 'msg';
+            homeMessage.textContent = (res && res.msg) ? res.msg : 'Gagal menyimpan pengaturan beranda.';
+          }
+        }).finally(() => {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Simpan Pengaturan';
+          }
+        });
+      });
+    }
 
     function setAnnouncementMessage(text, ok = false) {
       if (!annMessage) return;

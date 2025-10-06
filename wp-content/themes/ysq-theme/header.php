@@ -45,9 +45,8 @@
 
         $show_login_button = $show_buttons && !$is_wp_user_logged_in && !$is_admin_logged_in && !$is_hcis_logged_in && '' !== $login_button_text;
         $show_main_button  = $show_buttons && '' !== $main_button_text && '' !== $main_button_url;
-        $is_homepage       = is_front_page() || is_home();
 
-        if ($is_homepage && ($show_login_button || $show_main_button)) :
+        if ($show_login_button || $show_main_button) :
         ?>
             <nav class="main-navigation">
                 <?php if ($show_login_button) : ?>
@@ -65,5 +64,44 @@
         <?php endif; ?>
     </div>
 </header>
+
+<?php
+$marquee_raw   = get_option('hcisysq_home_marquee_text', '');
+$marquee_items = array();
+
+if (is_string($marquee_raw)) {
+    $marquee_raw = trim(wp_strip_all_tags($marquee_raw));
+}
+
+if (!empty($marquee_raw)) {
+    $segments = preg_split('/\r\n|\r|\n/', $marquee_raw);
+    if (is_array($segments)) {
+        foreach ($segments as $segment) {
+            $segment = trim($segment);
+            if ($segment !== '') {
+                $marquee_items[] = $segment;
+            }
+        }
+    }
+
+    if (empty($marquee_items)) {
+        $marquee_items[] = $marquee_raw;
+    }
+}
+
+if (!empty($marquee_items)) :
+    ?>
+    <div class="site-marquee" role="region" aria-label="<?php esc_attr_e('Informasi berjalan', 'ysq'); ?>">
+        <div class="site-marquee__track" aria-live="polite">
+            <?php for ($i = 0; $i < 2; $i++) : ?>
+                <div class="site-marquee__segment"<?php echo $i > 0 ? ' aria-hidden="true"' : ''; ?>>
+                    <?php foreach ($marquee_items as $item) : ?>
+                        <span class="site-marquee__item"><?php echo esc_html($item); ?></span>
+                    <?php endforeach; ?>
+                </div>
+            <?php endfor; ?>
+        </div>
+    </div>
+<?php endif; ?>
 
 <main class="site-main">

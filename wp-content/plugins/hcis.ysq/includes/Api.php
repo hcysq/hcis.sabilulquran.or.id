@@ -216,6 +216,22 @@ class Api {
     ]);
   }
 
+  public static function admin_save_home_settings(){
+    self::check_nonce();
+    self::require_admin();
+
+    $marquee = isset($_POST['marquee_text']) ? sanitize_textarea_field(wp_unslash($_POST['marquee_text'])) : '';
+    update_option('hcisysq_home_marquee_text', $marquee, false);
+
+    wp_send_json([
+      'ok'   => true,
+      'msg'  => 'Pengaturan beranda tersimpan.',
+      'home' => [
+        'marquee_text' => $marquee,
+      ],
+    ]);
+  }
+
   public static function logout(){
     Auth::logout();
     wp_send_json(['ok'=>true]);

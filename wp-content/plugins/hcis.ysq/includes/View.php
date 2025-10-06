@@ -68,7 +68,11 @@ class View {
 
   private static function render_admin_dashboard(array $identity){
     $publicSettings = Auth::get_admin_public_settings();
-    $announcements = self::format_admin_announcements(Announcements::all());
+    $announcements  = self::format_admin_announcements(Announcements::all());
+    $homeMarquee    = get_option('hcisysq_home_marquee_text', '');
+    $homeSettings   = [
+      'marquee_text' => is_string($homeMarquee) ? $homeMarquee : '',
+    ];
 
     wp_enqueue_style('hcisysq');
     wp_enqueue_script('hcisysq');
@@ -76,6 +80,7 @@ class View {
     $inline = [
       'announcements' => $announcements,
       'settings'      => $publicSettings,
+      'home'          => $homeSettings,
     ];
     wp_add_inline_script('hcisysq', 'window.hcisysqAdmin = ' . wp_json_encode($inline) . ';', 'before');
 
@@ -95,7 +100,7 @@ class View {
           </button>
         </div>
         <nav class="hcisysq-sidebar-nav" data-admin-nav>
-          <a href="#" class="is-active" data-view="announcements">Pengumuman</a>
+          <a href="#" class="is-active" data-view="home">Beranda HCIS</a>
           <a href="#" data-view="pegawai">Data Pegawai</a>
           <a href="#" data-view="pelatihan">Pelatihan</a>
           <a href="#" data-view="pengguna">Kelola Pengguna</a>
@@ -133,7 +138,22 @@ class View {
         </header>
 
         <div class="hcisysq-main-body">
-          <section class="hcisysq-admin-view is-active" data-view="announcements">
+          <section class="hcisysq-admin-view is-active" data-view="home">
+            <article class="hcisysq-card">
+              <h3 class="hcisysq-card-title">Pengaturan Beranda HCIS</h3>
+              <form id="hcisysq-home-settings-form" class="hcisysq-form-grid">
+                <div class="form-group">
+                  <label for="hcisysq-home-marquee">Running Text (tulis satu item per baris)</label>
+                  <textarea id="hcisysq-home-marquee" name="marquee_text" rows="3" placeholder="Contoh: Assalamualaikum, selamat datang di HCIS.&#10;Contoh lainnya: Silakan cek pengumuman terbaru."><?= esc_textarea($homeSettings['marquee_text']) ?></textarea>
+                  <p class="form-helper">Teks akan bergerak di halaman beranda. Biarkan kosong jika tidak ingin ditampilkan.</p>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn-primary">Simpan Pengaturan</button>
+                  <div class="msg" data-role="home-message"></div>
+                </div>
+              </form>
+            </article>
+
             <article class="hcisysq-card">
               <h3 class="hcisysq-card-title">Buat Pengumuman Baru</h3>
               <form id="hcisysq-announcement-form" class="hcisysq-form-grid">
@@ -243,28 +263,52 @@ class View {
           <section class="hcisysq-admin-view" data-view="pegawai">
             <article class="hcisysq-card hcisysq-card--empty">
               <h3 class="hcisysq-card-title">Data Pegawai</h3>
-              <p class="hcisysq-empty">Menu ini akan menampilkan rekap data pegawai. (Dalam pengembangan)</p>
+              <div class="hcisysq-coming-soon">
+                <span class="hcisysq-coming-soon__tag">Coming Soon</span>
+                <div class="hcisysq-progress" aria-hidden="true">
+                  <span class="hcisysq-progress__bar"></span>
+                </div>
+                <p class="hcisysq-coming-soon__desc">Work in Progress. Modul Data Pegawai sedang disiapkan.</p>
+              </div>
             </article>
           </section>
 
           <section class="hcisysq-admin-view" data-view="pelatihan">
             <article class="hcisysq-card hcisysq-card--empty">
               <h3 class="hcisysq-card-title">Pelatihan</h3>
-              <p class="hcisysq-empty">Rencana modul pelatihan akan tampil di sini.</p>
+              <div class="hcisysq-coming-soon">
+                <span class="hcisysq-coming-soon__tag">Coming Soon</span>
+                <div class="hcisysq-progress" aria-hidden="true">
+                  <span class="hcisysq-progress__bar"></span>
+                </div>
+                <p class="hcisysq-coming-soon__desc">Work in Progress. Integrasi laporan pelatihan sedang dalam tahap pembangunan.</p>
+              </div>
             </article>
           </section>
 
           <section class="hcisysq-admin-view" data-view="pengguna">
             <article class="hcisysq-card hcisysq-card--empty">
               <h3 class="hcisysq-card-title">Kelola Pengguna</h3>
-              <p class="hcisysq-empty">Pengaturan pengguna tambahan akan segera hadir.</p>
+              <div class="hcisysq-coming-soon">
+                <span class="hcisysq-coming-soon__tag">Coming Soon</span>
+                <div class="hcisysq-progress" aria-hidden="true">
+                  <span class="hcisysq-progress__bar"></span>
+                </div>
+                <p class="hcisysq-coming-soon__desc">Work in Progress. Fitur manajemen pengguna lanjutan akan tersedia segera.</p>
+              </div>
             </article>
           </section>
 
           <section class="hcisysq-admin-view" data-view="laporan">
             <article class="hcisysq-card hcisysq-card--empty">
               <h3 class="hcisysq-card-title">Laporan</h3>
-              <p class="hcisysq-empty">Area laporan dan analytics administrator.</p>
+              <div class="hcisysq-coming-soon">
+                <span class="hcisysq-coming-soon__tag">Coming Soon</span>
+                <div class="hcisysq-progress" aria-hidden="true">
+                  <span class="hcisysq-progress__bar"></span>
+                </div>
+                <p class="hcisysq-coming-soon__desc">Work in Progress. Laporan analitik administrator sedang kami kembangkan.</p>
+              </div>
             </article>
           </section>
         </div>
@@ -385,26 +429,16 @@ class View {
       ['label' => 'Masa Kerja', 'value' => $masaKerja],
     ];
 
-    $contactLines = array_values(array_filter([
-      $hp ? 'HP: ' . $hp : '',
-      $email ? 'Email: ' . $email : '',
-    ]));
-
-    $profileRows = [
-      ['label' => 'Tempat Lahir', 'value' => $tempat],
-      ['label' => 'Tanggal Lahir', 'value' => $tanggal],
-      ['label' => 'Alamat Domisili', 'value' => $alamatFull],
-    ];
-
     wp_enqueue_style('hcisysq');
     wp_enqueue_script('hcisysq');
 
-    $trainingFormBase = 'https://script.google.com/macros/s/AKfycbxReKFiKsW1BtDZufNNi4sCuazw5jjzUQ9iHDPylmm9ARuAudqsB6CmSI_2vNpng3uP/exec';
-    $trainingLink = sprintf(
-      '%s?nip=%s&nama=%s',
-      $trainingFormBase,
-      urlencode((string)($me->nip ?? '')),
-      urlencode((string)($me->nama ?? ''))
+    $formSlug = defined('HCISYSQ_FORM_SLUG') ? trim((string)HCISYSQ_FORM_SLUG, '/') : 'pelatihan';
+    $trainingLink = add_query_arg(
+      [
+        'nip'  => (string)($me->nip ?? ''),
+        'nama' => (string)($me->nama ?? ''),
+      ],
+      home_url('/' . ($formSlug !== '' ? $formSlug . '/' : ''))
     );
 
     $announcements = Announcements::published_for_user([
@@ -484,33 +518,6 @@ class View {
               <h3 class="hcisysq-card-title">Data Kepegawaian</h3>
               <dl class="hcisysq-meta-list">
                 <?php foreach ($kepegawaianRows as $row): ?>
-                  <div>
-                    <dt><?= esc_html($row['label']) ?></dt>
-                    <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
-                  </div>
-                <?php endforeach; ?>
-              </dl>
-            </article>
-          </section>
-
-          <section class="hcisysq-card-grid hcisysq-card-grid--1">
-            <article class="hcisysq-card">
-              <h3 class="hcisysq-card-title">Kontak Utama</h3>
-              <p>
-                <?php if (!empty($contactLines)): ?>
-                  <?php foreach ($contactLines as $idx => $line): ?>
-                    <?= esc_html($line) ?><?php if ($idx < count($contactLines) - 1): ?><br><?php endif; ?>
-                  <?php endforeach; ?>
-                <?php else: ?>
-                  <span>-</span>
-                <?php endif; ?>
-              </p>
-            </article>
-
-            <article class="hcisysq-card">
-              <h3 class="hcisysq-card-title">Informasi Pribadi</h3>
-              <dl class="hcisysq-meta-list">
-                <?php foreach ($profileRows as $row): ?>
                   <div>
                     <dt><?= esc_html($row['label']) ?></dt>
                     <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
