@@ -54,19 +54,6 @@ if (!defined('HCISYSQ_SS_KEY')) define('HCISYSQ_SS_KEY', '4a74d8ae-8d5d-4e95-8f1
 if (!defined('HCISYSQ_SS_HC'))  define('HCISYSQ_SS_HC',  '6285175201627'); // ganti sesuai
 
 /* =======================================================
- *  ** KONFIG SSO → Google Apps Script **
- *  EDIT BAGIAN INI
- * ======================================================= */
-if (!defined('HCISYSQ_GAS_EXEC_URL')) {
-  // URL /exec dari Apps Script (deployment web app)
-  define('HCISYSQ_GAS_EXEC_URL', 'https://script.google.com/macros/s/AKfycbxReKFiKsW1BtDZufNNi4sCuazw5jjzUQ9iHDPylmm9ARuAudqsB6CmSI_2vNpng3uP/exec'); // TODO: GANTI
-}
-if (!defined('HCISYSQ_SSO_SECRET')) {
-  // Secret acak, simpan juga di Apps Script Script Properties: key = SSO_SHARED_SECRET
-  define('HCISYSQ_SSO_SECRET', '5e9b3c8b20d130fe64f9d41c427ba81ffc6696045b76a5e57e7ca1eea37c0cbd'); // TODO: GANTI
-}
-
-/* =======================================================
  *  Includes
  * ======================================================= */
 require_once HCISYSQ_DIR . 'includes/Installer.php';
@@ -83,6 +70,7 @@ require_once HCISYSQ_DIR . 'includes/Assets.php';
 require_once HCISYSQ_DIR . 'includes/Shortcodes.php';
 require_once HCISYSQ_DIR . 'includes/Forgot.php';
 require_once HCISYSQ_DIR . 'includes/Publikasi.php';
+require_once HCISYSQ_DIR . 'includes/Hcis_Gas_Token.php';
 
 /* =======================================================
  *  Activation (create tables)
@@ -97,6 +85,7 @@ HCISYSQ\Shortcodes::init();
 HCISYSQ\Forgot::init();
 HCISYSQ\Announcements::init();
 HCISYSQ\Publikasi::init();
+HCISYSQ\Hcis_Gas_Token::init();
 
 /* =======================================================
  *  AJAX endpoints
@@ -165,102 +154,6 @@ add_action('template_redirect', function () {
     wp_safe_redirect($to(HCISYSQ_DASHBOARD_SLUG));
     exit;
   }
-});
-
-/* =======================================================
- *  ======= SSO → Google Apps Script (HMAC token) =======
- * ======================================================= */
-
-/** base64url helper */
-function hcisysq_base64url($bin) {
-  return rtrim(strtr(base64_encode($bin), '+/', '-_'), '=');
-}
-
-/** bikin token: base64url(JSON) . '.' . base64url(HMAC_SHA256(payload, secret)) */
-function hcisysq_make_token(array $claims) {
-  $payload = hcisysq_base64url(json_encode($claims, JSON_UNESCAPED_UNICODE));
-  $sig     = hcisysq_base64url(hash_hmac('sha256', $payload, HCISYSQ_SSO_SECRET, true));
-  return $payload . '.' . $sig;
-}
-
-/** ambil klaim user dari sistemmu (coba dari Auth kustom lalu fallback WP) */
-function hcisysq_current_claims() {
-  $now = time();
-  $claims = [
-    'nip'     => '',
-    'nama'    => '',
-    'unit'    => '',
-    'jabatan' => '',
-    'iat'     => $now,
-    'exp'     => $now + 300, // 5 menit
-    'jti'     => wp_generate_uuid4(),
-  ];
-
-  // 1) coba pakai sistem Auth plugin (kalau ada)
-  if (class_exists('HCISYSQ\\Auth')) {
-    $u = HCISYSQ\Auth::current_user();
-    if (is_array($u) && !empty($u)) {
-      $claims['nip']     = (string)($u['nip']     ?? '');
-      $claims['nama']    = (string)($u['nama']    ?? ($u['display_name'] ?? ''));
-      $claims['unit']    = (string)($u['unit']    ?? '');
-      $claims['jabatan'] = (string)($u['jabatan'] ?? '');
-    }
-  }
-
-  // 2) fallback: WP user standar
-  if (empty($claims['nama']) || empty($claims['nip'])) {
-    if (is_user_logged_in()) {
-      $wp = wp_get_current_user();
-      if ($wp && $wp->ID) {
-        $claims['nama'] = $claims['nama'] ?: trim($wp->display_name ?: ($wp->first_name . ' ' . $wp->last_name));
-        $claims['nip']  = $claims['nip']  ?: (string)get_user_meta($wp->ID, 'nip', true);
-        $claims['unit'] = $claims['unit'] ?: (string)(get_user_meta($wp->ID, 'unit', true) ?: get_user_meta($wp->ID, 'hr_unit', true));
-        $claims['jabatan'] = $claims['jabatan'] ?: (string)(get_user_meta($wp->ID, 'jabatan', true) ?: get_user_meta($wp->ID, 'hr_jabatan', true));
-      }
-    }
-  }
-
-  return $claims;
-}
-
-/** bangun URL redirect ke GAS (pakai token) */
-function hcisysq_build_gas_url(array $claims) {
-  $token = hcisysq_make_token($claims);
-  $url   = add_query_arg('token', rawurlencode($token), HCISYSQ_GAS_EXEC_URL);
-
-  // (opsional) fallback prefill GET untuk debug/manual (tidak dipakai jika token dipakai)
-  $url   = add_query_arg([
-    'prefill_nama'    => rawurlencode($claims['nama']),
-    'prefill_nip'     => rawurlencode($claims['nip']),
-    'prefill_unit'    => rawurlencode($claims['unit']),
-    'prefill_jabatan' => rawurlencode($claims['jabatan']),
-  ], $url);
-
-  return $url;
-}
-
-/** handler admin-post.php?action=hcisysq_go */
-add_action('admin_post_hcisysq_go', function(){
-  // wajib login via sistemmu
-  if (!HCISYSQ\Auth::current_user() && !is_user_logged_in()) {
-    $login = trailingslashit(home_url('/' . HCISYSQ_LOGIN_SLUG));
-    wp_safe_redirect($login);
-    exit;
-  }
-
-  $claims = hcisysq_current_claims();
-
-  // validasi minimal
-  if (empty($claims['nama']) || empty($claims['nip'])) {
-    hcisysq_log('SSO error: klaim tidak lengkap ' . json_encode($claims));
-    wp_die('Data akun belum lengkap untuk SSO (butuh nama & NIP). Hubungi admin.');
-  }
-
-  $url = hcisysq_build_gas_url($claims);
-  hcisysq_log('SSO redirect → ' . $url);
-
-  wp_safe_redirect($url);
-  exit;
 });
 
 /* =======================================================

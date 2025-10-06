@@ -72,13 +72,13 @@ class Admin {
       if (isset($_POST['save_wa_settings'])) {
         $admin_wa = sanitize_text_field($_POST['hcisysq_admin_wa'] ?? '');
         $wa_token = sanitize_text_field($_POST['hcisysq_wa_token'] ?? '');
-        $gas_url = esc_url_raw($_POST['hcisysq_gas_url'] ?? '');
+        $gas_api_key = sanitize_text_field($_POST['hcis_gas_api_key'] ?? '');
 
         update_option('hcisysq_admin_wa', $admin_wa);
         update_option('hcisysq_wa_token', $wa_token);
-        update_option('hcisysq_gas_url', $gas_url);
+        update_option(Hcis_Gas_Token::OPTION_API_KEY, $gas_api_key);
 
-        $msg .= "<strong>WhatsApp & SSO settings saved.</strong><br>";
+        $msg .= "<strong>WhatsApp & GAS settings saved.</strong><br>";
       }
     }
 
@@ -89,6 +89,7 @@ class Admin {
     $training_tab_name = esc_attr(Trainings::get_tab_name());
     $training_drive_folder = esc_attr(Trainings::get_drive_folder_id());
     $training_webapp_url = esc_url(Trainings::get_webapp_url());
+    $gas_api_key = esc_attr(get_option(Hcis_Gas_Token::OPTION_API_KEY, ''));
     ?>
     <div class="wrap">
       <h1>HCIS.YSQ • Settings & Import</h1>
@@ -211,11 +212,11 @@ class Admin {
             </td>
           </tr>
           <tr>
-            <th scope="row"><label for="hcisysq_gas_url">Default GAS URL (SSO)</label></th>
+            <th scope="row"><label for="hcis_gas_api_key">HCIS GAS API Key</label></th>
             <td>
-              <input type="url" id="hcisysq_gas_url" name="hcisysq_gas_url" class="regular-text code" style="width: 600px"
-                     value="<?= esc_attr(get_option('hcisysq_gas_url', '')) ?>" placeholder="https://script.google.com/macros/s/…/exec">
-              <p class="description">URL Google Apps Script untuk SSO form pelatihan (dengan token HMAC).</p>
+              <input type="password" id="hcis_gas_api_key" name="hcis_gas_api_key" class="regular-text" style="width: 400px"
+                     value="<?= $gas_api_key ?>" autocomplete="off" placeholder="Masukkan shared key">
+              <p class="description">Masukkan shared key yang sama seperti di Google Apps Script (header <code>x-hcis-gas-key</code> untuk endpoint exchange).</p>
             </td>
           </tr>
         </table>
