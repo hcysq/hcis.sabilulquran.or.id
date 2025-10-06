@@ -120,7 +120,7 @@ class Announcements {
 
   public static function create(array $data){
     $title = sanitize_text_field($data['title'] ?? '');
-    $body = sanitize_textarea_field($data['body'] ?? '');
+    $body  = RichText::sanitize($data['body'] ?? '');
     $link_label = sanitize_text_field($data['link_label'] ?? '');
     $link_url = self::sanitize_link_url($data['link_url'] ?? '');
     $status = self::normalize_status($data['status'] ?? 'published');
@@ -174,7 +174,7 @@ class Announcements {
     }
 
     $title = array_key_exists('title', $data) ? sanitize_text_field($data['title']) : $post->post_title;
-    $body = array_key_exists('body', $data) ? sanitize_textarea_field($data['body']) : $post->post_content;
+    $body  = array_key_exists('body', $data) ? RichText::sanitize($data['body']) : $post->post_content;
     $status = array_key_exists('status', $data)
       ? self::normalize_status($data['status'])
       : self::status_from_post_status($post->post_status);
@@ -308,7 +308,7 @@ class Announcements {
     return [
       'id'          => strval($post->ID),
       'title'       => $post->post_title,
-      'body'        => $post->post_content,
+      'body'        => RichText::sanitize($post->post_content),
       'link_label'  => is_string($link_label) ? $link_label : '',
       'link_url'    => is_string($link_url) ? $link_url : '',
       'status'      => self::status_from_post_status($post->post_status),
