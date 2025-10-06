@@ -97,11 +97,6 @@ if (!$is_hcis_logged_in) {
                 </div>
             </section>
 
-            <?php if ($can_render_login) : ?>
-                <section class="dashboard-card ysq-login-section">
-                    <?php echo do_shortcode('[hcisysq_login]'); ?>
-                </section>
-            <?php endif; ?>
         </div>
     <?php endif; ?>
 </div>

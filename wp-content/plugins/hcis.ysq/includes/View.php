@@ -550,6 +550,32 @@ class View {
       'training_link' => $trainingLink,
     ]);
 
+    $employeeUpdates = self::get_employee_updates();
+    if (empty($employeeUpdates) && !empty($announcements)) {
+      foreach ($announcements as $item) {
+        if (($item['category'] ?? '') && $item['category'] !== 'pengumuman') {
+          continue;
+        }
+
+        $title = sanitize_text_field($item['title'] ?? '');
+        $body  = isset($item['body']) ? RichText::sanitize($item['body']) : '';
+        $linkUrl   = isset($item['link_url']) ? esc_url_raw($item['link_url']) : '';
+        $linkLabel = sanitize_text_field($item['link_label'] ?? '');
+
+        if ($title === '' && $body === '' && $linkUrl === '') {
+          continue;
+        }
+
+        $employeeUpdates[] = [
+          'task'        => $title,
+          'description' => $body,
+          'deadline'    => '',
+          'link_url'    => $linkUrl,
+          'link_label'  => $linkLabel,
+        ];
+      }
+    }
+
     $comingSoonModules = [
       'profil' => [
         'title' => 'Profil',
@@ -574,10 +600,6 @@ class View {
       'penilaian-kinerja' => [
         'title' => 'Penilaian Kinerja',
         'description' => 'Work in Progress. Dashboard penilaian kinerja sedang kami desain.'
-      ],
-      'tugas-komunikasi' => [
-        'title' => 'Tugas & Komunikasi',
-        'description' => 'Work in Progress. Kolaborasi tugas & komunikasi internal segera hadir.'
       ],
       'administrasi-lain' => [
         'title' => 'Administrasi Lain',
@@ -695,31 +717,83 @@ class View {
               </article>
             </section>
 
+          </section>
+
+          <section id="tugas-komunikasi" class="hcisysq-dashboard-section" data-section="tugas-komunikasi" tabindex="-1">
             <section class="hcisysq-card-grid hcisysq-card-grid--1">
               <article class="hcisysq-card">
-                <h3 class="hcisysq-card-title">Pengumuman</h3>
-                <?php if (!empty($announcements)): ?>
-                  <ul class="hcisysq-bullet-list">
-                    <?php foreach ($announcements as $item): ?>
-                      <li>
-                        <strong><?= esc_html($item['title']) ?></strong>
-                        <?php if (!empty($item['body'])): ?>
-                          <div class="hcisysq-bullet-body"><?= wp_kses_post($item['body']) ?></div>
-                        <?php endif; ?>
-                        <?php if (!empty($item['link_url'])): ?>
-                          <div class="hcisysq-bullet-link">
-                            <a href="<?= esc_url($item['link_url']) ?>" target="_blank" rel="noopener">
-                              <?= esc_html($item['link_label'] ?: 'Buka tautan') ?>
-                            </a>
-                          </div>
-                        <?php elseif (!empty($item['link_label'])): ?>
-                          <div class="hcisysq-bullet-link"><?= esc_html($item['link_label']) ?></div>
-                        <?php endif; ?>
-                      </li>
-                    <?php endforeach; ?>
-                  </ul>
+                <h3 class="hcisysq-card-title">Pembaruan Data Pegawai</h3>
+                <p>Ikuti tugas dan permintaan pembaruan data kepegawaian yang dibagikan oleh tim HCM.</p>
+                <?php if (!empty($employeeUpdates)): ?>
+                  <div class="hcisysq-updates">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th scope="col">No.</th>
+                          <th scope="col">Tugas</th>
+                          <th scope="col">Keterangan</th>
+                          <th scope="col">Batas Waktu</th>
+                          <th scope="col">Tautan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <?php foreach ($employeeUpdates as $index => $update): ?>
+                          <?php
+                          $deadlineRaw = isset($update['deadline']) ? trim((string)$update['deadline']) : '';
+                          $deadlineDisplay = '';
+                          if ($deadlineRaw !== '') {
+                            try {
+                              $deadlineDate = new \DateTimeImmutable($deadlineRaw);
+                              $deadlineFormatter = new \IntlDateFormatter(
+                                'id_ID',
+                                \IntlDateFormatter::LONG,
+                                \IntlDateFormatter::NONE,
+                                'Asia/Jakarta',
+                                \IntlDateFormatter::GREGORIAN,
+                                'd MMMM yyyy'
+                              );
+                              $deadlineDisplay = $deadlineFormatter->format($deadlineDate);
+                            } catch (\Exception $e) {
+                              $deadlineDisplay = $deadlineRaw;
+                            }
+                          }
+                          if ($deadlineDisplay === '') {
+                            $deadlineDisplay = '-';
+                          }
+
+                          $description = isset($update['description']) ? $update['description'] : '';
+                          $linkUrl = isset($update['link_url']) ? $update['link_url'] : '';
+                          $linkLabel = isset($update['link_label']) ? $update['link_label'] : '';
+                          ?>
+                          <tr>
+                            <td><?= esc_html($index + 1) ?></td>
+                            <td><?= esc_html($update['task'] ?? '') ?></td>
+                            <td>
+                              <?php if ($description !== ''): ?>
+                                <?= wp_kses_post($description) ?>
+                              <?php else: ?>
+                                <span>-</span>
+                              <?php endif; ?>
+                            </td>
+                            <td><?= esc_html($deadlineDisplay) ?></td>
+                            <td>
+                              <?php if ($linkUrl !== ''): ?>
+                                <a href="<?= esc_url($linkUrl) ?>" target="_blank" rel="noopener">
+                                  <?= esc_html($linkLabel !== '' ? $linkLabel : 'Buka tautan') ?>
+                                </a>
+                              <?php elseif ($linkLabel !== ''): ?>
+                                <?= esc_html($linkLabel) ?>
+                              <?php else: ?>
+                                <span>-</span>
+                              <?php endif; ?>
+                            </td>
+                          </tr>
+                        <?php endforeach; ?>
+                      </tbody>
+                    </table>
+                  </div>
                 <?php else: ?>
-                  <p>Tidak ada pengumuman terbaru.</p>
+                  <p class="hcisysq-updates__empty">Belum ada pembaruan terbaru.</p>
                 <?php endif; ?>
               </article>
             </section>
@@ -728,14 +802,28 @@ class View {
           <?php foreach ($comingSoonModules as $slug => $module): ?>
             <section id="<?= esc_attr($slug) ?>" class="hcisysq-dashboard-section" data-section="<?= esc_attr($slug) ?>" tabindex="-1">
               <section class="hcisysq-card-grid hcisysq-card-grid--1">
-                <article class="hcisysq-card hcisysq-card--empty">
-                  <h3 class="hcisysq-card-title"><?= esc_html($module['title']) ?></h3>
-                  <div class="hcisysq-coming-soon">
-                    <span class="hcisysq-coming-soon__tag">Coming Soon</span>
-                    <div class="hcisysq-progress" aria-hidden="true">
-                      <span class="hcisysq-progress__bar"></span>
+                <article class="hcisysq-card hcisysq-card--wip">
+                  <div class="hcisysq-wip">
+                    <div class="hcisysq-wip__illustration" aria-hidden="true">
+                      <svg class="hcisysq-wip__art" viewBox="0 0 64 64" role="img" aria-hidden="true">
+                        <g fill="currentColor" opacity="0.75">
+                          <rect x="8" y="36" width="24" height="6" rx="3"></rect>
+                          <rect x="12" y="24" width="40" height="6" rx="3" opacity="0.7"></rect>
+                          <rect x="20" y="12" width="32" height="6" rx="3" opacity="0.5"></rect>
+                          <circle cx="20" cy="46" r="4" opacity="0.45"></circle>
+                          <circle cx="44" cy="30" r="4" opacity="0.6"></circle>
+                          <circle cx="34" cy="18" r="4" opacity="0.4"></circle>
+                        </g>
+                      </svg>
                     </div>
-                    <p class="hcisysq-coming-soon__desc"><?= esc_html($module['description']) ?></p>
+                    <div class="hcisysq-wip__body">
+                      <span class="hcisysq-coming-soon__tag">Work in Progress</span>
+                      <h3 class="hcisysq-card-title"><?= esc_html($module['title']) ?></h3>
+                      <p class="hcisysq-coming-soon__desc"><?= esc_html($module['description']) ?></p>
+                      <div class="hcisysq-progress" aria-hidden="true">
+                        <span class="hcisysq-progress__bar"></span>
+                      </div>
+                    </div>
                   </div>
                 </article>
               </section>
@@ -927,5 +1015,50 @@ class View {
     </div>
     <?php
     return ob_get_clean();
+  }
+
+  private static function get_employee_updates(){
+    $raw = get_option('hcisysq_employee_updates', []);
+    if (!is_array($raw)) {
+      return [];
+    }
+
+    $items = [];
+
+    foreach ($raw as $row) {
+      if (!is_array($row)) {
+        continue;
+      }
+
+      $task = sanitize_text_field($row['task'] ?? '');
+      $deadline = sanitize_text_field($row['deadline'] ?? '');
+      $linkUrl = '';
+      if (!empty($row['link_url'])) {
+        $linkUrl = esc_url_raw($row['link_url']);
+      } elseif (!empty($row['link'])) {
+        $linkUrl = esc_url_raw($row['link']);
+      }
+      $linkLabel = sanitize_text_field($row['link_label'] ?? '');
+
+      $descriptionRaw = isset($row['description']) ? $row['description'] : '';
+      $description = '';
+      if (is_string($descriptionRaw) && trim($descriptionRaw) !== '') {
+        $description = RichText::sanitize($descriptionRaw);
+      }
+
+      if ($task === '' && $description === '' && $deadline === '' && $linkUrl === '') {
+        continue;
+      }
+
+      $items[] = [
+        'task'        => $task,
+        'description' => $description,
+        'deadline'    => $deadline,
+        'link_url'    => $linkUrl,
+        'link_label'  => $linkLabel,
+      ];
+    }
+
+    return $items;
   }
 }
