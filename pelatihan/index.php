@@ -1,6 +1,31 @@
 <?php
 // hcis/pelatihan/index.php — embed Apps Script via iframe
-$BASE = 'https://script.google.com/macros/s/AKfycbxReKFiKsW1BtDZufNNi4sCuazw5jjzUQ9iHDPylmm9ARuAudqsB6CmSI_2vNpng3uP/exec';
+$GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxReKFiKsW1BtDZufNNi4sCuazw5jjzUQ9iHDPylmm9ARuAudqsB6CmSI_2vNpng3uP/exec';
+$defaultScheme = 'http';
+$forwardedProtoHeader = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
+if ($forwardedProtoHeader !== '') {
+  $forwardedProto = strtolower(explode(',', $forwardedProtoHeader)[0]);
+  if ($forwardedProto === 'https' || $forwardedProto === 'http') {
+    $defaultScheme = $forwardedProto;
+  }
+} elseif (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+  $defaultScheme = 'https';
+}
+$host = $_SERVER['HTTP_HOST'] ?? '';
+$ssoPath = '/wp-admin/admin-post.php?action=hcisysq_go';
+$SSO_URL = $host !== '' ? $defaultScheme . '://' . $host . $ssoPath : '..' . $ssoPath;
+$hasActiveSession = false;
+if (!empty($_COOKIE['hcisysq_token'])) {
+  $hasActiveSession = true;
+} else {
+  foreach ($_COOKIE as $cookieName => $cookieValue) {
+    if (stripos($cookieName, 'wordpress_logged_in_') === 0 && $cookieValue !== '') {
+      $hasActiveSession = true;
+      break;
+    }
+  }
+}
+$initialUrl = $hasActiveSession ? $SSO_URL : $GAS_WEBAPP_URL;
 ?><!doctype html>
 <html lang="id">
 <meta charset="utf-8">
@@ -22,15 +47,24 @@ $BASE = 'https://script.google.com/macros/s/AKfycbxReKFiKsW1BtDZufNNi4sCuazw5jjz
   <noscript>
     <div class="fallback">
       JavaScript diperlukan. Klik
-      <a href="<?php echo htmlspecialchars($BASE,ENT_QUOTES); ?>">tautan ini</a>.
+      <a href="<?php echo htmlspecialchars($initialUrl, ENT_QUOTES); ?>">tautan ini</a>.
     </div>
   </noscript>
 </div>
 <script>
-  const base = <?php echo json_encode($BASE); ?>;
-  const qs   = location.search || '';
-  const url  = base + qs; // teruskan ?nip=...&nama=...
-  document.getElementById('app').src = url;
+  const ssoUrl = <?php echo json_encode($SSO_URL); ?>;
+  const gasUrl = <?php echo json_encode($GAS_WEBAPP_URL); ?>;
+  const serverSession = <?php echo $hasActiveSession ? 'true' : 'false'; ?>;
+  const cookies = document.cookie || '';
+  const hasWpSession = /wordpress_logged_in_[^=]*=/.test(cookies);
+  const hasPluginSession = cookies.includes('hcisysq_token=');
+  const useSso = serverSession || hasWpSession || hasPluginSession;
+  const base = useSso ? ssoUrl : gasUrl;
+  const rawQuery = window.location.search || '';
+  const trimmedQuery = rawQuery.replace(/^[?&]/, '');
+  const url = trimmedQuery ? base + (base.includes('?') ? '&' + trimmedQuery : '?' + trimmedQuery) : base;
+  const frame = document.getElementById('app');
+  frame.src = url;
 
   // Jika domain tujuan melarang di-iframe (X-Frame-Options), tampilkan tombol buka.
   setTimeout(() => {
@@ -40,11 +74,23 @@ $BASE = 'https://script.google.com/macros/s/AKfycbxReKFiKsW1BtDZufNNi4sCuazw5jjz
       // jika tinggi < 50px setelah 2.5s, anggap gagal render
       if (f.clientHeight < 50) throw new Error('likely blocked');
     } catch (e) {
-      document.body.insertAdjacentHTML('beforeend',
-        '<div class="fallback"><p>Tidak bisa menampilkan langsung di halaman ini. '+
-        'Klik tombol di bawah untuk membuka aplikasi:</p>'+
-        '<p><a href="'+url+'" '+
-        'style="display:inline-block;padding:10px 14px;border:1px solid #ccc;border-radius:8px;text-decoration:none">Buka Aplikasi</a></p></div>');
+      const fallback = document.createElement('div');
+      fallback.className = 'fallback';
+      const message = document.createElement('p');
+      message.textContent = 'Tidak bisa menampilkan langsung di halaman ini. Klik tombol di bawah untuk membuka aplikasi:';
+      const linkWrap = document.createElement('p');
+      const link = document.createElement('a');
+      link.href = url;
+      link.textContent = 'Buka Aplikasi';
+      link.style.display = 'inline-block';
+      link.style.padding = '10px 14px';
+      link.style.border = '1px solid #ccc';
+      link.style.borderRadius = '8px';
+      link.style.textDecoration = 'none';
+      linkWrap.appendChild(link);
+      fallback.appendChild(message);
+      fallback.appendChild(linkWrap);
+      document.body.appendChild(fallback);
     }
   }, 2500);
 </script>
