@@ -10,7 +10,7 @@ get_header();
 $ysq_notices = function_exists('ysq_get_admin_notices') ? ysq_get_admin_notices() : array();
 $announcement_args = array(
     'post_type'      => 'ysq_announcement',
-    'posts_per_page' => -1,
+    'posts_per_page' => 6,
     'post_status'    => 'publish',
     'orderby'        => 'date',
     'order'          => 'DESC',
@@ -181,85 +181,59 @@ if (function_exists('ysq_admin_is_logged_in') && ysq_admin_is_logged_in() && iss
         </div>
     <?php else : ?>
         <div class="public-dashboard">
-            <section class="dashboard-card announcement-feed">
+            <section class="dashboard-card ysq-publication-section">
                 <header class="card-header">
-                    <h2><?php esc_html_e('Pengumuman Terbaru', 'ysq'); ?></h2>
+                    <h2><?php esc_html_e('Publikasi Terkini', 'ysq'); ?></h2>
                 </header>
-                <div class="announcement-feed__body">
-                    <?php if (!empty($ysq_announcements)) : ?>
-                        <ul class="announcement-list">
-                            <?php foreach ($ysq_announcements as $announcement) : ?>
+                <?php if (!empty($ysq_announcements)) : ?>
+                    <div class="ysq-publication-grid ysq-publication-grid--home">
+                        <?php foreach ($ysq_announcements as $announcement) : ?>
                             <?php
-                            $announcement_id    = isset($announcement->ID) ? absint($announcement->ID) : 0;
-                            $announcement_meta  = $announcement_id && isset($ysq_announcement_links[$announcement_id]) ? $ysq_announcement_links[$announcement_id] : null;
-                            $announcement_label = '';
-                            $announcement_link  = '';
-                            $is_training_link   = false;
+                            $announcement_id = isset($announcement->ID) ? absint($announcement->ID) : 0;
+                            $thumbnail_url   = $announcement_id ? get_the_post_thumbnail_url($announcement_id, 'large') : '';
+                            $date_iso        = $announcement_id ? get_post_time('c', false, $announcement) : '';
+                            $date_display    = $announcement_id ? get_the_date('j M Y', $announcement) : '';
+                            $terms           = $announcement_id ? wp_get_post_terms($announcement_id, 'ysq_publication_category') : array();
+                            $primary_term    = (!empty($terms) && !is_wp_error($terms)) ? $terms[0] : null;
+                            $primary_slug    = $primary_term ? sanitize_title($primary_term->slug) : '';
+                            $primary_label   = '';
 
-                            if (is_array($announcement_meta)) {
-                                $announcement_label = isset($announcement_meta['link_label']) ? (string) $announcement_meta['link_label'] : '';
-                                $announcement_link  = isset($announcement_meta['link_url']) ? (string) $announcement_meta['link_url'] : '';
-                                $is_training_link   = ($announcement_link === '__TRAINING_FORM__');
-                            }
-
-                            $training_note_text = __('(tersedia dinamis di dashboard pegawai)', 'ysq');
-                            $training_label     = $announcement_label !== '' ? $announcement_label : __('Form Pelatihan Terbaru', 'ysq');
-                            $training_target    = '';
-
-                            if ($is_training_link) {
-                                if (defined('HCISYSQ_FORM_SLUG')) {
-                                    $form_slug = trim((string) HCISYSQ_FORM_SLUG, '/');
-                                    $training_target = home_url('/' . ($form_slug !== '' ? $form_slug . '/' : ''));
+                            if ($primary_slug !== '') {
+                                if (class_exists('HCISYSQ\\Announcements')) {
+                                    $term_map = \HCISYSQ\Announcements::CATEGORY_TERMS;
+                                    $primary_label = isset($term_map[$primary_slug]) ? $term_map[$primary_slug] : $primary_term->name;
                                 } else {
-                                    $training_target = home_url('/pelatihan/');
+                                    $primary_label = $primary_term->name;
                                 }
                             }
-
-                            $has_valid_link = false;
-                            if ($announcement_link && !$is_training_link) {
-                                $has_valid_link = (bool) wp_http_validate_url($announcement_link);
-                            }
                             ?>
-                            <li>
-                                <h3><?php echo esc_html(get_the_title($announcement)); ?></h3>
-                                <time datetime="<?php echo esc_attr(get_post_time('c', false, $announcement)); ?>"><?php echo esc_html(get_the_date('', $announcement)); ?></time>
-                                <div class="announcement-body">
-                                    <?php echo wp_kses_post(wpautop($announcement->post_content)); ?>
+                            <article class="ysq-publication-card<?php echo $thumbnail_url ? '' : ' is-placeholder'; ?>">
+                                <div class="ysq-publication-card__media">
+                                    <?php if ($thumbnail_url) : ?>
+                                        <img src="<?php echo esc_url($thumbnail_url); ?>" alt="<?php echo esc_attr(get_the_title($announcement)); ?>">
+                                    <?php else : ?>
+                                        <span class="ysq-publication-card__placeholder"><?php esc_html_e('Tidak ada gambar', 'ysq'); ?></span>
+                                    <?php endif; ?>
                                 </div>
-                                <?php if ($has_valid_link) : ?>
-                                    <p class="announcement-link">
-                                        <a href="<?php echo esc_url($announcement_link); ?>" target="_blank" rel="noopener">
-                                            <?php echo esc_html($announcement_label !== '' ? $announcement_label : __('Buka tautan', 'ysq')); ?>
-                                        </a>
-                                    </p>
-                                <?php elseif ($is_training_link && $training_target) : ?>
-                                    <p class="announcement-link">
-                                        <a href="<?php echo esc_url($training_target); ?>">
-                                            <?php echo esc_html($training_label); ?>
-                                        </a>
-                                        <span class="announcement-note"><?php echo esc_html($training_note_text); ?></span>
-                                    </p>
-                                <?php elseif ($is_training_link) : ?>
-                                    <p class="announcement-link">
-                                        <?php echo esc_html($training_label); ?>
-                                        <span class="announcement-note"><?php echo esc_html($training_note_text); ?></span>
-                                    </p>
-                                <?php elseif ($announcement_label !== '') : ?>
-                                    <p class="announcement-link">
-                                        <?php echo esc_html($announcement_label); ?>
-                                    </p>
-                                <?php endif; ?>
-                            </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    <?php else : ?>
-                        <p class="announcement-empty"><?php esc_html_e('Belum ada pengumuman untuk saat ini.', 'ysq'); ?></p>
-                    <?php endif; ?>
-                </div>
+                                <div class="ysq-publication-card__body">
+                                    <?php if ($primary_label !== '') : ?>
+                                        <span class="ysq-publication-card__category"><?php echo esc_html($primary_label); ?></span>
+                                    <?php endif; ?>
+                                    <h3 class="ysq-publication-title"><?php echo esc_html(get_the_title($announcement)); ?></h3>
+                                    <?php if ($date_display !== '') : ?>
+                                        <time class="ysq-publication-date" datetime="<?php echo esc_attr($date_iso); ?>"><?php echo esc_html($date_display); ?></time>
+                                    <?php endif; ?>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else : ?>
+                    <p class="ysq-publication-empty"><?php esc_html_e('Belum ada publikasi untuk saat ini.', 'ysq'); ?></p>
+                <?php endif; ?>
 
                 <div class="announcement-feed__footer">
                     <a class="btn-secondary announcement-feed__more" href="<?php echo esc_url(home_url('/publikasi/')); ?>">
-                        <?php esc_html_e('Selengkapnya', 'ysq'); ?>
+                        <?php esc_html_e('Lihat semua publikasi', 'ysq'); ?>
                     </a>
                 </div>
             </section>

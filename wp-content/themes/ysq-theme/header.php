@@ -66,8 +66,25 @@
 </header>
 
 <?php
-$marquee_items = array();
-$marquee_raw   = get_option('hcisysq_home_marquee_text', '');
+$marquee_items   = array();
+$marquee_raw     = get_option('hcisysq_home_marquee_text', '');
+$marquee_options = get_option('hcisysq_home_marquee_options', array());
+
+if (!is_array($marquee_options)) {
+    $marquee_options = array();
+}
+
+$marquee_speed   = isset($marquee_options['speed']) ? floatval($marquee_options['speed']) : 1.0;
+$marquee_speed   = min(max($marquee_speed, 0.5), 3.0);
+$marquee_gap     = isset($marquee_options['gap']) ? intval($marquee_options['gap']) : 32;
+$marquee_gap     = min(max($marquee_gap, 8), 160);
+$marquee_letters = isset($marquee_options['letter_spacing']) ? floatval($marquee_options['letter_spacing']) : 0;
+$marquee_letters = min(max($marquee_letters, 0), 10);
+$marquee_repeat  = isset($marquee_options['duplicates']) ? intval($marquee_options['duplicates']) : 2;
+$marquee_repeat  = min(max($marquee_repeat, 1), 6);
+$marquee_bg_raw  = isset($marquee_options['background']) ? trim((string) $marquee_options['background']) : '';
+$marquee_bg_hex  = sanitize_hex_color($marquee_bg_raw);
+$marquee_bg      = $marquee_bg_hex ? $marquee_bg_hex : ($marquee_bg_raw !== '' ? $marquee_bg_raw : 'rgba(255,255,255,0.5)');
 
 if (is_string($marquee_raw)) {
     $marquee_raw = trim($marquee_raw);
@@ -116,11 +133,22 @@ if (!empty($marquee_raw)) {
     }
 }
 
+if (!empty($marquee_items)) {
+    $marquee_letter_value = number_format($marquee_letters, 1, '.', '');
+    $marquee_style_parts  = array(
+        '--marquee-background:' . $marquee_bg,
+        '--marquee-gap:' . $marquee_gap . 'px',
+        '--marquee-letter-spacing:' . $marquee_letter_value . 'px',
+        '--marquee-speed:' . $marquee_speed,
+    );
+    $marquee_style_attr = implode(';', $marquee_style_parts) . ';';
+}
+
 if ((is_front_page() || is_home()) && !empty($marquee_items)) :
     ?>
-    <div class="site-marquee" role="region" aria-label="<?php esc_attr_e('Informasi berjalan', 'ysq'); ?>">
+    <div class="site-marquee" role="region" aria-label="<?php esc_attr_e('Informasi berjalan', 'ysq'); ?>" style="<?php echo esc_attr($marquee_style_attr); ?>">
         <div class="site-marquee__track" aria-live="polite">
-            <?php for ($i = 0; $i < 2; $i++) : ?>
+            <?php for ($i = 0; $i < $marquee_repeat; $i++) : ?>
                 <div class="site-marquee__segment"<?php echo $i > 0 ? ' aria-hidden="true"' : ''; ?>>
                     <?php foreach ($marquee_items as $item) : ?>
                         <span class="site-marquee__item"><?php echo esc_html($item); ?></span>

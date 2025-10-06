@@ -6,21 +6,32 @@ if (!defined('ABSPATH')) exit;
 class Announcements {
   const OPTION = 'hcisysq_announcements';
   const POST_TYPE = 'ysq_announcement';
+  const TAXONOMY = 'ysq_publication_category';
   const META_LINK_LABEL = '_hcisysq_link_label';
   const META_LINK_URL = '_hcisysq_link_url';
   const META_ARCHIVED_AT = '_hcisysq_archived_at';
+  const META_ATTACHMENTS = '_hcisysq_attachments';
+
+  const CATEGORY_TERMS = [
+    'berita'           => 'Berita',
+    'pengumuman'       => 'Pengumuman',
+    'dokumen-panduan'  => 'Dokumen & Panduan',
+    'wawasan'          => 'Wawasan',
+  ];
 
   public static function init(){
     add_action('init', [__CLASS__, 'register_post_type'], 0);
+    add_action('init', [__CLASS__, 'register_taxonomy'], 1);
     add_action('init', [__CLASS__, 'maybe_migrate'], 5);
     add_action('init', [__CLASS__, 'ensure_seed'], 11);
+    add_action('init', [__CLASS__, 'ensure_terms'], 12);
   }
 
   public static function register_post_type(){
     register_post_type(self::POST_TYPE, [
       'labels' => [
-        'name' => \__('Announcements', 'hcisysq'),
-        'singular_name' => \__('Announcement', 'hcisysq'),
+        'name' => __('Announcements', 'hcisysq'),
+        'singular_name' => __('Announcement', 'hcisysq'),
       ],
       'public' => false,
       'show_ui' => false,
@@ -29,7 +40,24 @@ class Announcements {
       'show_in_rest' => false,
       'rewrite' => false,
       'query_var' => false,
-      'supports' => ['title', 'editor'],
+      'supports' => ['title', 'editor', 'thumbnail'],
+    ]);
+  }
+
+  public static function register_taxonomy(){
+    register_taxonomy(self::TAXONOMY, self::POST_TYPE, [
+      'hierarchical'      => false,
+      'public'            => false,
+      'show_ui'           => false,
+      'show_admin_column' => false,
+      'show_in_nav_menus' => false,
+      'show_in_rest'      => false,
+      'query_var'         => false,
+      'rewrite'           => false,
+      'labels'            => [
+        'name'          => __('Kategori Publikasi', 'hcisysq'),
+        'singular_name' => __('Kategori Publikasi', 'hcisysq'),
+      ],
     ]);
   }
 
@@ -50,6 +78,7 @@ class Announcements {
           'created_at'  => $item['created_at'] ?? '',
           'updated_at'  => $item['updated_at'] ?? '',
           'archived_at' => $item['archived_at'] ?? null,
+          'category'    => 'pengumuman',
         ]);
       }
     }
@@ -78,6 +107,7 @@ class Announcements {
         'created_at'  => $now,
         'updated_at'  => $now,
         'archived_at' => null,
+        'category'    => 'pengumuman',
       ],
       [
         'title'       => 'SPMB 2026/2027',
@@ -88,6 +118,7 @@ class Announcements {
         'created_at'  => $now,
         'updated_at'  => $now,
         'archived_at' => null,
+        'category'    => 'berita',
       ],
       [
         'title'       => "Ikuti Sabilul Qur'an di Instagram",
@@ -98,11 +129,20 @@ class Announcements {
         'created_at'  => $now,
         'updated_at'  => $now,
         'archived_at' => null,
+        'category'    => 'wawasan',
       ],
     ];
 
     foreach ($defaults as $default) {
       self::create($default);
+    }
+  }
+
+  public static function ensure_terms(){
+    foreach (self::CATEGORY_TERMS as $slug => $label) {
+      if (!term_exists($slug, self::TAXONOMY)) {
+        wp_insert_term($label, self::TAXONOMY, ['slug' => $slug]);
+      }
     }
   }
 
@@ -124,6 +164,9 @@ class Announcements {
     $link_label = sanitize_text_field($data['link_label'] ?? '');
     $link_url = self::sanitize_link_url($data['link_url'] ?? '');
     $status = self::normalize_status($data['status'] ?? 'published');
+    $category = self::sanitize_category($data['category'] ?? '');
+    $thumbnail_id = isset($data['thumbnail_id']) ? absint($data['thumbnail_id']) : 0;
+    $attachments = self::sanitize_attachment_ids($data['attachments'] ?? []);
 
     $created_at = self::sanitize_datetime($data['created_at'] ?? '') ?: current_time('mysql');
     $updated_at = self::sanitize_datetime($data['updated_at'] ?? '') ?: $created_at;
@@ -153,6 +196,13 @@ class Announcements {
       return null;
     }
 
+    if ($thumbnail_id) {
+      set_post_thumbnail($post_id, $thumbnail_id);
+    }
+
+    self::assign_category($post_id, $category);
+    self::store_attachments($post_id, $attachments);
+
     if ($status === 'archived' && !$archived_at) {
       update_post_meta($post_id, self::META_ARCHIVED_AT, current_time('mysql'));
     }
@@ -178,6 +228,13 @@ class Announcements {
     $status = array_key_exists('status', $data)
       ? self::normalize_status($data['status'])
       : self::status_from_post_status($post->post_status);
+    $category = array_key_exists('category', $data)
+      ? self::sanitize_category($data['category'])
+      : self::get_primary_category_slug($post_id);
+    $thumbnail_id = array_key_exists('thumbnail_id', $data) ? absint($data['thumbnail_id']) : null;
+    $attachments = array_key_exists('attachments', $data)
+      ? self::sanitize_attachment_ids($data['attachments'])
+      : self::get_attachment_ids($post_id);
 
     $postarr = [
       'ID'           => $post_id,
@@ -190,6 +247,17 @@ class Announcements {
     if (is_wp_error($result) || !$result) {
       return null;
     }
+
+    if ($thumbnail_id !== null) {
+      if ($thumbnail_id > 0) {
+        set_post_thumbnail($post_id, $thumbnail_id);
+      } else {
+        delete_post_thumbnail($post_id);
+      }
+    }
+
+    self::assign_category($post_id, $category);
+    self::store_attachments($post_id, $attachments);
 
     if (array_key_exists('link_label', $data)) {
       update_post_meta($post_id, self::META_LINK_LABEL, sanitize_text_field($data['link_label']));
@@ -247,11 +315,15 @@ class Announcements {
       }
 
       $out[] = [
-        'id'         => $item['id'],
-        'title'      => $item['title'],
-        'body'       => $item['body'],
-        'link_label' => $item['link_label'],
-        'link_url'   => $link_url,
+        'id'           => $item['id'],
+        'title'        => $item['title'],
+        'body'         => $item['body'],
+        'link_label'   => $item['link_label'],
+        'link_url'     => $link_url,
+        'category'     => $item['category'] ?? null,
+        'attachments'  => $item['attachments'] ?? [],
+        'thumbnail'    => $item['thumbnail'] ?? null,
+        'created_at'   => $item['created_at'] ?? '',
       ];
     }
 
@@ -283,6 +355,111 @@ class Announcements {
     return in_array($status, ['published', 'archived'], true) ? $status : 'published';
   }
 
+  private static function sanitize_category($slug){
+    $slug = sanitize_title($slug);
+    if (!$slug || !array_key_exists($slug, self::CATEGORY_TERMS)) {
+      return 'pengumuman';
+    }
+
+    return $slug;
+  }
+
+  private static function assign_category($post_id, $slug){
+    $slug = self::sanitize_category($slug);
+    if (!$slug) {
+      return;
+    }
+
+    wp_set_post_terms($post_id, [$slug], self::TAXONOMY, false);
+  }
+
+  private static function sanitize_attachment_ids($input){
+    if (is_string($input)) {
+      $decoded = json_decode($input, true);
+      if (is_array($decoded)) {
+        $input = $decoded;
+      }
+    }
+
+    if (!is_array($input)) {
+      return [];
+    }
+
+    $ids = array_map('absint', $input);
+    $ids = array_filter($ids, function($id){
+      return $id > 0 && get_post($id);
+    });
+
+    return array_values(array_unique($ids));
+  }
+
+  private static function store_attachments($post_id, array $ids){
+    if (empty($ids)) {
+      delete_post_meta($post_id, self::META_ATTACHMENTS);
+      return;
+    }
+
+    update_post_meta($post_id, self::META_ATTACHMENTS, $ids);
+  }
+
+  private static function get_attachment_ids($post_id){
+    $value = get_post_meta($post_id, self::META_ATTACHMENTS, true);
+
+    if (is_string($value)) {
+      $decoded = json_decode($value, true);
+      if (is_array($decoded)) {
+        $value = $decoded;
+      }
+    }
+
+    if (!is_array($value)) {
+      $value = [];
+    }
+
+    return self::sanitize_attachment_ids($value);
+  }
+
+  private static function prepare_attachment($attachment_id){
+    $attachment = get_post($attachment_id);
+    if (!$attachment) {
+      return null;
+    }
+
+    $url = wp_get_attachment_url($attachment_id);
+    if (!$url) {
+      return null;
+    }
+
+    $file_path = get_attached_file($attachment_id);
+
+    return [
+      'id'       => (int) $attachment_id,
+      'url'      => $url,
+      'title'    => get_the_title($attachment_id),
+      'filename' => $file_path ? basename($file_path) : basename(wp_parse_url($url, PHP_URL_PATH)),
+    ];
+  }
+
+  private static function get_primary_category_slug($post_id){
+    $terms = wp_get_post_terms($post_id, self::TAXONOMY, ['fields' => 'slugs']);
+    if (is_wp_error($terms) || empty($terms)) {
+      return 'pengumuman';
+    }
+
+    $slug = sanitize_title($terms[0]);
+    return $slug ?: 'pengumuman';
+  }
+
+  private static function get_category_data($post_id){
+    $slug = self::get_primary_category_slug($post_id);
+    $label = self::CATEGORY_TERMS[$slug] ?? ucfirst(str_replace('-', ' ', $slug));
+
+    return [
+      'slug'  => $slug,
+      'label' => $label,
+    ];
+  }
+
   private static function status_to_post_status($status){
     return $status === 'archived' ? 'draft' : 'publish';
   }
@@ -304,6 +481,8 @@ class Announcements {
     $link_label = get_post_meta($post->ID, self::META_LINK_LABEL, true);
     $link_url = get_post_meta($post->ID, self::META_LINK_URL, true);
     $archived_at = get_post_meta($post->ID, self::META_ARCHIVED_AT, true);
+    $thumbnail_id = get_post_thumbnail_id($post->ID);
+    $attachments = array_filter(array_map([__CLASS__, 'prepare_attachment'], self::get_attachment_ids($post->ID)));
 
     return [
       'id'          => strval($post->ID),
@@ -315,6 +494,12 @@ class Announcements {
       'created_at'  => $post->post_date,
       'updated_at'  => $post->post_modified,
       'archived_at' => $archived_at ? sanitize_text_field($archived_at) : null,
+      'category'    => self::get_category_data($post->ID),
+      'thumbnail'   => $thumbnail_id ? [
+        'id'  => (int) $thumbnail_id,
+        'url' => wp_get_attachment_url($thumbnail_id),
+      ] : null,
+      'attachments' => $attachments,
     ];
   }
 }

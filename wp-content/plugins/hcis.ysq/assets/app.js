@@ -22,12 +22,16 @@
     const nonce = (window.hcisysq && hcisysq.nonce) ? hcisysq.nonce : '';
 
     if (withFile) {
-      const fd = new FormData();
+      const fd = body instanceof FormData ? body : new FormData();
+      if (!(body instanceof FormData)) {
+        Object.keys(body).forEach((k) => {
+          if (k !== 'action' && k !== '_wpnonce') {
+            fd.append(k, body[k]);
+          }
+        });
+      }
       fd.append('action', action);
       fd.append('_wpnonce', nonce);
-      Object.keys(body).forEach(k => {
-        if (k !== 'action' && k !== '_wpnonce') fd.append(k, body[k]);
-      });
       return fetch(url, { method: 'POST', credentials: 'same-origin', body: fd })
         .then(r => r.json())
         .catch(err => {
@@ -599,15 +603,69 @@
 
     function normalizeAnnouncements(list) {
       if (!Array.isArray(list)) return [];
-      return list.map((item) => ({
-        ...item,
-        body: sanitizeEditorHtml(item && item.body ? item.body : ''),
-      }));
+      return list.map((item) => {
+        const attachments = Array.isArray(item && item.attachments)
+          ? item.attachments
+              .filter((file) => file && (file.id || file.url))
+              .map((file) => ({
+                id: String(file.id || ''),
+                url: file.url || '',
+                title: file.title || '',
+                filename: file.filename || '',
+              }))
+          : [];
+        const category = item && item.category
+          ? {
+            slug: item.category.slug || '',
+            label: item.category.label || '',
+          }
+          : null;
+        const thumbnail = item && item.thumbnail && item.thumbnail.url
+          ? {
+            id: item.thumbnail.id || item.thumbnail.ID || '',
+            url: item.thumbnail.url,
+          }
+          : null;
+
+        return {
+          ...item,
+          id: String(item && item.id ? item.id : ''),
+          body: sanitizeEditorHtml(item && item.body ? item.body : ''),
+          attachments,
+          category,
+          thumbnail,
+        };
+      });
     }
 
     function normalizeHome(data) {
-      const home = data ? { ...data } : { marquee_text: '' };
+      const defaults = {
+        marquee_text: '',
+        options: {
+          speed: 1,
+          background: '#ffffff',
+          duplicates: 2,
+          letter_spacing: 0,
+          gap: 32,
+        },
+      };
+      const home = data ? { ...defaults, ...data } : { ...defaults };
       home.marquee_text = sanitizeEditorHtml(home.marquee_text || '');
+      const opts = { ...defaults.options, ...(home.options || {}) };
+      opts.speed = parseFloat(opts.speed) || 1;
+      if (opts.speed < 0.5) opts.speed = 0.5;
+      if (opts.speed > 3) opts.speed = 3;
+      opts.duplicates = parseInt(opts.duplicates, 10) || 2;
+      if (opts.duplicates < 1) opts.duplicates = 1;
+      if (opts.duplicates > 6) opts.duplicates = 6;
+      opts.letter_spacing = parseFloat(opts.letter_spacing) || 0;
+      if (opts.letter_spacing < 0) opts.letter_spacing = 0;
+      if (opts.letter_spacing > 10) opts.letter_spacing = 10;
+      opts.gap = parseInt(opts.gap, 10) || 32;
+      if (opts.gap < 8) opts.gap = 8;
+      if (opts.gap > 160) opts.gap = 160;
+      opts.background = opts.background || '#ffffff';
+      home.options = opts;
       return home;
     }
 
@@ -649,8 +707,51 @@
     const annMessage = root.querySelector('[data-role="announcement-message"]');
     const homeForm = root.querySelector('#hcisysq-home-settings-form');
     const homeMessage = homeForm ? homeForm.querySelector('[data-role="home-message"]') : null;
+    const marqueePreview = root.querySelector('[data-role="marquee-preview"]');
+    const gapValueLabel = homeForm ? homeForm.querySelector('[data-role="marquee-gap-value"]') : null;
+    const letterValueLabel = homeForm ? homeForm.querySelector('[data-role="marquee-letter-value"]') : null;
     const homeEditor = editors.get('marquee_text');
     const bodyEditor = editors.get('body');
+
+    function getHomeFormOptions() {
+      if (!homeForm) return { ...state.home.options };
+      return {
+        speed: parseFloat(homeForm.marquee_speed ? homeForm.marquee_speed.value : state.home.options.speed) || state.home.options.speed,
+        duplicates: parseInt(homeForm.marquee_duplicates ? homeForm.marquee_duplicates.value : state.home.options.duplicates, 10) || state.home.options.duplicates,
+        background: (homeForm.marquee_background ? homeForm.marquee_background.value : state.home.options.background) || '#ffffff',
+        gap: parseInt(homeForm.marquee_gap ? homeForm.marquee_gap.value : state.home.options.gap, 10) || state.home.options.gap,
+        letter_spacing: parseFloat(homeForm.marquee_letter_spacing ? homeForm.marquee_letter_spacing.value : state.home.options.letter_spacing) || state.home.options.letter_spacing,
+      };
+    }
+
+    function updateRangeLabels() {
+      if (gapValueLabel && homeForm && homeForm.marquee_gap) {
+        gapValueLabel.textContent = `${homeForm.marquee_gap.value} px`;
+      }
+      if (letterValueLabel && homeForm && homeForm.marquee_letter_spacing) {
+        const val = parseFloat(homeForm.marquee_letter_spacing.value || '0');
+        letterValueLabel.textContent = `${val.toFixed(1)} px`;
+      }
+    }
+
+    function renderMarqueePreview() {
+      if (!marqueePreview) return;
+      const options = getHomeFormOptions();
+      state.home.options = options;
+      marqueePreview.style.setProperty('--marquee-speed', options.speed);
+      marqueePreview.style.setProperty('--marquee-gap', `${options.gap}px`);
+      marqueePreview.style.setProperty('--marquee-letter-spacing', `${options.letter_spacing}px`);
+      marqueePreview.style.setProperty('--marquee-background', options.background);
+      const baseHtml = sanitizeEditorHtml((homeForm && homeForm.marquee_text ? homeForm.marquee_text.value : state.home.marquee_text) || '');
+      marqueePreview.innerHTML = '';
+      const duplicateCount = Math.max(1, options.duplicates);
+      for (let i = 0; i < duplicateCount; i += 1) {
+        const span = document.createElement('span');
+        span.className = 'hcisysq-live-preview__item';
+        span.innerHTML = baseHtml || '&nbsp;';
+        marqueePreview.appendChild(span);
+      }
+    }
 
     function updateHomeUI(data) {
       state.home = normalizeHome(data);
@@ -659,15 +760,33 @@
       } else if (homeForm && homeForm.marquee_text) {
         homeForm.marquee_text.value = state.home.marquee_text || '';
       }
+      if (homeForm) {
+        if (homeForm.marquee_speed) homeForm.marquee_speed.value = String(state.home.options.speed);
+        if (homeForm.marquee_duplicates) homeForm.marquee_duplicates.value = String(state.home.options.duplicates);
+        if (homeForm.marquee_background) homeForm.marquee_background.value = state.home.options.background || '#ffffff';
+        if (homeForm.marquee_gap) homeForm.marquee_gap.value = String(state.home.options.gap);
+        if (homeForm.marquee_letter_spacing) homeForm.marquee_letter_spacing.value = String(state.home.options.letter_spacing);
+      }
+      updateRangeLabels();
+      renderMarqueePreview();
     }
 
     updateHomeUI(state.home);
 
     if (homeForm) {
+      const handleHomeInput = () => {
+        updateRangeLabels();
+        renderMarqueePreview();
+      };
+
+      homeForm.addEventListener('input', handleHomeInput);
+      homeForm.addEventListener('change', handleHomeInput);
+
       homeForm.addEventListener('submit', (event) => {
         event.preventDefault();
         const submitBtn = homeForm.querySelector('button[type="submit"]');
         const marqueeValue = homeEditor ? homeEditor.getValue() : (homeForm.marquee_text.value || '').trim();
+        const opts = getHomeFormOptions();
 
         if (submitBtn) {
           submitBtn.disabled = true;
@@ -680,6 +799,11 @@
 
         ajax('hcisysq_admin_save_home_settings', {
           marquee_text: marqueeValue,
+          marquee_speed: opts.speed,
+          marquee_duplicates: opts.duplicates,
+          marquee_background: opts.background,
+          marquee_gap: opts.gap,
+          marquee_letter_spacing: opts.letter_spacing,
         }).then((res) => {
           if (res && res.ok) {
             updateHomeUI(res.home || {});
@@ -748,6 +872,8 @@
         const statusClass = status === 'archived' ? 'is-archived' : 'is-published';
         const updatedLabel = formatDate(item.updated_at);
         const bodyHtml = sanitizeEditorHtml(item.body || '');
+        const categoryLabel = item.category && item.category.label ? escapeHtml(item.category.label) : '';
+        const categoryHtml = categoryLabel ? `<span class="hcisysq-announcement-category">Kategori: ${categoryLabel}</span>` : '';
         let linkHtml = '';
         if (item.link_url) {
           const isTraining = item.link_url === '__TRAINING_FORM__';
@@ -758,6 +884,15 @@
         } else if (item.link_label) {
           linkHtml = `<p class="hcisysq-announcement-link">${escapeHtml(item.link_label)}</p>`;
         }
+        let attachmentsHtml = '';
+        if (Array.isArray(item.attachments) && item.attachments.length) {
+          const attachmentItems = item.attachments.map((file) => {
+            const url = file && file.url ? escapeHtml(file.url) : '#';
+            const label = file && (file.title || file.filename) ? escapeHtml(file.title || file.filename) : 'Lampiran';
+            return `<li><a href="${url}" target="_blank" rel="noopener">${label}</a></li>`;
+          }).join('');
+          attachmentsHtml = `<ul class="hcisysq-announcement-files">${attachmentItems}</ul>`;
+        }
 
         return `
           <div class="hcisysq-announcement-item" data-id="${escapeHtml(item.id || '')}">
@@ -767,6 +902,7 @@
                 <div class="hcisysq-announcement-meta">
                   <span class="hcisysq-status-badge ${statusClass}">${statusLabel}</span>
                   ${updatedLabel ? `<span>Diperbarui ${escapeHtml(updatedLabel)}</span>` : ''}
+                  ${categoryHtml}
                 </div>
               </div>
               <div class="hcisysq-announcement-actions">
@@ -776,6 +912,7 @@
               </div>
             </div>
             <div class="hcisysq-announcement-body">${bodyHtml}</div>
+            ${attachmentsHtml}
             ${linkHtml}
           </div>
         `;
@@ -790,6 +927,78 @@
     const annSubmit = annForm ? annForm.querySelector('[data-role="announcement-submit"]') : null;
     const annCancel = annForm ? annForm.querySelector('[data-role="announcement-cancel"]') : null;
     const annIdField = annForm ? annForm.querySelector('input[name="announcement_id"]') : null;
+    const categoryField = annForm ? annForm.querySelector('#hcisysq-ann-category') : null;
+    const thumbnailInput = annForm ? annForm.querySelector('#hcisysq-ann-thumbnail') : null;
+    const thumbnailPreview = annForm ? annForm.querySelector('[data-role="thumbnail-preview"]') : null;
+    const thumbnailRemoveBtn = annForm ? annForm.querySelector('[data-action="remove-thumbnail"]') : null;
+    const thumbnailExistingField = annForm ? annForm.querySelector('input[name="thumbnail_existing"]') : null;
+    const thumbnailActionField = annForm ? annForm.querySelector('input[name="thumbnail_action"]') : null;
+    const attachmentsField = annForm ? annForm.querySelector('input[name="existing_attachments"]') : null;
+    const attachmentList = annForm ? annForm.querySelector('[data-role="attachment-list"]') : null;
+    const attachmentsInput = annForm ? annForm.querySelector('#hcisysq-ann-attachments') : null;
+
+    let retainedAttachmentIds = [];
+    let currentAttachments = [];
+    const currentThumbnail = {
+      existingId: 0,
+      existingUrl: '',
+      previewUrl: '',
+      isNew: false,
+    };
+
+    function updateAttachmentHiddenField() {
+      if (!attachmentsField) return;
+      attachmentsField.value = JSON.stringify(retainedAttachmentIds);
+    }
+
+    function renderAttachmentList() {
+      if (!attachmentList) return;
+      attachmentList.innerHTML = '';
+      currentAttachments.forEach((attachment) => {
+        if (!attachment || !attachment.id) return;
+        const li = document.createElement('li');
+        li.setAttribute('data-attachment-id', attachment.id);
+        const label = attachment.title || attachment.filename || 'Lampiran';
+        li.innerHTML = `<span>${escapeHtml(label)}</span><button type="button" class="btn-link" data-role="remove-attachment">Hapus</button>`;
+        attachmentList.appendChild(li);
+      });
+      if (attachmentsInput && attachmentsInput.files && attachmentsInput.files.length) {
+        Array.from(attachmentsInput.files).forEach((file) => {
+          const li = document.createElement('li');
+          li.className = 'is-new';
+          li.textContent = file.name;
+          attachmentList.appendChild(li);
+        });
+      }
+    }
+
+    function revokeThumbnailPreview() {
+      if (currentThumbnail.previewUrl) {
+        URL.revokeObjectURL(currentThumbnail.previewUrl);
+        currentThumbnail.previewUrl = '';
+      }
+    }
+
+    function renderThumbnail() {
+      if (!thumbnailPreview) return;
+      let displayUrl = '';
+      if (currentThumbnail.isNew && currentThumbnail.previewUrl) {
+        displayUrl = currentThumbnail.previewUrl;
+      } else if (currentThumbnail.existingUrl) {
+        displayUrl = currentThumbnail.existingUrl;
+      }
+      if (displayUrl) {
+        thumbnailPreview.innerHTML = `<img src="${escapeHtml(displayUrl)}" alt="Preview Thumbnail">`;
+      } else {
+        thumbnailPreview.innerHTML = '<span class="hcisysq-upload-placeholder">Belum ada thumbnail</span>';
+      }
+      if (thumbnailRemoveBtn) {
+        thumbnailRemoveBtn.hidden = !(currentThumbnail.isNew || currentThumbnail.existingId);
+      }
+      if (thumbnailExistingField) {
+        thumbnailExistingField.value = currentThumbnail.existingId || 0;
+      }
+    }
 
     function updateLinkFieldState() {
       if (!annForm || !annForm.link_type || !annForm.link_url) return;
@@ -808,13 +1017,89 @@
       if (annIdField) annIdField.value = '';
       if (bodyEditor) {
         bodyEditor.setValue('');
+      } else if (annForm.body) {
+        annForm.body.value = '';
       }
+      if (categoryField && categoryField.options.length) {
+        categoryField.value = categoryField.options[0].value;
+      }
+      retainedAttachmentIds = [];
+      currentAttachments = [];
+      updateAttachmentHiddenField();
+      renderAttachmentList();
+      currentThumbnail.existingId = 0;
+      currentThumbnail.existingUrl = '';
+      currentThumbnail.isNew = false;
+      revokeThumbnailPreview();
+      if (thumbnailActionField) thumbnailActionField.value = 'keep';
+      if (thumbnailExistingField) thumbnailExistingField.value = 0;
+      if (thumbnailInput) thumbnailInput.value = '';
+      if (attachmentsInput) attachmentsInput.value = '';
+      renderThumbnail();
       updateLinkFieldState();
       if (annSubmit) annSubmit.textContent = 'Publikasikan';
       if (annCancel) annCancel.hidden = true;
     }
 
     resetAnnouncementForm();
+
+    if (attachmentList) {
+      attachmentList.addEventListener('click', (event) => {
+        const removeBtn = event.target.closest('[data-role="remove-attachment"]');
+        if (!removeBtn) return;
+        const li = removeBtn.closest('li');
+        if (!li) return;
+        const id = parseInt(li.getAttribute('data-attachment-id'), 10);
+        if (!id) return;
+        retainedAttachmentIds = retainedAttachmentIds.filter((value) => value !== id);
+        currentAttachments = currentAttachments.filter((attachment) => attachment && attachment.id !== id);
+        updateAttachmentHiddenField();
+        renderAttachmentList();
+      });
+    }
+
+    if (attachmentsInput) {
+      attachmentsInput.addEventListener('change', () => {
+        renderAttachmentList();
+      });
+    }
+
+    if (thumbnailInput) {
+      thumbnailInput.addEventListener('change', () => {
+        if (!thumbnailInput.files || !thumbnailInput.files.length) {
+          revokeThumbnailPreview();
+          currentThumbnail.isNew = false;
+          if (!currentThumbnail.existingUrl && thumbnailActionField) {
+            thumbnailActionField.value = currentThumbnail.existingId ? 'remove' : 'keep';
+          }
+          renderThumbnail();
+          return;
+        }
+        const file = thumbnailInput.files[0];
+        revokeThumbnailPreview();
+        currentThumbnail.previewUrl = URL.createObjectURL(file);
+        currentThumbnail.isNew = true;
+        if (thumbnailActionField) thumbnailActionField.value = 'keep';
+        renderThumbnail();
+      });
+    }
+
+    if (thumbnailRemoveBtn) {
+      thumbnailRemoveBtn.addEventListener('click', () => {
+        if (thumbnailInput) thumbnailInput.value = '';
+        if (currentThumbnail.isNew) {
+          revokeThumbnailPreview();
+          currentThumbnail.isNew = false;
+          if (thumbnailActionField) {
+            thumbnailActionField.value = currentThumbnail.existingId ? 'keep' : 'remove';
+          }
+        } else if (currentThumbnail.existingId) {
+          currentThumbnail.existingUrl = '';
+          if (thumbnailActionField) thumbnailActionField.value = 'remove';
+        }
+        renderThumbnail();
+      });
+    }
 
     if (annCancel) {
       annCancel.addEventListener('click', () => {
@@ -833,6 +1118,7 @@
         event.preventDefault();
         const id = annIdField ? annIdField.value.trim() : '';
         const title = (annForm.title.value || '').trim();
+        const category = categoryField ? (categoryField.value || '').trim() : '';
         const bodyValue = bodyEditor ? bodyEditor.getValue() : (annForm.body.value || '').trim();
         const sanitizedBody = sanitizeEditorHtml(bodyValue);
         const plainBody = sanitizedBody.replace(/<[^>]+>/g, '').trim();
@@ -845,18 +1131,38 @@
           return;
         }
 
-        const payload = {
-          title,
-          body: sanitizedBody,
-          link_type: linkType,
-          link_url: linkType === 'external' ? linkUrl : '',
-          link_label: linkLabel,
-        };
+        if (!category) {
+          setAnnouncementMessage('Pilih kategori publikasi.');
+          return;
+        }
+
+        if (annForm.body) {
+          annForm.body.value = sanitizedBody;
+        }
+
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('body', sanitizedBody);
+        formData.append('link_type', linkType);
+        formData.append('link_url', linkType === 'external' ? linkUrl : '');
+        formData.append('link_label', linkLabel);
+        formData.append('category', category);
+        formData.append('existing_attachments', attachmentsField ? attachmentsField.value : '[]');
+        if (thumbnailActionField) formData.append('thumbnail_action', thumbnailActionField.value || 'keep');
+        if (thumbnailExistingField) formData.append('thumbnail_existing', thumbnailExistingField.value || '0');
+        if (thumbnailInput && thumbnailInput.files && thumbnailInput.files.length) {
+          formData.append('announcement_thumbnail', thumbnailInput.files[0]);
+        }
+        if (attachmentsInput && attachmentsInput.files && attachmentsInput.files.length) {
+          Array.from(attachmentsInput.files).forEach((file) => {
+            formData.append('announcement_attachments[]', file);
+          });
+        }
 
         const isEditing = Boolean(id);
         const action = isEditing ? 'hcisysq_admin_update_announcement' : 'hcisysq_admin_create_announcement';
         if (isEditing) {
-          payload.id = id;
+          formData.append('id', id);
         }
 
         if (annSubmit) {
@@ -865,7 +1171,7 @@
         }
         setAnnouncementMessage('Menyimpan...');
 
-        ajax(action, payload).then((res) => {
+        ajax(action, formData, true).then((res) => {
           if (res && res.ok) {
             updateAnnouncements(res.announcements || []);
             resetAnnouncementForm();
@@ -892,6 +1198,12 @@
         annForm.body.value = item.body || '';
       }
 
+      if (categoryField) {
+        const slug = item.category && item.category.slug ? item.category.slug : '';
+        const hasOption = Array.from(categoryField.options).some((option) => option.value === slug);
+        categoryField.value = hasOption ? slug : (categoryField.options[0] ? categoryField.options[0].value : '');
+      }
+
       const isTraining = item.link_url === '__TRAINING_FORM__';
       if (annForm.link_type) {
         if (isTraining) {
@@ -916,6 +1228,31 @@
       }
 
       updateLinkFieldState();
+
+      retainedAttachmentIds = Array.isArray(item.attachments)
+        ? item.attachments
+            .map((attachment) => parseInt(attachment.id, 10))
+            .filter((id) => Number.isInteger(id) && id > 0)
+        : [];
+      currentAttachments = Array.isArray(item.attachments) ? item.attachments.map((attachment) => ({
+        id: parseInt(attachment.id, 10) || 0,
+        title: attachment.title || '',
+        filename: attachment.filename || '',
+      })).filter((attachment) => attachment.id > 0) : [];
+      updateAttachmentHiddenField();
+      if (attachmentsInput) attachmentsInput.value = '';
+      renderAttachmentList();
+
+      revokeThumbnailPreview();
+      currentThumbnail.isNew = false;
+      currentThumbnail.existingId = item.thumbnail && item.thumbnail.id ? parseInt(item.thumbnail.id, 10) || 0 : 0;
+      currentThumbnail.existingUrl = item.thumbnail && item.thumbnail.url ? item.thumbnail.url : '';
+      if (thumbnailInput) thumbnailInput.value = '';
+      if (thumbnailExistingField) thumbnailExistingField.value = currentThumbnail.existingId || 0;
+      if (thumbnailActionField) {
+        thumbnailActionField.value = currentThumbnail.existingId ? 'keep' : 'remove';
+      }
+      renderThumbnail();
 
       if (annSubmit) annSubmit.textContent = 'Simpan Perubahan';
       if (annCancel) annCancel.hidden = false;

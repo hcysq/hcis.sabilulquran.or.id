@@ -153,6 +153,11 @@ add_action('template_redirect', function () {
       exit;
     }
   }
+  if (($hasUser || $hasAdmin) && (is_front_page() || is_home())) {
+    hcisysq_log('guard: active session, redirect home to /' . HCISYSQ_DASHBOARD_SLUG);
+    wp_safe_redirect($to(HCISYSQ_DASHBOARD_SLUG));
+    exit;
+  }
   if (is_page(HCISYSQ_LOGIN_SLUG) && ($hasUser || $hasAdmin)) {
     hcisysq_log('guard: already logged, redirect to /' . HCISYSQ_DASHBOARD_SLUG);
     wp_safe_redirect($to(HCISYSQ_DASHBOARD_SLUG));
