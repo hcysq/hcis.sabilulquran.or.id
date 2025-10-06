@@ -71,7 +71,7 @@ class View {
     $announcements  = self::format_admin_announcements(Announcements::all());
     $homeMarquee    = get_option('hcisysq_home_marquee_text', '');
     $homeSettings   = [
-      'marquee_text' => is_string($homeMarquee) ? $homeMarquee : '',
+      'marquee_text' => is_string($homeMarquee) ? RichText::sanitize($homeMarquee) : '',
     ];
 
     wp_enqueue_style('hcisysq');
@@ -143,9 +143,40 @@ class View {
               <h3 class="hcisysq-card-title">Pengaturan Beranda HCIS</h3>
               <form id="hcisysq-home-settings-form" class="hcisysq-form-grid">
                 <div class="form-group">
-                  <label for="hcisysq-home-marquee">Running Text (tulis satu item per baris)</label>
-                  <textarea id="hcisysq-home-marquee" name="marquee_text" rows="3" placeholder="Contoh: Assalamualaikum, selamat datang di HCIS.&#10;Contoh lainnya: Silakan cek pengumuman terbaru."><?= esc_textarea($homeSettings['marquee_text']) ?></textarea>
-                  <p class="form-helper">Teks akan bergerak di halaman beranda. Biarkan kosong jika tidak ingin ditampilkan.</p>
+                  <label for="hcisysq-home-marquee-editor">Running Text</label>
+                  <div class="hcisysq-editor" data-editor-wrapper data-editor-name="marquee_text">
+                    <div class="hcisysq-editor__toolbar" role="toolbar" aria-label="Format teks running text">
+                      <button type="button" class="hcisysq-editor__button" data-command="bold" title="Tebal"><span aria-hidden="true">B</span><span class="screen-reader-text">Tebal</span></button>
+                      <button type="button" class="hcisysq-editor__button" data-command="italic" title="Miring"><span aria-hidden="true">I</span><span class="screen-reader-text">Miring</span></button>
+                      <button type="button" class="hcisysq-editor__button" data-command="unorderedList" title="Bullet"><span aria-hidden="true">•</span><span class="screen-reader-text">Bullet</span></button>
+                      <button type="button" class="hcisysq-editor__button" data-command="orderedList" title="Penomoran"><span aria-hidden="true">1.</span><span class="screen-reader-text">Penomoran</span></button>
+                      <div class="hcisysq-editor__divider" aria-hidden="true"></div>
+                      <label class="screen-reader-text" for="hcisysq-marquee-font">Pilih font</label>
+                      <select id="hcisysq-marquee-font" class="hcisysq-editor__select" data-command="fontFamily">
+                        <option value="">Font default</option>
+                        <option value="arial">Arial</option>
+                        <option value="helvetica">Helvetica</option>
+                        <option value="times new roman">Times New Roman</option>
+                      </select>
+                      <label class="screen-reader-text" for="hcisysq-marquee-size">Ukuran teks</label>
+                      <select id="hcisysq-marquee-size" class="hcisysq-editor__select" data-command="fontSize">
+                        <option value="">Ukuran</option>
+                        <option value="12">12 px</option>
+                        <option value="14">14 px</option>
+                        <option value="16">16 px</option>
+                        <option value="18">18 px</option>
+                        <option value="20">20 px</option>
+                        <option value="24">24 px</option>
+                      </select>
+                      <div class="hcisysq-editor__divider" aria-hidden="true"></div>
+                      <button type="button" class="hcisysq-editor__button" data-command="clear" title="Bersihkan format"><span aria-hidden="true">⟲</span><span class="screen-reader-text">Bersihkan format</span></button>
+                    </div>
+                    <div id="hcisysq-home-marquee-editor" class="hcisysq-editor__content" data-editor-content contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="hcisysq-home-marquee-help">
+                      <?= $homeSettings['marquee_text'] !== '' ? $homeSettings['marquee_text'] : '<p></p>' ?>
+                    </div>
+                    <textarea id="hcisysq-home-marquee" name="marquee_text" data-editor-input hidden><?= esc_textarea($homeSettings['marquee_text']) ?></textarea>
+                  </div>
+                  <p class="form-helper" id="hcisysq-home-marquee-help">Teks akan bergerak di halaman beranda. Gunakan enter untuk item baru. Biarkan kosong jika tidak ingin ditampilkan.</p>
                 </div>
                 <div class="form-actions">
                   <button type="submit" class="btn-primary">Simpan Pengaturan</button>
@@ -157,31 +188,64 @@ class View {
             <article class="hcisysq-card">
               <h3 class="hcisysq-card-title">Buat Pengumuman Baru</h3>
               <form id="hcisysq-announcement-form" class="hcisysq-form-grid">
+                <input type="hidden" name="announcement_id" value="">
                 <div class="form-group">
                   <label for="hcisysq-ann-title">Judul <span class="req">*</span></label>
-                  <input type="text" id="hcisysq-ann-title" name="title" placeholder="Contoh: Pembaruan Data Pegawai" required>
+                  <input type="text" id="hcisysq-ann-title" name="title" class="hcisysq-input" placeholder="Contoh: Pembaruan Data Pegawai" required>
                 </div>
                 <div class="form-group">
-                  <label for="hcisysq-ann-body">Isi Pengumuman <span class="req">*</span></label>
-                  <textarea id="hcisysq-ann-body" name="body" rows="3" placeholder="Tuliskan isi singkat pengumuman" required></textarea>
+                  <label for="hcisysq-ann-body-editor">Isi Pengumuman <span class="req">*</span></label>
+                  <div class="hcisysq-editor" data-editor-wrapper data-editor-name="body">
+                    <div class="hcisysq-editor__toolbar" role="toolbar" aria-label="Format teks pengumuman">
+                      <button type="button" class="hcisysq-editor__button" data-command="bold" title="Tebal"><span aria-hidden="true">B</span><span class="screen-reader-text">Tebal</span></button>
+                      <button type="button" class="hcisysq-editor__button" data-command="italic" title="Miring"><span aria-hidden="true">I</span><span class="screen-reader-text">Miring</span></button>
+                      <button type="button" class="hcisysq-editor__button" data-command="unorderedList" title="Bullet"><span aria-hidden="true">•</span><span class="screen-reader-text">Bullet</span></button>
+                      <button type="button" class="hcisysq-editor__button" data-command="orderedList" title="Penomoran"><span aria-hidden="true">1.</span><span class="screen-reader-text">Penomoran</span></button>
+                      <div class="hcisysq-editor__divider" aria-hidden="true"></div>
+                      <label class="screen-reader-text" for="hcisysq-ann-font">Pilih font</label>
+                      <select id="hcisysq-ann-font" class="hcisysq-editor__select" data-command="fontFamily">
+                        <option value="">Font default</option>
+                        <option value="arial">Arial</option>
+                        <option value="helvetica">Helvetica</option>
+                        <option value="times new roman">Times New Roman</option>
+                      </select>
+                      <label class="screen-reader-text" for="hcisysq-ann-size">Ukuran teks</label>
+                      <select id="hcisysq-ann-size" class="hcisysq-editor__select" data-command="fontSize">
+                        <option value="">Ukuran</option>
+                        <option value="12">12 px</option>
+                        <option value="14">14 px</option>
+                        <option value="16">16 px</option>
+                        <option value="18">18 px</option>
+                        <option value="20">20 px</option>
+                        <option value="24">24 px</option>
+                        <option value="28">28 px</option>
+                      </select>
+                      <div class="hcisysq-editor__divider" aria-hidden="true"></div>
+                      <button type="button" class="hcisysq-editor__button" data-command="clear" title="Bersihkan format"><span aria-hidden="true">⟲</span><span class="screen-reader-text">Bersihkan format</span></button>
+                    </div>
+                    <div id="hcisysq-ann-body-editor" class="hcisysq-editor__content" data-editor-content contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="hcisysq-ann-body-help"></div>
+                    <textarea id="hcisysq-ann-body" name="body" data-editor-input hidden></textarea>
+                  </div>
+                  <p class="form-helper" id="hcisysq-ann-body-help">Tambahkan poin, penomoran, dan format dasar agar pengumuman lebih mudah dibaca.</p>
                 </div>
                 <div class="form-group">
                   <label for="hcisysq-ann-link-type">Tautan Tambahan</label>
                   <div class="hcisysq-field-group">
-                    <select id="hcisysq-ann-link-type" name="link_type">
+                    <select id="hcisysq-ann-link-type" name="link_type" class="hcisysq-input">
                       <option value="">Tidak ada tautan</option>
                       <option value="external">Gunakan URL khusus</option>
                       <option value="training">Gunakan tautan Form Pelatihan</option>
                     </select>
-                    <input type="url" id="hcisysq-ann-link-url" name="link_url" placeholder="https://contoh.id" autocomplete="url">
+                    <input type="url" id="hcisysq-ann-link-url" name="link_url" class="hcisysq-input" placeholder="https://contoh.id" autocomplete="url" disabled>
                   </div>
                 </div>
                 <div class="form-group">
                   <label for="hcisysq-ann-link-label">Label Tautan</label>
-                  <input type="text" id="hcisysq-ann-link-label" name="link_label" placeholder="Contoh: Baca selengkapnya">
+                  <input type="text" id="hcisysq-ann-link-label" name="link_label" class="hcisysq-input" placeholder="Contoh: Baca selengkapnya">
                 </div>
                 <div class="form-actions">
-                  <button type="submit" class="btn-primary">Publikasikan</button>
+                  <button type="submit" class="btn-primary" data-role="announcement-submit">Publikasikan</button>
+                  <button type="button" class="btn-light" data-role="announcement-cancel" hidden>Batal</button>
                   <div class="msg" data-role="announcement-message"></div>
                 </div>
               </form>
@@ -211,7 +275,7 @@ class View {
                           <button type="button" class="btn-link btn-danger" data-action="delete">Hapus</button>
                         </div>
                       </div>
-                      <p class="hcisysq-announcement-body"><?= esc_html($item['body']) ?></p>
+                      <div class="hcisysq-announcement-body"><?= wp_kses_post($item['body']) ?></div>
                       <?php if (!empty($item['link_url'])): ?>
                         <?php
                           $href = $isTraining ? '#' : $item['link_url'];
@@ -535,13 +599,17 @@ class View {
                   <?php foreach ($announcements as $item): ?>
                     <li>
                       <strong><?= esc_html($item['title']) ?></strong>
-                      <?php if (!empty($item['body'])): ?> – <?= esc_html($item['body']) ?><?php endif; ?>
+                      <?php if (!empty($item['body'])): ?>
+                        <div class="hcisysq-bullet-body"><?= wp_kses_post($item['body']) ?></div>
+                      <?php endif; ?>
                       <?php if (!empty($item['link_url'])): ?>
-                        – <a href="<?= esc_url($item['link_url']) ?>" target="_blank" rel="noopener">
-                          <?= esc_html($item['link_label'] ?: 'Buka tautan') ?>
-                        </a>
+                        <div class="hcisysq-bullet-link">
+                          <a href="<?= esc_url($item['link_url']) ?>" target="_blank" rel="noopener">
+                            <?= esc_html($item['link_label'] ?: 'Buka tautan') ?>
+                          </a>
+                        </div>
                       <?php elseif (!empty($item['link_label'])): ?>
-                        – <?= esc_html($item['link_label']) ?>
+                        <div class="hcisysq-bullet-link"><?= esc_html($item['link_label']) ?></div>
                       <?php endif; ?>
                     </li>
                   <?php endforeach; ?>
@@ -549,6 +617,19 @@ class View {
               <?php else: ?>
                 <p>Tidak ada pengumuman terbaru.</p>
               <?php endif; ?>
+            </article>
+          </section>
+
+          <section class="hcisysq-card-grid hcisysq-card-grid--1">
+            <article class="hcisysq-card hcisysq-card--empty">
+              <h3 class="hcisysq-card-title">Fitur Mendatang</h3>
+              <div class="hcisysq-coming-soon">
+                <span class="hcisysq-coming-soon__tag">Coming Soon</span>
+                <div class="hcisysq-progress" aria-hidden="true">
+                  <span class="hcisysq-progress__bar"></span>
+                </div>
+                <p class="hcisysq-coming-soon__desc">Work in Progress. Modul slip gaji, absensi, dan fitur kepegawaian lainnya sedang disiapkan untuk Anda.</p>
+              </div>
             </article>
           </section>
         </div>

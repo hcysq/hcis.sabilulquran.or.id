@@ -256,6 +256,284 @@
     handleChange();
   }
 
+  const allowedEditorFonts = {
+    'arial': "'Arial', sans-serif",
+    'helvetica': "'Helvetica', sans-serif",
+    'times new roman': "'Times New Roman', serif",
+  };
+
+  function sanitizeEditorStyle(style) {
+    if (!style) return '';
+    return style
+      .split(';')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const [rawProp, rawValue] = part.split(':');
+        if (!rawProp || !rawValue) return null;
+        const prop = rawProp.trim().toLowerCase();
+        const value = rawValue.trim().toLowerCase();
+
+        switch (prop) {
+          case 'font-weight':
+            if (['normal', 'bold', '500', '600', '700'].includes(value)) {
+              return `font-weight: ${value}`;
+            }
+            return null;
+          case 'font-style':
+            if (['normal', 'italic'].includes(value)) {
+              return `font-style: ${value}`;
+            }
+            return null;
+          case 'text-decoration':
+            if (['none', 'underline', 'line-through'].includes(value)) {
+              return `text-decoration: ${value}`;
+            }
+            return null;
+          case 'font-family': {
+            const mapped = allowedEditorFonts[value];
+            if (mapped) return `font-family: ${mapped}`;
+            return null;
+          }
+          case 'font-size': {
+            const match = value.match(/^([0-9]{1,2})px$/);
+            if (match) {
+              const size = parseInt(match[1], 10);
+              if (size >= 10 && size <= 48) {
+                return `font-size: ${size}px`;
+              }
+            }
+            return null;
+          }
+          default:
+            return null;
+        }
+      })
+      .filter(Boolean)
+      .join('; ');
+  }
+
+  function sanitizeEditorHtml(html) {
+    if (!html) return '';
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+    const container = doc.body;
+    const allowedTags = new Set(['P', 'BR', 'STRONG', 'EM', 'UL', 'OL', 'LI', 'SPAN']);
+
+    function transformFont(node) {
+      const span = doc.createElement('span');
+      const styles = [];
+      const face = node.getAttribute('face');
+      if (face) {
+        const mapped = allowedEditorFonts[face.trim().toLowerCase()];
+        if (mapped) styles.push(`font-family: ${mapped}`);
+      }
+      const sizeAttr = node.getAttribute('size');
+      if (sizeAttr) {
+        const size = parseInt(sizeAttr, 10);
+        if (!Number.isNaN(size)) {
+          const px = 12 + ((size - 3) * 2);
+          if (px >= 10 && px <= 48) {
+            styles.push(`font-size: ${px}px`);
+          }
+        }
+      }
+      if (styles.length) {
+        span.setAttribute('style', styles.join('; '));
+      }
+      while (node.firstChild) {
+        span.appendChild(node.firstChild);
+      }
+      node.replaceWith(span);
+      cleanNode(span);
+    }
+
+    function cleanNode(node) {
+      Array.from(node.childNodes).forEach((child) => {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+          if (child.tagName === 'FONT') {
+            transformFont(child);
+            return;
+          }
+
+          if (child.tagName === 'DIV') {
+            const paragraph = doc.createElement('p');
+            while (child.firstChild) {
+              paragraph.appendChild(child.firstChild);
+            }
+            child.replaceWith(paragraph);
+            cleanNode(paragraph);
+            return;
+          }
+
+          if (!allowedTags.has(child.tagName)) {
+            if (child.childNodes.length) {
+              while (child.firstChild) {
+                node.insertBefore(child.firstChild, child);
+              }
+            }
+            child.remove();
+            return;
+          }
+
+          if (child.hasAttribute('class')) child.removeAttribute('class');
+          if (child.hasAttribute('id')) child.removeAttribute('id');
+
+          if (child.hasAttribute('style')) {
+            const sanitized = sanitizeEditorStyle(child.getAttribute('style'));
+            if (sanitized) {
+              child.setAttribute('style', sanitized);
+            } else {
+              child.removeAttribute('style');
+            }
+          }
+
+          cleanNode(child);
+        } else if (child.nodeType === Node.COMMENT_NODE) {
+          child.remove();
+        }
+      });
+    }
+
+    cleanNode(container);
+
+    container.querySelectorAll('p, span, li').forEach((element) => {
+      const text = element.textContent ? element.textContent.replace(/\u00a0/g, ' ').trim() : '';
+      const hasChildren = element.querySelector('br, ul, ol');
+      if (!text && !hasChildren) {
+        element.remove();
+      }
+    });
+
+    return container.innerHTML.trim();
+  }
+
+  function initRichTextEditors(root) {
+    const editors = new Map();
+
+    root.querySelectorAll('[data-editor-wrapper]').forEach((wrapper) => {
+      const input = wrapper.querySelector('[data-editor-input]');
+      const content = wrapper.querySelector('[data-editor-content]');
+      const toolbar = wrapper.querySelector('.hcisysq-editor__toolbar');
+      if (!input || !content) return;
+
+      const key = (input.getAttribute('name') || wrapper.getAttribute('data-editor-name') || '').trim();
+
+      function setContent(value) {
+        const sanitized = sanitizeEditorHtml(value);
+        input.value = sanitized;
+        content.innerHTML = sanitized || '<p></p>';
+      }
+
+      function syncValue() {
+        input.value = sanitizeEditorHtml(content.innerHTML);
+      }
+
+      function commitContent() {
+        const sanitized = sanitizeEditorHtml(content.innerHTML);
+        input.value = sanitized;
+        content.innerHTML = sanitized || '<p></p>';
+      }
+
+      content.addEventListener('input', syncValue);
+      content.addEventListener('blur', commitContent);
+
+      function applyFontFamily(value) {
+        const mapped = allowedEditorFonts[value.toLowerCase()];
+        if (!mapped) return;
+        document.execCommand('fontName', false, mapped);
+      }
+
+      function applyFontSize(value) {
+        const size = parseInt(value, 10);
+        if (!size) return;
+        document.execCommand('fontSize', false, 7);
+        Array.from(content.querySelectorAll('font[size="7"]')).forEach((el) => {
+          el.removeAttribute('size');
+          el.style.fontSize = `${size}px`;
+        });
+      }
+
+      function handleCommand(command, value) {
+        content.focus();
+        document.execCommand('styleWithCSS', false, true);
+
+        switch (command) {
+          case 'bold':
+          case 'italic':
+            document.execCommand(command);
+            break;
+          case 'unorderedList':
+            document.execCommand('insertUnorderedList');
+            break;
+          case 'orderedList':
+            document.execCommand('insertOrderedList');
+            break;
+          case 'fontFamily':
+            if (value) applyFontFamily(value);
+            break;
+          case 'fontSize':
+            if (value) applyFontSize(value);
+            break;
+          case 'clear':
+            setContent('');
+            break;
+          default:
+            break;
+        }
+
+        syncValue();
+      }
+
+      if (toolbar) {
+        toolbar.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-command]');
+          if (!button || button.tagName === 'SELECT') return;
+          event.preventDefault();
+          const command = button.getAttribute('data-command');
+          handleCommand(command, button.getAttribute('data-value') || '');
+        });
+
+        toolbar.addEventListener('change', (event) => {
+          const select = event.target.closest('select[data-command]');
+          if (!select) return;
+          const command = select.getAttribute('data-command');
+          const value = select.value;
+          handleCommand(command, value);
+          select.selectedIndex = 0;
+        });
+      }
+
+      setContent(input.value || '');
+
+      const editorApi = {
+        name: key || input.name || '',
+        input,
+        content,
+        setValue: setContent,
+        getValue() {
+          commitContent();
+          return input.value.trim();
+        },
+        focus() {
+          content.focus();
+        },
+      };
+
+      editors.set(editorApi.name || input.name || `editor-${editors.size}`, editorApi);
+    });
+
+    return {
+      get(name) {
+        if (editors.has(name)) return editors.get(name);
+        for (const editor of editors.values()) {
+          if (editor.input.name === name) return editor;
+        }
+        return null;
+      },
+    };
+  }
+
   // --- AUTO LOGOUT (Idle 15 menit, warning 30 detik) ---
   function bootIdleLogout() {
     const backdrop = document.getElementById('hrq-idle-backdrop');
@@ -318,14 +596,31 @@
     if (!root) return;
 
     const initial = window.hcisysqAdmin || {};
+
+    function normalizeAnnouncements(list) {
+      if (!Array.isArray(list)) return [];
+      return list.map((item) => ({
+        ...item,
+        body: sanitizeEditorHtml(item && item.body ? item.body : ''),
+      }));
+    }
+
+    function normalizeHome(data) {
+      const home = data ? { ...data } : { marquee_text: '' };
+      home.marquee_text = sanitizeEditorHtml(home.marquee_text || '');
+      return home;
+    }
+
     const state = {
-      announcements: Array.isArray(initial.announcements) ? initial.announcements.slice() : [],
+      announcements: normalizeAnnouncements(initial.announcements),
       settings: initial.settings ? { ...initial.settings } : {},
-      home: initial.home ? { ...initial.home } : { marquee_text: '' },
+      home: normalizeHome(initial.home),
     };
 
     const nav = root.querySelector('[data-admin-nav]');
     const views = root.querySelectorAll('.hcisysq-admin-view');
+
+    const editors = initRichTextEditors(root);
 
     if (nav) {
       nav.addEventListener('click', (event) => {
@@ -354,10 +649,14 @@
     const annMessage = root.querySelector('[data-role="announcement-message"]');
     const homeForm = root.querySelector('#hcisysq-home-settings-form');
     const homeMessage = homeForm ? homeForm.querySelector('[data-role="home-message"]') : null;
+    const homeEditor = editors.get('marquee_text');
+    const bodyEditor = editors.get('body');
 
     function updateHomeUI(data) {
-      state.home = data ? { ...data } : { marquee_text: '' };
-      if (homeForm && homeForm.marquee_text) {
+      state.home = normalizeHome(data);
+      if (homeEditor) {
+        homeEditor.setValue(state.home.marquee_text || '');
+      } else if (homeForm && homeForm.marquee_text) {
         homeForm.marquee_text.value = state.home.marquee_text || '';
       }
     }
@@ -368,7 +667,7 @@
       homeForm.addEventListener('submit', (event) => {
         event.preventDefault();
         const submitBtn = homeForm.querySelector('button[type="submit"]');
-        const marqueeValue = (homeForm.marquee_text.value || '').trim();
+        const marqueeValue = homeEditor ? homeEditor.getValue() : (homeForm.marquee_text.value || '').trim();
 
         if (submitBtn) {
           submitBtn.disabled = true;
@@ -431,6 +730,11 @@
       });
     };
 
+    function updateAnnouncements(list) {
+      state.announcements = normalizeAnnouncements(list);
+      renderAnnouncements();
+    }
+
     function renderAnnouncements() {
       if (!annContainer) return;
       if (!state.announcements.length) {
@@ -443,6 +747,7 @@
         const statusLabel = status === 'archived' ? 'Diarsipkan' : 'Dipublikasikan';
         const statusClass = status === 'archived' ? 'is-archived' : 'is-published';
         const updatedLabel = formatDate(item.updated_at);
+        const bodyHtml = sanitizeEditorHtml(item.body || '');
         let linkHtml = '';
         if (item.link_url) {
           const isTraining = item.link_url === '__TRAINING_FORM__';
@@ -470,7 +775,7 @@
                 <button type="button" class="btn-link btn-danger" data-action="delete">Hapus</button>
               </div>
             </div>
-            <p class="hcisysq-announcement-body">${escapeHtml(item.body || '')}</p>
+            <div class="hcisysq-announcement-body">${bodyHtml}</div>
             ${linkHtml}
           </div>
         `;
@@ -482,34 +787,141 @@
     renderAnnouncements();
 
     const annForm = root.querySelector('#hcisysq-announcement-form');
+    const annSubmit = annForm ? annForm.querySelector('[data-role="announcement-submit"]') : null;
+    const annCancel = annForm ? annForm.querySelector('[data-role="announcement-cancel"]') : null;
+    const annIdField = annForm ? annForm.querySelector('input[name="announcement_id"]') : null;
+
+    function updateLinkFieldState() {
+      if (!annForm || !annForm.link_type || !annForm.link_url) return;
+      const type = (annForm.link_type.value || '').trim();
+      if (type === 'external') {
+        annForm.link_url.removeAttribute('disabled');
+      } else {
+        annForm.link_url.value = '';
+        annForm.link_url.setAttribute('disabled', 'disabled');
+      }
+    }
+
+    function resetAnnouncementForm() {
+      if (!annForm) return;
+      annForm.reset();
+      if (annIdField) annIdField.value = '';
+      if (bodyEditor) {
+        bodyEditor.setValue('');
+      }
+      updateLinkFieldState();
+      if (annSubmit) annSubmit.textContent = 'Publikasikan';
+      if (annCancel) annCancel.hidden = true;
+    }
+
+    resetAnnouncementForm();
+
+    if (annCancel) {
+      annCancel.addEventListener('click', () => {
+        resetAnnouncementForm();
+        setAnnouncementMessage('');
+      });
+    }
+
+    if (annForm && annForm.link_type) {
+      annForm.link_type.addEventListener('change', updateLinkFieldState);
+      updateLinkFieldState();
+    }
+
     if (annForm) {
       annForm.addEventListener('submit', (event) => {
         event.preventDefault();
+        const id = annIdField ? annIdField.value.trim() : '';
         const title = (annForm.title.value || '').trim();
-        const body = (annForm.body.value || '').trim();
+        const bodyValue = bodyEditor ? bodyEditor.getValue() : (annForm.body.value || '').trim();
+        const sanitizedBody = sanitizeEditorHtml(bodyValue);
+        const plainBody = sanitizedBody.replace(/<[^>]+>/g, '').trim();
         const linkType = (annForm.link_type.value || '').trim();
-        const linkUrl = (annForm.link_url.value || '').trim();
+        const linkUrl = (annForm.link_url && !annForm.link_url.disabled) ? annForm.link_url.value.trim() : '';
         const linkLabel = (annForm.link_label.value || '').trim();
 
+        if (!title || !plainBody) {
+          setAnnouncementMessage('Judul dan isi pengumuman wajib diisi.');
+          return;
+        }
+
+        const payload = {
+          title,
+          body: sanitizedBody,
+          link_type: linkType,
+          link_url: linkType === 'external' ? linkUrl : '',
+          link_label: linkLabel,
+        };
+
+        const isEditing = Boolean(id);
+        const action = isEditing ? 'hcisysq_admin_update_announcement' : 'hcisysq_admin_create_announcement';
+        if (isEditing) {
+          payload.id = id;
+        }
+
+        if (annSubmit) {
+          annSubmit.disabled = true;
+          annSubmit.textContent = 'Menyimpan...';
+        }
         setAnnouncementMessage('Menyimpan...');
 
-        ajax('hcisysq_admin_create_announcement', {
-          title,
-          body,
-          link_type: linkType,
-          link_url: linkUrl,
-          link_label: linkLabel,
-        }).then((res) => {
+        ajax(action, payload).then((res) => {
           if (res && res.ok) {
-            state.announcements = Array.isArray(res.announcements) ? res.announcements : [];
-            renderAnnouncements();
-            annForm.reset();
-            setAnnouncementMessage(res.msg || 'Pengumuman tersimpan.', true);
+            updateAnnouncements(res.announcements || []);
+            resetAnnouncementForm();
+            setAnnouncementMessage(res.msg || (isEditing ? 'Pengumuman diperbarui.' : 'Pengumuman tersimpan.'), true);
           } else {
             setAnnouncementMessage((res && res.msg) ? res.msg : 'Gagal menyimpan pengumuman.');
           }
+        }).finally(() => {
+          if (annSubmit) {
+            annSubmit.disabled = false;
+            annSubmit.textContent = (annIdField && annIdField.value) ? 'Simpan Perubahan' : 'Publikasikan';
+          }
         });
       });
+    }
+
+    function beginEditAnnouncement(item) {
+      if (!annForm) return;
+      if (annIdField) annIdField.value = item.id || '';
+      annForm.title.value = item.title || '';
+      if (bodyEditor) {
+        bodyEditor.setValue(item.body || '');
+      } else if (annForm.body) {
+        annForm.body.value = item.body || '';
+      }
+
+      const isTraining = item.link_url === '__TRAINING_FORM__';
+      if (annForm.link_type) {
+        if (isTraining) {
+          annForm.link_type.value = 'training';
+        } else if (item.link_url) {
+          annForm.link_type.value = 'external';
+        } else {
+          annForm.link_type.value = '';
+        }
+      }
+
+      if (annForm.link_url) {
+        if (!isTraining && item.link_url && annForm.link_type && annForm.link_type.value === 'external') {
+          annForm.link_url.value = item.link_url;
+        } else {
+          annForm.link_url.value = '';
+        }
+      }
+
+      if (annForm.link_label) {
+        annForm.link_label.value = item.link_label || '';
+      }
+
+      updateLinkFieldState();
+
+      if (annSubmit) annSubmit.textContent = 'Simpan Perubahan';
+      if (annCancel) annCancel.hidden = false;
+      setAnnouncementMessage('Mode edit pengumuman.', true);
+      annForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      annForm.title.focus();
     }
 
     if (annContainer) {
@@ -530,8 +942,10 @@
           setAnnouncementMessage('Menghapus...');
           ajax('hcisysq_admin_delete_announcement', { id }).then((res) => {
             if (res && res.ok) {
-              state.announcements = Array.isArray(res.announcements) ? res.announcements : [];
-              renderAnnouncements();
+              updateAnnouncements(res.announcements || []);
+              if (annIdField && annIdField.value === id) {
+                resetAnnouncementForm();
+              }
               setAnnouncementMessage(res.msg || 'Pengumuman dihapus.', true);
             } else {
               setAnnouncementMessage((res && res.msg) ? res.msg : 'Gagal menghapus pengumuman.');
@@ -545,8 +959,10 @@
           setAnnouncementMessage('Memperbarui status...');
           ajax('hcisysq_admin_set_announcement_status', { id, status }).then((res) => {
             if (res && res.ok) {
-              state.announcements = Array.isArray(res.announcements) ? res.announcements : [];
-              renderAnnouncements();
+              updateAnnouncements(res.announcements || []);
+              if (annIdField && annIdField.value === id) {
+                resetAnnouncementForm();
+              }
               setAnnouncementMessage(res.msg || 'Status diperbarui.', true);
             } else {
               setAnnouncementMessage((res && res.msg) ? res.msg : 'Gagal memperbarui status.');
@@ -557,45 +973,7 @@
 
         if (action === 'edit') {
           if (!item) return;
-          const title = window.prompt('Judul pengumuman:', item.title || '');
-          if (title === null) return;
-          const body = window.prompt('Isi pengumuman:', item.body || '');
-          if (body === null) return;
-          const currentType = item.link_url === '__TRAINING_FORM__' ? 'training' : (item.link_url ? 'external' : '');
-          const linkType = window.prompt('Tipe tautan (kosong, external, training):', currentType) || '';
-          if (linkType === null) return;
-          let linkLabel = window.prompt('Label tautan (boleh kosong):', item.link_label || '');
-          if (linkLabel === null) return;
-          linkLabel = linkLabel.trim();
-          let linkUrl = '';
-          const normalizedType = linkType.trim().toLowerCase();
-          if (normalizedType === 'external') {
-            const urlPrompt = window.prompt('URL tautan (https://):', item.link_url && item.link_url !== '__TRAINING_FORM__' ? item.link_url : '');
-            if (urlPrompt === null) return;
-            linkUrl = urlPrompt.trim();
-          } else if (normalizedType === 'training') {
-            linkUrl = '__TRAINING_FORM__';
-          } else {
-            linkUrl = '';
-          }
-
-          setAnnouncementMessage('Memperbarui pengumuman...');
-          ajax('hcisysq_admin_update_announcement', {
-            id,
-            title: title.trim(),
-            body: body.trim(),
-            link_type: normalizedType,
-            link_url: linkUrl,
-            link_label: linkLabel,
-          }).then((res) => {
-            if (res && res.ok) {
-              state.announcements = Array.isArray(res.announcements) ? res.announcements : [];
-              renderAnnouncements();
-              setAnnouncementMessage(res.msg || 'Pengumuman diperbarui.', true);
-            } else {
-              setAnnouncementMessage((res && res.msg) ? res.msg : 'Gagal memperbarui pengumuman.');
-            }
-          });
+          beginEditAnnouncement(item);
         }
       });
     }
