@@ -82,14 +82,16 @@ class Api {
     self::require_admin();
 
     $title = sanitize_text_field($_POST['title'] ?? '');
-    $body = sanitize_textarea_field($_POST['body'] ?? '');
+    $rawBody = isset($_POST['body']) ? wp_unslash($_POST['body']) : '';
+    $body = RichText::sanitize($rawBody);
+    $plainBody = trim(wp_strip_all_tags($body));
     $linkType = sanitize_text_field($_POST['link_type'] ?? '');
     if ($linkType === 'external' && trim((string)($_POST['link_url'] ?? '')) === '') {
       wp_send_json(['ok' => false, 'msg' => 'Isi URL tautan terlebih dahulu.']);
     }
     [$label, $url] = self::normalize_link($_POST);
 
-    if ($title === '' || $body === '') {
+    if ($title === '' || $plainBody === '') {
       wp_send_json(['ok' => false, 'msg' => 'Judul dan isi pengumuman wajib diisi.']);
     }
 
@@ -122,7 +124,9 @@ class Api {
     }
 
     $title = sanitize_text_field($_POST['title'] ?? '');
-    $body = sanitize_textarea_field($_POST['body'] ?? '');
+    $rawBody = isset($_POST['body']) ? wp_unslash($_POST['body']) : '';
+    $body = RichText::sanitize($rawBody);
+    $plainBody = trim(wp_strip_all_tags($body));
     $linkType = sanitize_text_field($_POST['link_type'] ?? '');
     if ($linkType === 'external' && trim((string)($_POST['link_url'] ?? '')) === '') {
       wp_send_json(['ok' => false, 'msg' => 'Isi URL tautan terlebih dahulu.']);
@@ -136,6 +140,9 @@ class Api {
       'link_label' => $label,
       'link_url'   => $url,
     ];
+    if ($plainBody === '') {
+      wp_send_json(['ok' => false, 'msg' => 'Isi pengumuman tidak boleh kosong.']);
+    }
     if ($status !== '') {
       $payload['status'] = $status;
     }
@@ -220,7 +227,8 @@ class Api {
     self::check_nonce();
     self::require_admin();
 
-    $marquee = isset($_POST['marquee_text']) ? sanitize_textarea_field(wp_unslash($_POST['marquee_text'])) : '';
+    $rawMarquee = isset($_POST['marquee_text']) ? wp_unslash($_POST['marquee_text']) : '';
+    $marquee = RichText::sanitize($rawMarquee);
     update_option('hcisysq_home_marquee_text', $marquee, false);
 
     wp_send_json([

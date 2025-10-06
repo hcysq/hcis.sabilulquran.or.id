@@ -39,7 +39,8 @@ function ysq_setup() {
 add_action('after_setup_theme', 'ysq_setup');
 
 function ysq_enqueue_scripts() {
-    wp_enqueue_style('ysq-style', get_stylesheet_uri(), array(), '1.2');
+    wp_enqueue_style('ysq-style', get_stylesheet_uri(), array(), '1.3');
+    wp_enqueue_script('ysq-theme', get_template_directory_uri() . '/assets/js/theme.js', array(), '1.0.0', true);
 }
 add_action('wp_enqueue_scripts', 'ysq_enqueue_scripts');
 
@@ -890,8 +891,14 @@ function ysq_custom_styles() {
             'opacity'        => max(0, min(100, $opacity_value)),
         );
     }
+    $header_bg_half     = ysq_hex_to_rgba($header_bg, 0.5);
     ?>
     <style type="text/css">
+        :root {
+            --ysq-header-bg: <?php echo esc_attr($header_bg_rgba); ?>;
+            --ysq-header-bg-transparent: <?php echo esc_attr($header_bg_half); ?>;
+        }
+
         body {
             font-size: <?php echo esc_attr($base_font_size); ?>px !important;
         }
@@ -903,10 +910,6 @@ function ysq_custom_styles() {
         h5,
         h6 {
             font-size: <?php echo esc_attr($heading_font_size); ?>px !important;
-        }
-
-        .site-header {
-            background-color: <?php echo esc_attr($header_bg_rgba); ?> !important;
         }
 
         .site-branding {

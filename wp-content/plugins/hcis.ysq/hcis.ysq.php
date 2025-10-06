@@ -76,6 +76,7 @@ require_once HCISYSQ_DIR . 'includes/View.php';
 require_once HCISYSQ_DIR . 'includes/Profiles.php';
 require_once HCISYSQ_DIR . 'includes/Users.php';
 require_once HCISYSQ_DIR . 'includes/Trainings.php';
+require_once HCISYSQ_DIR . 'includes/RichText.php';
 require_once HCISYSQ_DIR . 'includes/Announcements.php';
 require_once HCISYSQ_DIR . 'includes/Admin.php';
 require_once HCISYSQ_DIR . 'includes/Assets.php';

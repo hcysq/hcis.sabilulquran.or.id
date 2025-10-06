@@ -66,30 +66,57 @@
 </header>
 
 <?php
-$marquee_raw   = get_option('hcisysq_home_marquee_text', '');
 $marquee_items = array();
+$marquee_raw   = get_option('hcisysq_home_marquee_text', '');
 
 if (is_string($marquee_raw)) {
-    $marquee_raw = trim(wp_strip_all_tags($marquee_raw));
+    $marquee_raw = trim($marquee_raw);
 }
 
 if (!empty($marquee_raw)) {
-    $segments = preg_split('/\r\n|\r|\n/', $marquee_raw);
-    if (is_array($segments)) {
-        foreach ($segments as $segment) {
-            $segment = trim($segment);
-            if ($segment !== '') {
-                $marquee_items[] = $segment;
+    $marquee_allowed = array(
+        'p'   => array(),
+        'br'  => array(),
+        'ul'  => array(),
+        'ol'  => array(),
+        'li'  => array(),
+        'span'=> array('style' => true),
+        'strong' => array(),
+        'em'     => array(),
+    );
+
+    $marquee_html = wp_kses($marquee_raw, $marquee_allowed);
+
+    if (preg_match_all('/<li[^>]*>(.*?)<\/li>/is', $marquee_html, $matches)) {
+        foreach ($matches[1] as $segment) {
+            $text = trim(wp_strip_all_tags($segment));
+            if ($text !== '') {
+                $marquee_items[] = html_entity_decode($text, ENT_QUOTES, get_bloginfo('charset'));
             }
         }
     }
 
     if (empty($marquee_items)) {
-        $marquee_items[] = $marquee_raw;
+        $plain = trim(wp_strip_all_tags($marquee_html));
+        if ($plain !== '') {
+            $segments = preg_split('/\r\n|\r|\n/', $plain);
+            if (is_array($segments)) {
+                foreach ($segments as $segment) {
+                    $segment = trim($segment);
+                    if ($segment !== '') {
+                        $marquee_items[] = $segment;
+                    }
+                }
+            }
+
+            if (empty($marquee_items)) {
+                $marquee_items[] = $plain;
+            }
+        }
     }
 }
 
-if (!empty($marquee_items)) :
+if ((is_front_page() || is_home()) && !empty($marquee_items)) :
     ?>
     <div class="site-marquee" role="region" aria-label="<?php esc_attr_e('Informasi berjalan', 'ysq'); ?>">
         <div class="site-marquee__track" aria-live="polite">
