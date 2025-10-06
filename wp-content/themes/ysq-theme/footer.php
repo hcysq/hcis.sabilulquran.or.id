@@ -110,12 +110,12 @@
                 </div>
             <?php endforeach; ?>
         </div>
+    </div>
 
-        <div class="ysq-footer__bottom">
-            <div class="ysq-footer__bottom-inner">
-                <p class="ysq-footer__bottom-text"><?php echo wp_kses_post(get_theme_mod('ysq_footer_ahu_text', 'AHU – 0033732. AH. 01. 04. Tahun 2015 | Tanggal 28 Desember 2015')); ?></p>
-                <p class="ysq-footer__bottom-text">&copy; <?php echo ysq_get_current_year(); ?> <?php echo esc_html(get_theme_mod('ysq_footer_copyright_text', 'Yayasan Sabilul Qur\'an • HRIS Internal v1.2')); ?></p>
-            </div>
+    <div class="ysq-footer__bottom">
+        <div class="ysq-footer__bottom-inner">
+            <p class="ysq-footer__bottom-text"><?php echo wp_kses_post(get_theme_mod('ysq_footer_ahu_text', 'AHU – 0033732. AH. 01. 04. Tahun 2015 | Tanggal 28 Desember 2015')); ?></p>
+            <p class="ysq-footer__bottom-text">&copy; <?php echo ysq_get_current_year(); ?> <?php echo esc_html(get_theme_mod('ysq_footer_copyright_text', 'Yayasan Sabilul Qur\'an • HRIS Internal v1.2')); ?></p>
         </div>
     </div>
 </footer>

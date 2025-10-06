@@ -57,6 +57,16 @@
     }
   }
 
+  function escapeHtmlText(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // --- LOGIN PAGE ---
   function bootLogin() {
     const form = document.getElementById('hcisysq-login-form');
@@ -349,6 +359,73 @@
     } else {
       activate('dashboard', { updateHash: false, scroll: false });
     }
+  }
+
+  function bootDashboardRunningText() {
+    const wrap = document.querySelector('[data-role="running-text"]');
+    if (!wrap) return;
+
+    const track = wrap.querySelector('[data-role="running-track"]');
+    if (!track) return;
+
+    let items = [];
+    const rawItems = wrap.getAttribute('data-items') || '';
+    if (rawItems) {
+      try {
+        const parsed = JSON.parse(rawItems);
+        if (Array.isArray(parsed)) {
+          items = parsed
+            .map((item) => (typeof item === 'string' ? item : String(item || '')))
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
+      } catch (error) {
+        console.warn('HCISYSQ running text parse error:', error);
+      }
+    }
+
+    if (!items.length) {
+      wrap.setAttribute('hidden', 'hidden');
+      return;
+    }
+
+    const baseItems = items.slice();
+    if (baseItems.length) {
+      while (items.length < 5) {
+        items.push(baseItems[items.length % baseItems.length]);
+      }
+    }
+
+    const separator = '<span class="hcisysq-running__sep" aria-hidden="true">•</span>';
+    const segmentHtml = items
+      .map((item) => `<span class="hcisysq-running__item">${escapeHtmlText(item)}</span>`)
+      .join(separator);
+    track.innerHTML = segmentHtml + separator + segmentHtml;
+
+    const gapAttr = parseInt(wrap.getAttribute('data-gap'), 10);
+    if (!Number.isNaN(gapAttr)) {
+      const clampedGap = Math.max(12, Math.min(160, gapAttr));
+      track.style.setProperty('--running-gap', `${clampedGap}px`);
+    }
+
+    const letterAttr = parseFloat(wrap.getAttribute('data-letter'));
+    if (!Number.isNaN(letterAttr)) {
+      const clampedLetter = Math.max(0, Math.min(10, letterAttr));
+      track.style.setProperty('--running-letter', `${clampedLetter}px`);
+    }
+
+    const background = wrap.getAttribute('data-bg') || '';
+    if (background) {
+      wrap.style.setProperty('--running-bg', background);
+    }
+
+    const speedAttr = parseFloat(wrap.getAttribute('data-speed'));
+    const speedValue = Number.isFinite(speedAttr) && speedAttr > 0 ? speedAttr : 1;
+    const baseDuration = 40;
+    let duration = baseDuration / speedValue;
+    if (duration < 30) duration = 30;
+    if (duration > 45) duration = 45;
+    track.style.setProperty('--running-duration', `${duration}s`);
   }
 
   const allowedEditorFonts = {
@@ -1536,6 +1613,7 @@
     bootLogoutButton();
     bootSidebarToggle();
     bootDashboardSections();
+    bootDashboardRunningText();
     bootIdleLogout();
     bootAdminDashboard();
     bootTrainingForm();

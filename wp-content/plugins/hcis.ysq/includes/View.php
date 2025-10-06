@@ -593,6 +593,15 @@ class View {
       ],
     ];
 
+    $marqueeData = self::get_dashboard_marquee_data();
+    $marqueeItemsJson = '';
+    if (!empty($marqueeData['items'])) {
+      $encoded = wp_json_encode($marqueeData['items'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+      if (false !== $encoded) {
+        $marqueeItemsJson = $encoded;
+      }
+    }
+
     ob_start(); ?>
     <div class="hcisysq-dashboard" id="hcisysq-dashboard">
 
@@ -650,6 +659,16 @@ class View {
 
         <div class="hcisysq-main-body">
           <section id="dashboard" class="hcisysq-dashboard-section is-active" data-section="dashboard" tabindex="-1">
+            <?php if ($marqueeItemsJson) : ?>
+              <div class="hcisysq-running" data-role="running-text" role="region" aria-label="<?= esc_attr__('Informasi berjalan', 'hcisysq') ?>" aria-live="polite"
+                   data-items="<?= esc_attr($marqueeItemsJson) ?>"
+                   data-speed="<?= esc_attr($marqueeData['options']['speed']) ?>"
+                   data-gap="<?= esc_attr($marqueeData['options']['gap']) ?>"
+                   data-letter="<?= esc_attr($marqueeData['options']['letter_spacing']) ?>"
+                   data-bg="<?= esc_attr($marqueeData['options']['background']) ?>">
+                <div class="hcisysq-running__track" data-role="running-track"></div>
+              </div>
+            <?php endif; ?>
             <section class="hcisysq-card-grid hcisysq-card-grid--2">
               <article class="hcisysq-card">
                 <h3 class="hcisysq-card-title">Profil Ringkas</h3>
@@ -742,6 +761,114 @@ class View {
     </div>
     <?php
     return ob_get_clean();
+  }
+
+  private static function get_dashboard_marquee_data(){
+    $rawText = get_option('hcisysq_home_marquee_text', '');
+    if (!is_string($rawText)) {
+      $rawText = '';
+    } else {
+      $rawText = trim($rawText);
+    }
+
+    if ($rawText !== '') {
+      $rawText = RichText::sanitize($rawText);
+    }
+
+    $items = [];
+
+    if ($rawText !== '') {
+      $allowed = [
+        'p' => [],
+        'br' => [],
+        'ul' => [],
+        'ol' => [],
+        'li' => [],
+        'span' => ['style' => true],
+        'strong' => [],
+        'em' => [],
+      ];
+
+      $html = wp_kses($rawText, $allowed);
+
+      if (preg_match_all('/<li[^>]*>(.*?)<\/li>/is', $html, $matches)) {
+        foreach ($matches[1] as $segment) {
+          $text = trim(wp_strip_all_tags($segment));
+          if ($text !== '') {
+            $items[] = html_entity_decode($text, ENT_QUOTES, get_bloginfo('charset'));
+          }
+        }
+      }
+
+      if (empty($items)) {
+        $plain = trim(wp_strip_all_tags($html));
+        if ($plain !== '') {
+          $segments = preg_split("/\r\n|\r|\n/", $plain);
+          if (is_array($segments)) {
+            foreach ($segments as $segment) {
+              $segment = trim($segment);
+              if ($segment !== '') {
+                $items[] = html_entity_decode($segment, ENT_QUOTES, get_bloginfo('charset'));
+              }
+            }
+          }
+
+          if (empty($items)) {
+            $items[] = html_entity_decode($plain, ENT_QUOTES, get_bloginfo('charset'));
+          }
+        }
+      }
+    }
+
+    $items = array_map('trim', $items);
+    $items = array_filter($items, static function ($value) {
+      return $value !== '';
+    });
+    $items = array_values(array_unique($items));
+    if (count($items) > 20) {
+      $items = array_slice($items, 0, 20);
+    }
+
+    $optionsRaw = get_option('hcisysq_home_marquee_options', []);
+    if (!is_array($optionsRaw)) {
+      $optionsRaw = [];
+    }
+
+    $speed = isset($optionsRaw['speed']) ? (float) $optionsRaw['speed'] : 1.0;
+    if ($speed < 0.5) {
+      $speed = 0.5;
+    } elseif ($speed > 3.0) {
+      $speed = 3.0;
+    }
+
+    $gap = isset($optionsRaw['gap']) ? (int) $optionsRaw['gap'] : 32;
+    if ($gap < 8) {
+      $gap = 8;
+    } elseif ($gap > 160) {
+      $gap = 160;
+    }
+
+    $letterSpacing = isset($optionsRaw['letter_spacing']) ? (float) $optionsRaw['letter_spacing'] : 0.0;
+    if ($letterSpacing < 0) {
+      $letterSpacing = 0.0;
+    } elseif ($letterSpacing > 10) {
+      $letterSpacing = 10.0;
+    }
+
+    $background = isset($optionsRaw['background']) ? sanitize_hex_color($optionsRaw['background']) : '';
+    if (!$background) {
+      $background = '#ffffff';
+    }
+
+    return [
+      'items' => $items,
+      'options' => [
+        'speed' => $speed,
+        'gap' => $gap,
+        'letter_spacing' => $letterSpacing,
+        'background' => $background,
+      ],
+    ];
   }
 
   /* ========== FORM PELATIHAN ========== */
