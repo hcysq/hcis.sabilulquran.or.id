@@ -68,7 +68,7 @@ class Assets {
     return [
       'admin_wa' => get_option('hcisysq_admin_wa', HCISYSQ_SS_HC ?? ''),
       'wa_token' => get_option('hcisysq_wa_token', HCISYSQ_SS_KEY ?? ''),
-      'gas_url'  => get_option('hcisysq_gas_url', HCISYSQ_GAS_EXEC_URL ?? ''),
+      'gas_url'  => home_url('/' . trim(HCISYSQ_FORM_SLUG, '/') . '/'),
     ];
   }
 
@@ -81,6 +81,6 @@ class Assets {
   }
 
   public static function get_gas_url() {
-    return get_option('hcisysq_gas_url', HCISYSQ_GAS_EXEC_URL ?? '');
+    return home_url('/' . trim(HCISYSQ_FORM_SLUG, '/') . '/');
   }
 }

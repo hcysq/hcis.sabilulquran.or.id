@@ -55,7 +55,7 @@ class Shortcodes {
       $login = home_url('/' . HCISYSQ_LOGIN_SLUG . '/');
       return '<a class="button" href="' . esc_url($login) . '">Login untuk isi form</a>';
     }
-    $href = admin_url('admin-post.php?action=hcisysq_go');
+    $href = home_url('/' . HCISYSQ_FORM_SLUG . '/');
     return '<a class="button button-primary" href="' . esc_url($href) . '">Isi Form Pelatihan</a>';
   }
 }
