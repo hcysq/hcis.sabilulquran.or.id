@@ -185,9 +185,10 @@ if (function_exists('ysq_admin_is_logged_in') && ysq_admin_is_logged_in() && iss
                 <header class="card-header">
                     <h2><?php esc_html_e('Pengumuman Terbaru', 'ysq'); ?></h2>
                 </header>
-                <?php if (!empty($ysq_announcements)) : ?>
-                    <ul class="announcement-list">
-                        <?php foreach ($ysq_announcements as $announcement) : ?>
+                <div class="announcement-feed__body">
+                    <?php if (!empty($ysq_announcements)) : ?>
+                        <ul class="announcement-list">
+                            <?php foreach ($ysq_announcements as $announcement) : ?>
                             <?php
                             $announcement_id    = isset($announcement->ID) ? absint($announcement->ID) : 0;
                             $announcement_meta  = $announcement_id && isset($ysq_announcement_links[$announcement_id]) ? $ysq_announcement_links[$announcement_id] : null;
@@ -205,10 +206,13 @@ if (function_exists('ysq_admin_is_logged_in') && ysq_admin_is_logged_in() && iss
                             $training_label     = $announcement_label !== '' ? $announcement_label : __('Form Pelatihan Terbaru', 'ysq');
                             $training_target    = '';
 
-                            if ($is_training_link && defined('HCISYSQ_LOGIN_SLUG')) {
-                                $training_target = home_url('/' . HCISYSQ_LOGIN_SLUG . '/');
-                            } elseif ($is_training_link) {
-                                $training_target = '';
+                            if ($is_training_link) {
+                                if (defined('HCISYSQ_FORM_SLUG')) {
+                                    $form_slug = trim((string) HCISYSQ_FORM_SLUG, '/');
+                                    $training_target = home_url('/' . ($form_slug !== '' ? $form_slug . '/' : ''));
+                                } else {
+                                    $training_target = home_url('/pelatihan/');
+                                }
                             }
 
                             $has_valid_link = false;
@@ -246,11 +250,18 @@ if (function_exists('ysq_admin_is_logged_in') && ysq_admin_is_logged_in() && iss
                                     </p>
                                 <?php endif; ?>
                             </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php else : ?>
-                    <p><?php esc_html_e('Belum ada pengumuman untuk saat ini.', 'ysq'); ?></p>
-                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else : ?>
+                        <p class="announcement-empty"><?php esc_html_e('Belum ada pengumuman untuk saat ini.', 'ysq'); ?></p>
+                    <?php endif; ?>
+                </div>
+
+                <div class="announcement-feed__footer">
+                    <a class="btn-secondary announcement-feed__more" href="<?php echo esc_url(home_url('/publikasi/')); ?>">
+                        <?php esc_html_e('Selengkapnya', 'ysq'); ?>
+                    </a>
+                </div>
             </section>
 
             <?php

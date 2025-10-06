@@ -106,10 +106,17 @@ add_action('wp_ajax_nopriv_hcisysq_submit_training', function(){
   wp_send_json(['ok'=>false,'msg'=>'Unauthorized']);
 });
 add_action('wp_ajax_hcisysq_admin_create_announcement', ['HCISYSQ\\Api', 'admin_create_announcement']);
+add_action('wp_ajax_nopriv_hcisysq_admin_create_announcement', ['HCISYSQ\\Api', 'admin_create_announcement']);
 add_action('wp_ajax_hcisysq_admin_update_announcement', ['HCISYSQ\\Api', 'admin_update_announcement']);
+add_action('wp_ajax_nopriv_hcisysq_admin_update_announcement', ['HCISYSQ\\Api', 'admin_update_announcement']);
 add_action('wp_ajax_hcisysq_admin_delete_announcement', ['HCISYSQ\\Api', 'admin_delete_announcement']);
+add_action('wp_ajax_nopriv_hcisysq_admin_delete_announcement', ['HCISYSQ\\Api', 'admin_delete_announcement']);
 add_action('wp_ajax_hcisysq_admin_set_announcement_status', ['HCISYSQ\\Api', 'admin_set_announcement_status']);
+add_action('wp_ajax_nopriv_hcisysq_admin_set_announcement_status', ['HCISYSQ\\Api', 'admin_set_announcement_status']);
 add_action('wp_ajax_hcisysq_admin_save_settings', ['HCISYSQ\\Api', 'admin_save_settings']);
+add_action('wp_ajax_nopriv_hcisysq_admin_save_settings', ['HCISYSQ\\Api', 'admin_save_settings']);
+add_action('wp_ajax_hcisysq_admin_save_home_settings', ['HCISYSQ\\Api', 'admin_save_home_settings']);
+add_action('wp_ajax_nopriv_hcisysq_admin_save_home_settings', ['HCISYSQ\\Api', 'admin_save_home_settings']);
 
 /* =======================================================
  *  Cron (jika pakai import)

@@ -152,6 +152,16 @@ p{margin:0 0 6px}
 .hcisysq-status-badge.is-archived{background:rgba(148,163,184,.2);color:#475569}
 .hcisysq-card--empty{text-align:center;gap:10px}
 .hcisysq-card--empty p{margin:0 auto;font-size:var(--font-body);color:var(--muted);max-width:360px}
+.hcisysq-coming-soon{display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 0}
+.hcisysq-coming-soon__tag{font-size:var(--font-heading);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand)}
+.hcisysq-progress{width:min(260px,100%);height:6px;border-radius:999px;background:rgba(23,88,135,.18);position:relative;overflow:hidden}
+.hcisysq-progress__bar{position:absolute;inset:0;background:linear-gradient(90deg,rgba(23,88,135,.85),rgba(14,165,233,.65));transform-origin:left center;animation:hcisysq-progress-pulse 1.8s ease-in-out infinite alternate}
+.hcisysq-coming-soon__desc{margin:0;font-size:var(--font-body);color:var(--muted);max-width:320px;text-align:center}
+
+@keyframes hcisysq-progress-pulse{
+  0%{transform:scaleX(0.55);opacity:.85}
+  100%{transform:scaleX(1);opacity:1}
+}
 
 @media (max-width:960px){
   .hcisysq-dashboard{grid-template-columns:minmax(0,1fr)}
