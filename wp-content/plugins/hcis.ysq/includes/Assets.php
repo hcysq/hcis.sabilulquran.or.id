@@ -11,12 +11,19 @@ class Assets {
   }
 
   public static function register() {
-    wp_register_style('hcisysq', HCISYSQ_URL . 'assets/app.css', [], HCISYSQ_VER);
-    wp_register_script('hcisysq', HCISYSQ_URL . 'assets/app.js', ['jquery'], HCISYSQ_VER, true);
+    wp_register_style('hcisysq-shared', HCISYSQ_URL . 'assets/css/shared.css', [], HCISYSQ_VER);
+    wp_register_style('hcisysq-login', HCISYSQ_URL . 'assets/css/login.css', ['hcisysq-shared'], HCISYSQ_VER);
+    wp_register_style('hcisysq-dashboard', HCISYSQ_URL . 'assets/css/dashboard.css', ['hcisysq-shared'], HCISYSQ_VER);
+    wp_register_style('hcisysq-admin', HCISYSQ_URL . 'assets/css/admin.css', ['hcisysq-dashboard'], HCISYSQ_VER);
+
+    wp_register_script('hcisysq-shared', HCISYSQ_URL . 'assets/js/shared.js', ['jquery'], HCISYSQ_VER, true);
+    wp_register_script('hcisysq-login', HCISYSQ_URL . 'assets/js/login.js', ['hcisysq-shared'], HCISYSQ_VER, true);
+    wp_register_script('hcisysq-dashboard', HCISYSQ_URL . 'assets/js/dashboard.js', ['hcisysq-shared'], HCISYSQ_VER, true);
+    wp_register_script('hcisysq-admin', HCISYSQ_URL . 'assets/js/admin.js', ['hcisysq-dashboard'], HCISYSQ_VER, true);
 
     $settings = self::get_settings();
 
-    wp_localize_script('hcisysq', 'hcisysq', [
+    wp_localize_script('hcisysq-shared', 'hcisysq', [
       'ajax'          => admin_url('admin-ajax.php', 'relative'),
       'nonce'         => wp_create_nonce('hcisysq_nonce'),
       'loginSlug'     => HCISYSQ_LOGIN_SLUG,
@@ -26,41 +33,77 @@ class Assets {
   }
 
   public static function conditional_enqueue() {
-    if (!is_singular()) return;
+    $needs_login = false;
+    $needs_dashboard = false;
 
-    global $post;
-    if (!$post || empty($post->post_content)) return;
+    if (is_singular()) {
+      global $post;
+      $content = $post ? $post->post_content : '';
+      $shortcodes = [
+        'hcis_ysq_login', 'hcisysq_login', 'hrissq_login',
+        'hcis_ysq_dashboard', 'hcisysq_dashboard', 'hrissq_dashboard',
+        'hcis_ysq_form', 'hcisysq_form', 'hrissq_form'
+      ];
 
-    $shortcodes = [
-      'hcis_ysq_login', 'hcis_ysq_dashboard', 'hcis_ysq_form',
-      'hcisysq_login', 'hcisysq_dashboard', 'hcisysq_form',
-      'hrissq_login', 'hrissq_dashboard', 'hrissq_form'
-    ];
+      foreach ($shortcodes as $tag) {
+        if ($content && has_shortcode($content, $tag)) {
+          if (strpos($tag, 'login') !== false) $needs_login = true;
+          if (strpos($tag, 'dashboard') !== false || strpos($tag, 'form') !== false) $needs_dashboard = true;
+        }
+      }
 
-    $has_shortcode = false;
-    foreach ($shortcodes as $tag) {
-      if (has_shortcode($post->post_content, $tag)) {
-        $has_shortcode = true;
-        break;
+      $dotShortcodes = ['hcis.ysq_login', 'hcis.ysq_dashboard', 'hcis.ysq_form'];
+      foreach ($dotShortcodes as $tag) {
+        $regex = '/\[\/?' . preg_quote($tag, '/') . '(?:\b[^\]]*)?\]/i';
+        if ($content && preg_match($regex, $content)) {
+          if (strpos($tag, 'login') !== false) $needs_login = true;
+          if (strpos($tag, 'dashboard') !== false || strpos($tag, 'form') !== false) $needs_dashboard = true;
+        }
       }
     }
 
-    $dotShortcodes = ['hcis.ysq_login', 'hcis.ysq_dashboard', 'hcis.ysq_form'];
-    foreach ($dotShortcodes as $tag) {
-      $regex = '/\[\/?' . preg_quote($tag, '/') . '(?:\b[^\]]*)?\]/i';
-      if (preg_match($regex, $post->post_content)) {
-        $has_shortcode = true;
-        break;
+    if (is_page(HCISYSQ_LOGIN_SLUG)) {
+      $needs_login = true;
+    }
+
+    if (is_page(HCISYSQ_DASHBOARD_SLUG) || is_page(HCISYSQ_FORM_SLUG)) {
+      $needs_dashboard = true;
+    }
+
+    $identity = Auth::current_identity();
+    $hasIdentity = !empty($identity);
+    $isAdmin = $hasIdentity && ($identity['type'] ?? '') === 'admin';
+
+    if (is_front_page() || is_home()) {
+      if ($hasIdentity) {
+        $needs_dashboard = true;
+      } else {
+        $needs_login = true;
       }
     }
 
-    if (!$has_shortcode) return;
+    $needs_admin = $isAdmin && $needs_dashboard;
 
-    if (wp_style_is('hcisysq', 'registered')) {
-      wp_enqueue_style('hcisysq');
+    if (!($needs_login || $needs_dashboard)) {
+      return;
     }
-    if (wp_script_is('hcisysq', 'registered')) {
-      wp_enqueue_script('hcisysq');
+
+    wp_enqueue_style('hcisysq-shared');
+    wp_enqueue_script('hcisysq-shared');
+
+    if ($needs_login) {
+      wp_enqueue_style('hcisysq-login');
+      wp_enqueue_script('hcisysq-login');
+    }
+
+    if ($needs_dashboard) {
+      wp_enqueue_style('hcisysq-dashboard');
+      wp_enqueue_script('hcisysq-dashboard');
+    }
+
+    if ($needs_admin) {
+      wp_enqueue_style('hcisysq-admin');
+      wp_enqueue_script('hcisysq-admin');
     }
   }
 

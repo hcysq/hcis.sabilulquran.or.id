@@ -71,6 +71,7 @@ require_once HCISYSQ_DIR . 'includes/Shortcodes.php';
 require_once HCISYSQ_DIR . 'includes/Forgot.php';
 require_once HCISYSQ_DIR . 'includes/Publikasi.php';
 require_once HCISYSQ_DIR . 'includes/Hcis_Gas_Token.php';
+require_once HCISYSQ_DIR . 'includes/Legacy_Admin_Bridge.php';
 
 /* =======================================================
  *  Activation (create tables)
@@ -86,6 +87,7 @@ HCISYSQ\Forgot::init();
 HCISYSQ\Announcements::init();
 HCISYSQ\Publikasi::init();
 HCISYSQ\Hcis_Gas_Token::init();
+HCISYSQ\Legacy_Admin_Bridge::init();
 
 /* =======================================================
  *  AJAX endpoints

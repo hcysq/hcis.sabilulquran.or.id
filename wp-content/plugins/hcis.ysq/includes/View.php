@@ -7,8 +7,8 @@ class View {
 
   /* ========== LOGIN PAGE ========== */
   public static function login(){
-    wp_enqueue_style('hcisysq');
-    wp_enqueue_script('hcisysq');
+    wp_enqueue_style('hcisysq-login');
+    wp_enqueue_script('hcisysq-login');
     ob_start(); ?>
     <div class="hcisysq-auth-wrap">
       <div class="auth-card">
@@ -89,15 +89,15 @@ class View {
       'options'      => $homeOptions,
     ];
 
-    wp_enqueue_style('hcisysq');
-    wp_enqueue_script('hcisysq');
+    wp_enqueue_style('hcisysq-admin');
+    wp_enqueue_script('hcisysq-admin');
 
     $inline = [
       'announcements' => $announcements,
       'settings'      => $publicSettings,
       'home'          => $homeSettings,
     ];
-    wp_add_inline_script('hcisysq', 'window.hcisysqAdmin = ' . wp_json_encode($inline) . ';', 'before');
+    wp_add_inline_script('hcisysq-admin', 'window.hcisysqAdmin = ' . wp_json_encode($inline) . ';', 'before');
 
     $statusBadge = function($status){
       $label = $status === 'archived' ? 'Diarsipkan' : 'Dipublikasikan';
@@ -534,8 +534,8 @@ class View {
       ['label' => 'Masa Kerja', 'value' => $masaKerja],
     ];
 
-    wp_enqueue_style('hcisysq');
-    wp_enqueue_script('hcisysq');
+    wp_enqueue_style('hcisysq-dashboard');
+    wp_enqueue_script('hcisysq-dashboard');
 
     $formSlug = defined('HCISYSQ_FORM_SLUG') ? trim((string)HCISYSQ_FORM_SLUG, '/') : 'pelatihan';
     $trainingLink = add_query_arg(
@@ -876,8 +876,8 @@ class View {
     $me = Auth::current_user();
     if (!$me) { wp_safe_redirect(home_url('/' . HCISYSQ_LOGIN_SLUG . '/')); exit; }
 
-    wp_enqueue_style('hcisysq');
-    wp_enqueue_script('hcisysq');
+    wp_enqueue_style('hcisysq-dashboard');
+    wp_enqueue_script('hcisysq-dashboard');
 
     ob_start(); ?>
     <div id="hcisysq-app" class="hcisysq-app">
