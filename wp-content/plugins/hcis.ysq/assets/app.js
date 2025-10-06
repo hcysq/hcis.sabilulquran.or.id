@@ -260,6 +260,97 @@
     handleChange();
   }
 
+  function bootDashboardSections() {
+    const layout = document.getElementById('hcisysq-dashboard');
+    if (!layout) return;
+
+    const sections = Array.from(layout.querySelectorAll('.hcisysq-dashboard-section'));
+    const nav = layout.querySelector('.hcisysq-sidebar-nav');
+    const links = nav ? Array.from(nav.querySelectorAll('a[data-section]')) : [];
+    if (!sections.length || !links.length) return;
+
+    const sidebar = document.getElementById('hcisysq-sidebar');
+    const toggle = document.getElementById('hcisysq-sidebar-toggle');
+    const overlay = document.getElementById('hcisysq-sidebar-overlay');
+
+    function findSection(id) {
+      return sections.find(section => section.dataset.section === id);
+    }
+
+    function closeMobileSidebar() {
+      if (!sidebar || !sidebar.classList.contains('is-open')) return;
+      sidebar.classList.remove('is-open');
+      sidebar.setAttribute('aria-hidden', 'true');
+      if (overlay) {
+        overlay.classList.remove('is-visible');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function activate(id, { updateHash = true, scroll = true } = {}) {
+      const target = findSection(id) || findSection('dashboard');
+      if (!target) return;
+
+      sections.forEach(section => {
+        section.classList.toggle('is-active', section === target);
+      });
+
+      links.forEach(link => {
+        link.classList.toggle('is-active', link.dataset.section === target.dataset.section);
+      });
+
+      if (updateHash) {
+        const newHash = `#${target.dataset.section}`;
+        if (window.location.hash !== newHash) {
+          history.replaceState(null, '', newHash);
+        }
+      }
+
+      if (scroll) {
+        if (typeof target.focus === 'function') {
+          try {
+            target.focus({ preventScroll: true });
+          } catch (err) {
+            target.focus();
+          }
+        }
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      closeMobileSidebar();
+    }
+
+    links.forEach(link => {
+      link.addEventListener('click', event => {
+        const id = link.dataset.section;
+        if (!id) return;
+        event.preventDefault();
+        activate(id, { updateHash: true, scroll: true });
+      });
+    });
+
+    window.addEventListener('hashchange', () => {
+      const id = window.location.hash.replace('#', '');
+      if (!id) {
+        activate('dashboard', { updateHash: false, scroll: false });
+        return;
+      }
+      if (findSection(id)) {
+        activate(id, { updateHash: false, scroll: true });
+      }
+    });
+
+    const initial = window.location.hash.replace('#', '');
+    if (initial && findSection(initial)) {
+      activate(initial, { updateHash: false, scroll: false });
+    } else {
+      activate('dashboard', { updateHash: false, scroll: false });
+    }
+  }
+
   const allowedEditorFonts = {
     'arial': "'Arial', sans-serif",
     'helvetica': "'Helvetica', sans-serif",
@@ -1444,6 +1535,7 @@
     bootLogin();
     bootLogoutButton();
     bootSidebarToggle();
+    bootDashboardSections();
     bootIdleLogout();
     bootAdminDashboard();
     bootTrainingForm();

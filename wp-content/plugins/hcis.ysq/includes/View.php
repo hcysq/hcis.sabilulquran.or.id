@@ -550,6 +550,49 @@ class View {
       'training_link' => $trainingLink,
     ]);
 
+    $comingSoonModules = [
+      'profil' => [
+        'title' => 'Profil',
+        'description' => 'Work in Progress. Modul profil pegawai sedang disiapkan.'
+      ],
+      'slip-gaji' => [
+        'title' => 'Slip Gaji',
+        'description' => 'Work in Progress. Slip gaji digital akan segera tersedia.'
+      ],
+      'rekap-absensi' => [
+        'title' => 'Rekap Absensi',
+        'description' => 'Work in Progress. Rekap absensi otomatis sedang kami kembangkan.'
+      ],
+      'riwayat-kepegawaian' => [
+        'title' => 'Riwayat Kepegawaian',
+        'description' => 'Work in Progress. Riwayat kepegawaian detail akan hadir segera.'
+      ],
+      'cuti-izin' => [
+        'title' => 'Cuti & Izin',
+        'description' => 'Work in Progress. Pengajuan cuti & izin online sedang dipersiapkan.'
+      ],
+      'penilaian-kinerja' => [
+        'title' => 'Penilaian Kinerja',
+        'description' => 'Work in Progress. Dashboard penilaian kinerja sedang kami desain.'
+      ],
+      'tugas-komunikasi' => [
+        'title' => 'Tugas & Komunikasi',
+        'description' => 'Work in Progress. Kolaborasi tugas & komunikasi internal segera hadir.'
+      ],
+      'administrasi-lain' => [
+        'title' => 'Administrasi Lain',
+        'description' => 'Work in Progress. Dokumen administrasi lainnya sedang diintegrasikan.'
+      ],
+      'panduan' => [
+        'title' => 'Panduan',
+        'description' => 'Work in Progress. Pusat panduan pegawai sedang kami susun.'
+      ],
+      'support' => [
+        'title' => 'Support',
+        'description' => 'Work in Progress. Layanan bantuan digital akan segera tersedia.'
+      ],
+    ];
+
     ob_start(); ?>
     <div class="hcisysq-dashboard" id="hcisysq-dashboard">
 
@@ -562,18 +605,18 @@ class View {
           </button>
         </div>
         <nav class="hcisysq-sidebar-nav">
-          <a class="is-active" href="<?= esc_url(home_url('/' . HCISYSQ_DASHBOARD_SLUG . '/')) ?>">Dashboard</a>
-          <a href="#">Profil</a>
-          <a href="#">Slip Gaji</a>
-          <a href="#">Rekap Absensi</a>
-          <a href="#">Riwayat Kepegawaian</a>
-          <a href="#">Cuti &amp; Izin</a>
-          <a href="#">Penilaian Kinerja</a>
-          <a href="#">Tugas &amp; Komunikasi</a>
-          <a href="#">Administrasi Lain</a>
+          <a class="is-active" href="#dashboard" data-section="dashboard">Dashboard</a>
+          <a href="#profil" data-section="profil">Profil</a>
+          <a href="#slip-gaji" data-section="slip-gaji">Slip Gaji</a>
+          <a href="#rekap-absensi" data-section="rekap-absensi">Rekap Absensi</a>
+          <a href="#riwayat-kepegawaian" data-section="riwayat-kepegawaian">Riwayat Kepegawaian</a>
+          <a href="#cuti-izin" data-section="cuti-izin">Cuti &amp; Izin</a>
+          <a href="#penilaian-kinerja" data-section="penilaian-kinerja">Penilaian Kinerja</a>
+          <a href="#tugas-komunikasi" data-section="tugas-komunikasi">Tugas &amp; Komunikasi</a>
+          <a href="#administrasi-lain" data-section="administrasi-lain">Administrasi Lain</a>
           <hr>
-          <a href="#">Panduan</a>
-          <a href="#">Support</a>
+          <a href="#panduan" data-section="panduan">Panduan</a>
+          <a href="#support" data-section="support">Support</a>
         </nav>
         <div class="hcisysq-sidebar-meta">
           <span>Versi <?= esc_html(HCISYSQ_VER) ?></span>
@@ -606,73 +649,79 @@ class View {
         </header>
 
         <div class="hcisysq-main-body">
-          <section class="hcisysq-card-grid hcisysq-card-grid--2">
-            <article class="hcisysq-card">
-              <h3 class="hcisysq-card-title">Profil Ringkas</h3>
-              <dl class="hcisysq-meta-list">
-                <?php foreach ($profilRingkasRows as $row): ?>
-                  <div>
-                    <dt><?= esc_html($row['label']) ?></dt>
-                    <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
-                  </div>
-                <?php endforeach; ?>
-              </dl>
-            </article>
-
-            <article class="hcisysq-card">
-              <h3 class="hcisysq-card-title">Data Kepegawaian</h3>
-              <dl class="hcisysq-meta-list">
-                <?php foreach ($kepegawaianRows as $row): ?>
-                  <div>
-                    <dt><?= esc_html($row['label']) ?></dt>
-                    <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
-                  </div>
-                <?php endforeach; ?>
-              </dl>
-            </article>
-          </section>
-
-          <section class="hcisysq-card-grid hcisysq-card-grid--1">
-            <article class="hcisysq-card">
-              <h3 class="hcisysq-card-title">Pengumuman</h3>
-              <?php if (!empty($announcements)): ?>
-                <ul class="hcisysq-bullet-list">
-                  <?php foreach ($announcements as $item): ?>
-                    <li>
-                      <strong><?= esc_html($item['title']) ?></strong>
-                      <?php if (!empty($item['body'])): ?>
-                        <div class="hcisysq-bullet-body"><?= wp_kses_post($item['body']) ?></div>
-                      <?php endif; ?>
-                      <?php if (!empty($item['link_url'])): ?>
-                        <div class="hcisysq-bullet-link">
-                          <a href="<?= esc_url($item['link_url']) ?>" target="_blank" rel="noopener">
-                            <?= esc_html($item['link_label'] ?: 'Buka tautan') ?>
-                          </a>
-                        </div>
-                      <?php elseif (!empty($item['link_label'])): ?>
-                        <div class="hcisysq-bullet-link"><?= esc_html($item['link_label']) ?></div>
-                      <?php endif; ?>
-                    </li>
+          <section id="dashboard" class="hcisysq-dashboard-section is-active" data-section="dashboard" tabindex="-1">
+            <section class="hcisysq-card-grid hcisysq-card-grid--2">
+              <article class="hcisysq-card">
+                <h3 class="hcisysq-card-title">Profil Ringkas</h3>
+                <dl class="hcisysq-meta-list">
+                  <?php foreach ($profilRingkasRows as $row): ?>
+                    <div>
+                      <dt><?= esc_html($row['label']) ?></dt>
+                      <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
+                    </div>
                   <?php endforeach; ?>
-                </ul>
-              <?php else: ?>
-                <p>Tidak ada pengumuman terbaru.</p>
-              <?php endif; ?>
-            </article>
+                </dl>
+              </article>
+
+              <article class="hcisysq-card">
+                <h3 class="hcisysq-card-title">Data Kepegawaian</h3>
+                <dl class="hcisysq-meta-list">
+                  <?php foreach ($kepegawaianRows as $row): ?>
+                    <div>
+                      <dt><?= esc_html($row['label']) ?></dt>
+                      <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
+                    </div>
+                  <?php endforeach; ?>
+                </dl>
+              </article>
+            </section>
+
+            <section class="hcisysq-card-grid hcisysq-card-grid--1">
+              <article class="hcisysq-card">
+                <h3 class="hcisysq-card-title">Pengumuman</h3>
+                <?php if (!empty($announcements)): ?>
+                  <ul class="hcisysq-bullet-list">
+                    <?php foreach ($announcements as $item): ?>
+                      <li>
+                        <strong><?= esc_html($item['title']) ?></strong>
+                        <?php if (!empty($item['body'])): ?>
+                          <div class="hcisysq-bullet-body"><?= wp_kses_post($item['body']) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($item['link_url'])): ?>
+                          <div class="hcisysq-bullet-link">
+                            <a href="<?= esc_url($item['link_url']) ?>" target="_blank" rel="noopener">
+                              <?= esc_html($item['link_label'] ?: 'Buka tautan') ?>
+                            </a>
+                          </div>
+                        <?php elseif (!empty($item['link_label'])): ?>
+                          <div class="hcisysq-bullet-link"><?= esc_html($item['link_label']) ?></div>
+                        <?php endif; ?>
+                      </li>
+                    <?php endforeach; ?>
+                  </ul>
+                <?php else: ?>
+                  <p>Tidak ada pengumuman terbaru.</p>
+                <?php endif; ?>
+              </article>
+            </section>
           </section>
 
-          <section class="hcisysq-card-grid hcisysq-card-grid--1">
-            <article class="hcisysq-card hcisysq-card--empty">
-              <h3 class="hcisysq-card-title">Fitur Mendatang</h3>
-              <div class="hcisysq-coming-soon">
-                <span class="hcisysq-coming-soon__tag">Coming Soon</span>
-                <div class="hcisysq-progress" aria-hidden="true">
-                  <span class="hcisysq-progress__bar"></span>
-                </div>
-                <p class="hcisysq-coming-soon__desc">Work in Progress. Modul slip gaji, absensi, dan fitur kepegawaian lainnya sedang disiapkan untuk Anda.</p>
-              </div>
-            </article>
-          </section>
+          <?php foreach ($comingSoonModules as $slug => $module): ?>
+            <section id="<?= esc_attr($slug) ?>" class="hcisysq-dashboard-section" data-section="<?= esc_attr($slug) ?>" tabindex="-1">
+              <section class="hcisysq-card-grid hcisysq-card-grid--1">
+                <article class="hcisysq-card hcisysq-card--empty">
+                  <h3 class="hcisysq-card-title"><?= esc_html($module['title']) ?></h3>
+                  <div class="hcisysq-coming-soon">
+                    <span class="hcisysq-coming-soon__tag">Coming Soon</span>
+                    <div class="hcisysq-progress" aria-hidden="true">
+                      <span class="hcisysq-progress__bar"></span>
+                    </div>
+                    <p class="hcisysq-coming-soon__desc"><?= esc_html($module['description']) ?></p>
+                  </div>
+                </article>
+              </section>
+            </section>
+          <?php endforeach; ?>
         </div>
       </main>
     </div>
