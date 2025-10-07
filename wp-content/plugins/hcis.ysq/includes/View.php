@@ -69,6 +69,7 @@ class View {
   private static function render_admin_dashboard(array $identity){
     $publicSettings = Auth::get_admin_public_settings();
     $announcements  = self::format_admin_announcements(Announcements::all());
+    $tasksBootstrap = Tasks::get_admin_bootstrap();
     $homeMarquee    = get_option('hcisysq_home_marquee_text', '');
     $rawHomeOptions = get_option('hcisysq_home_marquee_options', []);
     $defaultOptions = [
@@ -96,6 +97,7 @@ class View {
       'announcements' => $announcements,
       'settings'      => $publicSettings,
       'home'          => $homeSettings,
+      'tasks'         => $tasksBootstrap,
     ];
     wp_add_inline_script('hcisysq-admin', 'window.hcisysqAdmin = ' . wp_json_encode($inline) . ';', 'before');
 
@@ -118,6 +120,7 @@ class View {
           <a href="#" class="is-active" data-view="home">Beranda HCIS</a>
           <a href="#" data-view="pegawai">Data Pegawai</a>
           <a href="#" data-view="pelatihan">Pelatihan</a>
+          <a href="#" data-view="tugas">Tugas</a>
           <a href="#" data-view="pengguna">Kelola Pengguna</a>
           <a href="#" data-view="laporan">Laporan</a>
           <hr>
@@ -340,6 +343,59 @@ class View {
             </article>
           </section>
 
+          <section class="hcisysq-admin-view" data-view="tugas">
+            <article class="hcisysq-card hcisysq-card--elevated">
+              <h3 class="hcisysq-card-title">Tambah Tugas</h3>
+              <form id="hcisysq-task-form" class="hcisysq-form-grid">
+                <input type="hidden" name="task_id" value="">
+                <div class="form-group">
+                  <label for="hcisysq-task-title">Judul Tugas <span class="req">*</span></label>
+                  <input type="text" id="hcisysq-task-title" name="title" class="hcisysq-input" placeholder="Contoh: Lengkapi Data Pribadi" required>
+                </div>
+                <div class="form-group">
+                  <label for="hcisysq-task-description">Keterangan</label>
+                  <textarea id="hcisysq-task-description" name="description" class="hcisysq-textarea hcisysq-textarea--code" rows="6" placeholder="Instruksi atau detail tambahan"></textarea>
+                </div>
+                <div class="form-group form-group--columns">
+                  <div class="form-field">
+                    <label for="hcisysq-task-deadline">Batas Waktu</label>
+                    <input type="date" id="hcisysq-task-deadline" name="deadline" class="hcisysq-input">
+                  </div>
+                  <div class="form-field">
+                    <label for="hcisysq-task-link-label">Teks Tautan</label>
+                    <input type="text" id="hcisysq-task-link-label" name="link_label" class="hcisysq-input" placeholder="Contoh: Buka Formulir">
+                  </div>
+                  <div class="form-field">
+                    <label for="hcisysq-task-link-url">URL Tautan</label>
+                    <input type="url" id="hcisysq-task-link-url" name="link_url" class="hcisysq-input" placeholder="https://contoh.id">
+                  </div>
+                </div>
+                <div class="form-group form-group--columns">
+                  <div class="form-field">
+                    <label>Unit Tujuan <span class="req">*</span></label>
+                    <div class="hcisysq-task-checkboxes" data-role="task-unit-options"></div>
+                    <p class="form-helper">Pilih minimal satu unit kerja.</p>
+                  </div>
+                  <div class="form-field">
+                    <label>Pegawai Ditugaskan <span class="req">*</span></label>
+                    <div class="hcisysq-task-checkboxes" data-role="task-employee-options"></div>
+                    <p class="form-helper">Daftar pegawai mengikuti unit yang dipilih.</p>
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn-primary" data-role="task-submit">Simpan Tugas</button>
+                  <button type="button" class="btn-light" data-role="task-reset" hidden>Batalkan</button>
+                  <div class="msg" data-role="task-message"></div>
+                </div>
+              </form>
+            </article>
+
+            <article class="hcisysq-card hcisysq-card--elevated">
+              <h3 class="hcisysq-card-title">Daftar Tugas</h3>
+              <div class="hcisysq-task-list" data-role="task-list"></div>
+            </article>
+          </section>
+
           <section class="hcisysq-admin-view" data-view="settings">
             <article class="hcisysq-card">
               <h3 class="hcisysq-card-title">Keamanan &amp; Akses Administrator</h3>
@@ -550,29 +606,39 @@ class View {
       'training_link' => $trainingLink,
     ]);
 
-    $employeeUpdates = self::get_employee_updates();
-    if (empty($employeeUpdates) && !empty($announcements)) {
-      foreach ($announcements as $item) {
-        if (($item['category'] ?? '') && $item['category'] !== 'pengumuman') {
-          continue;
+    $tasksData = Tasks::get_employee_tasks($me->nip ?? '');
+    $employeeUpdates = $tasksData['items'];
+    $pendingTaskCount = (int)($tasksData['pending'] ?? 0);
+
+    if (empty($employeeUpdates)) {
+      $legacyUpdates = self::get_legacy_employee_updates();
+      if (!empty($legacyUpdates)) {
+        $employeeUpdates = $legacyUpdates;
+      } elseif (!empty($announcements)) {
+        foreach ($announcements as $item) {
+          if (($item['category'] ?? '') && $item['category'] !== 'pengumuman') {
+            continue;
+          }
+
+          $title = sanitize_text_field($item['title'] ?? '');
+          $body  = isset($item['body']) ? RichText::sanitize($item['body']) : '';
+          $linkUrl   = isset($item['link_url']) ? esc_url_raw($item['link_url']) : '';
+          $linkLabel = sanitize_text_field($item['link_label'] ?? '');
+
+          if ($title === '' && $body === '' && $linkUrl === '') {
+            continue;
+          }
+
+          $employeeUpdates[] = [
+            'task'        => $title,
+            'description' => $body,
+            'deadline'    => '',
+            'deadline_display' => '',
+            'link_url'    => $linkUrl,
+            'link_label'  => $linkLabel,
+            'status'      => 'info',
+          ];
         }
-
-        $title = sanitize_text_field($item['title'] ?? '');
-        $body  = isset($item['body']) ? RichText::sanitize($item['body']) : '';
-        $linkUrl   = isset($item['link_url']) ? esc_url_raw($item['link_url']) : '';
-        $linkLabel = sanitize_text_field($item['link_label'] ?? '');
-
-        if ($title === '' && $body === '' && $linkUrl === '') {
-          continue;
-        }
-
-        $employeeUpdates[] = [
-          'task'        => $title,
-          'description' => $body,
-          'deadline'    => '',
-          'link_url'    => $linkUrl,
-          'link_label'  => $linkLabel,
-        ];
       }
     }
 
@@ -615,15 +681,6 @@ class View {
       ],
     ];
 
-    $marqueeData = self::get_dashboard_marquee_data();
-    $marqueeItemsJson = '';
-    if (!empty($marqueeData['items'])) {
-      $encoded = wp_json_encode($marqueeData['items'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-      if (false !== $encoded) {
-        $marqueeItemsJson = $encoded;
-      }
-    }
-
     ob_start(); ?>
     <div class="hcisysq-dashboard" id="hcisysq-dashboard">
 
@@ -643,7 +700,12 @@ class View {
           <a href="#riwayat-kepegawaian" data-section="riwayat-kepegawaian">Riwayat Kepegawaian</a>
           <a href="#cuti-izin" data-section="cuti-izin">Cuti &amp; Izin</a>
           <a href="#penilaian-kinerja" data-section="penilaian-kinerja">Penilaian Kinerja</a>
-          <a href="#tugas-komunikasi" data-section="tugas-komunikasi">Tugas &amp; Komunikasi</a>
+          <a href="#tugas-komunikasi" data-section="tugas-komunikasi">
+            Tugas
+            <?php if (!empty($pendingTaskCount)): ?>
+              <span class="hcisysq-task-badge" data-role="task-pending-count"><?= esc_html($pendingTaskCount) ?></span>
+            <?php endif; ?>
+          </a>
           <a href="#administrasi-lain" data-section="administrasi-lain">Administrasi Lain</a>
           <hr>
           <a href="#panduan" data-section="panduan">Panduan</a>
@@ -681,16 +743,6 @@ class View {
 
         <div class="hcisysq-main-body">
           <section id="dashboard" class="hcisysq-dashboard-section is-active" data-section="dashboard" tabindex="-1">
-            <?php if ($marqueeItemsJson) : ?>
-              <div class="hcisysq-running" data-role="running-text" role="region" aria-label="<?= esc_attr__('Informasi berjalan', 'hcisysq') ?>" aria-live="polite"
-                   data-items="<?= esc_attr($marqueeItemsJson) ?>"
-                   data-speed="<?= esc_attr($marqueeData['options']['speed']) ?>"
-                   data-gap="<?= esc_attr($marqueeData['options']['gap']) ?>"
-                   data-letter="<?= esc_attr($marqueeData['options']['letter_spacing']) ?>"
-                   data-bg="<?= esc_attr($marqueeData['options']['background']) ?>">
-                <div class="hcisysq-running__track" data-role="running-track"></div>
-              </div>
-            <?php endif; ?>
             <section class="hcisysq-card-grid hcisysq-card-grid--2">
               <article class="hcisysq-card">
                 <h3 class="hcisysq-card-title">Profil Ringkas</h3>
@@ -722,8 +774,8 @@ class View {
           <section id="tugas-komunikasi" class="hcisysq-dashboard-section" data-section="tugas-komunikasi" tabindex="-1">
             <section class="hcisysq-card-grid hcisysq-card-grid--1">
               <article class="hcisysq-card">
-                <h3 class="hcisysq-card-title">Pembaruan Data Pegawai</h3>
-                <p>Ikuti tugas dan permintaan pembaruan data kepegawaian yang dibagikan oleh tim HCM.</p>
+                <h3 class="hcisysq-card-title">Daftar Tugas Pegawai</h3>
+                <p>Pantau tugas yang perlu Anda selesaikan sesuai penugasan dari tim HCIS.</p>
                 <?php if (!empty($employeeUpdates)): ?>
                   <div class="hcisysq-updates">
                     <table>
@@ -733,15 +785,16 @@ class View {
                           <th scope="col">Tugas</th>
                           <th scope="col">Keterangan</th>
                           <th scope="col">Batas Waktu</th>
+                          <th scope="col">Ketuntasan</th>
                           <th scope="col">Tautan</th>
                         </tr>
                       </thead>
                       <tbody>
                         <?php foreach ($employeeUpdates as $index => $update): ?>
                           <?php
+                          $deadlineDisplay = isset($update['deadline_display']) ? trim((string)$update['deadline_display']) : '';
                           $deadlineRaw = isset($update['deadline']) ? trim((string)$update['deadline']) : '';
-                          $deadlineDisplay = '';
-                          if ($deadlineRaw !== '') {
+                          if ($deadlineDisplay === '' && $deadlineRaw !== '') {
                             try {
                               $deadlineDate = new \DateTimeImmutable($deadlineRaw);
                               $deadlineFormatter = new \IntlDateFormatter(
@@ -761,6 +814,36 @@ class View {
                             $deadlineDisplay = '-';
                           }
 
+                          $status = isset($update['status']) ? $update['status'] : 'pending';
+                          $statusClass = 'is-pending';
+                          $statusLabel = 'Belum Selesai';
+                          if ($status === 'completed') {
+                            $statusClass = 'is-done';
+                            $statusLabel = 'Selesai';
+                          } elseif ($status === 'info') {
+                            $statusClass = 'is-info';
+                            $statusLabel = 'Informasi';
+                          }
+
+                          $completedNote = '';
+                          $completedRaw = isset($update['completed_at']) ? trim((string)$update['completed_at']) : '';
+                          if ($status === 'completed' && $completedRaw !== '') {
+                            try {
+                              $completedDate = new \DateTimeImmutable($completedRaw);
+                              $completedFormatter = new \IntlDateFormatter(
+                                'id_ID',
+                                \IntlDateFormatter::LONG,
+                                \IntlDateFormatter::NONE,
+                                'Asia/Jakarta',
+                                \IntlDateFormatter::GREGORIAN,
+                                'd MMMM yyyy'
+                              );
+                              $completedNote = $completedFormatter->format($completedDate);
+                            } catch (\Exception $e) {
+                              $completedNote = $completedRaw;
+                            }
+                          }
+
                           $description = isset($update['description']) ? $update['description'] : '';
                           $linkUrl = isset($update['link_url']) ? $update['link_url'] : '';
                           $linkLabel = isset($update['link_label']) ? $update['link_label'] : '';
@@ -776,6 +859,12 @@ class View {
                               <?php endif; ?>
                             </td>
                             <td><?= esc_html($deadlineDisplay) ?></td>
+                            <td>
+                              <span class="hcisysq-status-chip <?= esc_attr($statusClass) ?>"><?= esc_html($statusLabel) ?></span>
+                              <?php if ($completedNote !== ''): ?>
+                                <div class="hcisysq-status-meta"><?= esc_html($completedNote) ?></div>
+                              <?php endif; ?>
+                            </td>
                             <td>
                               <?php if ($linkUrl !== ''): ?>
                                 <a href="<?= esc_url($linkUrl) ?>" target="_blank" rel="noopener">
@@ -793,7 +882,7 @@ class View {
                     </table>
                   </div>
                 <?php else: ?>
-                  <p class="hcisysq-updates__empty">Belum ada pembaruan terbaru.</p>
+                  <p class="hcisysq-updates__empty">Belum ada tugas aktif saat ini.</p>
                 <?php endif; ?>
               </article>
             </section>
@@ -851,173 +940,7 @@ class View {
     return ob_get_clean();
   }
 
-  private static function get_dashboard_marquee_data(){
-    $rawText = get_option('hcisysq_home_marquee_text', '');
-    if (!is_string($rawText)) {
-      $rawText = '';
-    } else {
-      $rawText = trim($rawText);
-    }
-
-    if ($rawText !== '') {
-      $rawText = RichText::sanitize($rawText);
-    }
-
-    $items = [];
-
-    if ($rawText !== '') {
-      $allowed = [
-        'p' => [],
-        'br' => [],
-        'ul' => [],
-        'ol' => [],
-        'li' => [],
-        'span' => ['style' => true],
-        'strong' => [],
-        'em' => [],
-      ];
-
-      $html = wp_kses($rawText, $allowed);
-
-      if (preg_match_all('/<li[^>]*>(.*?)<\/li>/is', $html, $matches)) {
-        foreach ($matches[1] as $segment) {
-          $text = trim(wp_strip_all_tags($segment));
-          if ($text !== '') {
-            $items[] = html_entity_decode($text, ENT_QUOTES, get_bloginfo('charset'));
-          }
-        }
-      }
-
-      if (empty($items)) {
-        $plain = trim(wp_strip_all_tags($html));
-        if ($plain !== '') {
-          $segments = preg_split("/\r\n|\r|\n/", $plain);
-          if (is_array($segments)) {
-            foreach ($segments as $segment) {
-              $segment = trim($segment);
-              if ($segment !== '') {
-                $items[] = html_entity_decode($segment, ENT_QUOTES, get_bloginfo('charset'));
-              }
-            }
-          }
-
-          if (empty($items)) {
-            $items[] = html_entity_decode($plain, ENT_QUOTES, get_bloginfo('charset'));
-          }
-        }
-      }
-    }
-
-    $items = array_map('trim', $items);
-    $items = array_filter($items, static function ($value) {
-      return $value !== '';
-    });
-    $items = array_values(array_unique($items));
-    if (count($items) > 20) {
-      $items = array_slice($items, 0, 20);
-    }
-
-    $optionsRaw = get_option('hcisysq_home_marquee_options', []);
-    if (!is_array($optionsRaw)) {
-      $optionsRaw = [];
-    }
-
-    $speed = isset($optionsRaw['speed']) ? (float) $optionsRaw['speed'] : 1.0;
-    if ($speed < 0.5) {
-      $speed = 0.5;
-    } elseif ($speed > 3.0) {
-      $speed = 3.0;
-    }
-
-    $gap = isset($optionsRaw['gap']) ? (int) $optionsRaw['gap'] : 32;
-    if ($gap < 8) {
-      $gap = 8;
-    } elseif ($gap > 160) {
-      $gap = 160;
-    }
-
-    $letterSpacing = isset($optionsRaw['letter_spacing']) ? (float) $optionsRaw['letter_spacing'] : 0.0;
-    if ($letterSpacing < 0) {
-      $letterSpacing = 0.0;
-    } elseif ($letterSpacing > 10) {
-      $letterSpacing = 10.0;
-    }
-
-    $background = isset($optionsRaw['background']) ? sanitize_hex_color($optionsRaw['background']) : '';
-    if (!$background) {
-      $background = '#ffffff';
-    }
-
-    return [
-      'items' => $items,
-      'options' => [
-        'speed' => $speed,
-        'gap' => $gap,
-        'letter_spacing' => $letterSpacing,
-        'background' => $background,
-      ],
-    ];
-  }
-
-  /* ========== FORM PELATIHAN ========== */
-  public static function form(){
-    $me = Auth::current_user();
-    if (!$me) { wp_safe_redirect(home_url('/' . HCISYSQ_LOGIN_SLUG . '/')); exit; }
-
-    wp_enqueue_style('hcisysq-dashboard');
-    wp_enqueue_script('hcisysq-dashboard');
-
-    ob_start(); ?>
-    <div id="hcisysq-app" class="hcisysq-app">
-      <div class="hcisysq-form-wrap">
-        <h2>Form Riwayat Pelatihan</h2>
-        <p>Lengkapi data pelatihan yang telah Anda ikuti.</p>
-
-        <form id="hcisysq-training-form" enctype="multipart/form-data" class="training-form">
-          <div class="form-group">
-            <label>Nama Pelatihan <span class="req">*</span></label>
-            <input type="text" name="nama_pelatihan" placeholder="Contoh: Workshop Laravel" required>
-          </div>
-
-          <div class="form-group">
-            <label>Tahun <span class="req">*</span></label>
-            <input type="number" name="tahun" placeholder="2024" min="1990" max="2099" required>
-          </div>
-
-          <div class="form-group">
-            <label>Pembiayaan <span class="req">*</span></label>
-            <select name="pembiayaan" required>
-              <option value="">Pilih Pembiayaan</option>
-              <option value="mandiri">Mandiri</option>
-              <option value="yayasan">Yayasan</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Kategori <span class="req">*</span></label>
-            <select name="kategori" required>
-              <option value="">Pilih Kategori</option>
-              <option value="hard">Hard Skill</option>
-              <option value="soft">Soft Skill</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Upload Sertifikat (opsional)</label>
-            <input type="file" name="sertifikat" accept=".pdf,.jpg,.jpeg,.png">
-            <small>Format: PDF, JPG, PNG (max 5MB)</small>
-          </div>
-
-          <button type="submit" class="btn-primary">Simpan</button>
-          <a href="<?= esc_url(home_url('/' . HCISYSQ_DASHBOARD_SLUG . '/')) ?>" class="btn-light">Batal</a>
-        </form>
-      </div>
-    </div>
-    <?php
-    return ob_get_clean();
-  }
-
-  private static function get_employee_updates(){
+  private static function get_legacy_employee_updates(){
     $raw = get_option('hcisysq_employee_updates', []);
     if (!is_array($raw)) {
       return [];
@@ -1054,8 +977,10 @@ class View {
         'task'        => $task,
         'description' => $description,
         'deadline'    => $deadline,
+        'deadline_display' => $deadline,
         'link_url'    => $linkUrl,
         'link_label'  => $linkLabel,
+        'status'      => 'info',
       ];
     }
 

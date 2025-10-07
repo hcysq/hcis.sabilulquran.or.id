@@ -82,7 +82,13 @@ class Assets {
       }
     }
 
-    $needs_admin = $isAdmin && $needs_dashboard;
+    $isTaskHistory = get_query_var(\HCISYSQ\Tasks::QUERY_VAR_DATE) && get_query_var(\HCISYSQ\Tasks::QUERY_VAR_INDEX);
+
+    if ($isTaskHistory) {
+      $needs_dashboard = true;
+    }
+
+    $needs_admin = ($isAdmin || current_user_can('manage_options')) && $needs_dashboard;
 
     if (!($needs_login || $needs_dashboard)) {
       return;

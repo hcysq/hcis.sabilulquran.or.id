@@ -73,5 +73,6 @@ class Installer {
     }
 
     Publikasi::on_activation();
+    Tasks::on_activation();
   }
 }
