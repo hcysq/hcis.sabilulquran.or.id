@@ -681,6 +681,103 @@ class View {
       ],
     ];
 
+    $rawTickerOptions = get_option('hcisysq_home_marquee_options', []);
+    $tickerDefaults = [
+      'speed'          => 1.0,
+      'background'     => '#2f7e20',
+      'gap'            => 32,
+      'letter_spacing' => 0.0,
+    ];
+    $tickerOptions = $tickerDefaults;
+    if (is_array($rawTickerOptions)) {
+      foreach ($tickerDefaults as $key => $default) {
+        if (array_key_exists($key, $rawTickerOptions)) {
+          $tickerOptions[$key] = $rawTickerOptions[$key];
+        }
+      }
+    }
+
+    $tickerSpeed = (float) $tickerOptions['speed'];
+    if ($tickerSpeed <= 0) {
+      $tickerSpeed = 1.0;
+    }
+    if ($tickerSpeed > 5) {
+      $tickerSpeed = 5.0;
+    }
+
+    $tickerGap = absint($tickerOptions['gap']);
+    if ($tickerGap < 12) {
+      $tickerGap = 12;
+    }
+    if ($tickerGap > 160) {
+      $tickerGap = 160;
+    }
+
+    $tickerLetter = (float) $tickerOptions['letter_spacing'];
+    if ($tickerLetter < 0) {
+      $tickerLetter = 0.0;
+    }
+    if ($tickerLetter > 10) {
+      $tickerLetter = 10.0;
+    }
+
+    $tickerBackground = isset($tickerOptions['background']) ? sanitize_hex_color($tickerOptions['background']) : '';
+    if (!$tickerBackground) {
+      $tickerBackground = '#2f7e20';
+    }
+
+    $rawTicker = get_option('hcisysq_home_marquee_text', '');
+    $tickerItems = [];
+    if (is_string($rawTicker) && trim($rawTicker) !== '') {
+      $cleanTicker = RichText::sanitize($rawTicker);
+      if ($cleanTicker !== '') {
+        $normalized = preg_replace(
+          ['/\r\n|\r/', '/<\s*br\s*\/?\s*>/i', '/<\/p>/i', '/<\/li>/i', '/<\/ul>/i', '/<\/ol>/i'],
+          ["\n", "\n", "\n", "\n", "\n", "\n"],
+          $cleanTicker
+        );
+        $text = wp_strip_all_tags($normalized);
+        $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+        $lines = preg_split('/[\r\n]+/', $text);
+        $processed = [];
+        if (is_array($lines)) {
+          foreach ($lines as $line) {
+            $collapsed = trim(preg_replace('/\s+/', ' ', (string) $line));
+            if ($collapsed !== '') {
+              $processed[] = $collapsed;
+            }
+          }
+        }
+        if (empty($processed)) {
+          $single = trim(preg_replace('/\s+/', ' ', $text));
+          if ($single !== '') {
+            $processed[] = $single;
+          }
+        }
+        $tickerItems = $processed;
+      }
+    }
+
+    $tickerItemsJson = wp_json_encode($tickerItems);
+    if (!is_string($tickerItemsJson)) {
+      $tickerItemsJson = '[]';
+    }
+
+    $format_number = static function ($value) {
+      if (!is_numeric($value)) {
+        return '0';
+      }
+      if (abs($value - round($value)) < 0.0001) {
+        return (string) intval(round($value));
+      }
+      return rtrim(rtrim(sprintf('%.2f', $value), '0'), '.');
+    };
+
+    $tickerGapAttr = (string) $tickerGap;
+    $tickerLetterAttr = $format_number($tickerLetter);
+    $tickerSpeedAttr = $format_number($tickerSpeed);
+    $tickerHiddenAttr = empty($tickerItems) ? ' hidden="hidden"' : '';
+
     ob_start(); ?>
     <div class="hcisysq-dashboard" id="hcisysq-dashboard">
 
@@ -743,6 +840,19 @@ class View {
 
         <div class="hcisysq-main-body">
           <section id="dashboard" class="hcisysq-dashboard-section is-active" data-section="dashboard" tabindex="-1">
+            <div
+              class="ysq-running hcisysq-running"
+              data-role="running-text"
+              data-items="<?= esc_attr($tickerItemsJson) ?>"
+              data-gap="<?= esc_attr($tickerGapAttr) ?>"
+              data-letter="<?= esc_attr($tickerLetterAttr) ?>"
+              data-bg="<?= esc_attr($tickerBackground) ?>"
+              data-speed="<?= esc_attr($tickerSpeedAttr) ?>"
+              aria-live="polite"
+              <?= $tickerHiddenAttr ?>
+            >
+              <div class="ysq-track hcisysq-running__track" data-role="running-track"></div>
+            </div>
             <section class="hcisysq-card-grid hcisysq-card-grid--2">
               <article class="hcisysq-card">
                 <h3 class="hcisysq-card-title">Profil Ringkas</h3>

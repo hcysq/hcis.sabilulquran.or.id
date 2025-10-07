@@ -42,9 +42,9 @@ function ysq_enqueue_scripts() {
     wp_enqueue_style('ysq-style', get_stylesheet_uri(), array(), '1.3');
     wp_enqueue_style(
         'ysq-footer',
-        get_template_directory_uri() . '/assets/css/ysq-footer.css',
+        get_stylesheet_directory_uri() . '/assets/css/ysq-footer.css',
         array('ysq-style'),
-        '1.0.0'
+        '1.0'
     );
     wp_enqueue_script('ysq-theme', get_template_directory_uri() . '/assets/js/theme.js', array(), '1.0.0', true);
 }
@@ -300,7 +300,7 @@ function ysq_customize_register($wp_customize) {
     ));
 
     $wp_customize->add_setting('ysq_footer_bottom_bg_color', array(
-        'default'   => '#2d5f5d',
+        'default'   => '#2f7e20',
         'transport' => 'refresh',
     ));
 
@@ -339,249 +339,66 @@ function ysq_customize_register($wp_customize) {
         )));
     }
 
-    $wp_customize->add_setting('ysq_footer_title_row_height', array(
-        'default'   => '56',
-        'transport' => 'refresh',
-    ));
-
-    $wp_customize->add_control('ysq_footer_title_row_height', array(
-        'label'       => __('Title Row Min Height (px)', 'ysq'),
-        'description' => __('Tinggi minimum baris judul footer. Gunakan 0 untuk mengikuti tinggi konten.', 'ysq'),
-        'section'     => 'ysq_footer_section',
-        'type'        => 'number',
-        'input_attrs' => array(
-            'min'  => 0,
-            'max'  => 200,
-            'step' => 1,
-        ),
-    ));
-
-    $wp_customize->add_setting('ysq_footer_content_row_height', array(
-        'default'   => '140',
-        'transport' => 'refresh',
-    ));
-
-    $wp_customize->add_control('ysq_footer_content_row_height', array(
-        'label'       => __('Content Row Min Height (px)', 'ysq'),
-        'description' => __('Tinggi minimum baris konten footer. Gunakan 0 untuk mengikuti tinggi konten.', 'ysq'),
-        'section'     => 'ysq_footer_section',
-        'type'        => 'number',
-        'input_attrs' => array(
-            'min'  => 0,
-            'max'  => 400,
-            'step' => 1,
-        ),
-    ));
-
-    $footer_columns = array(
+    $footer_content_defaults = array(
         1 => array(
-            'title_default'       => 'Info',
-            'title_description'   => __('Support HTML', 'ysq'),
-            'content_default'     => '<ul><li>Nasihat</li><li>Karir</li><li>Program Orang Tua Asuh</li><li>Pengaduan</li><li>Program Qurban</li></ul>',
-            'content_description' => __('Support HTML. Gunakan <ul><li>, <p>, <a>, <img>, dll', 'ysq'),
+            'title'   => 'Info',
+            'content' => '<ul><li>Nasihat</li><li>Karir</li><li>Program Orang Tua Asuh</li><li>Pengaduan</li><li>Program Qurban</li></ul>',
         ),
         2 => array(
-            'title_default'       => 'Kontak',
-            'title_description'   => __('Support HTML', 'ysq'),
-            'content_default'     => '<ul><li><a href="mailto:Email.Sabilulquran@gmail.com">Email Sabilulquran</a></li><li>Telp: 0851-7536-2016</li></ul>',
-            'content_description' => __('Support HTML. Gunakan <ul><li>, <p>, <a>, <img>, dll', 'ysq'),
+            'title'   => 'Kontak',
+            'content' => '<ul><li><a href="mailto:Email.Sabilulquran@gmail.com">Email Sabilulquran</a></li><li>Telp: 0851-7536-2016</li></ul>',
         ),
         3 => array(
-            'title_default'       => 'Lokasi',
-            'title_description'   => __('Support HTML', 'ysq'),
-            'content_default'     => '<p>Tambahkan konten atau embed Google Maps</p>',
-            'content_description' => __('Support HTML & iframe. Bisa untuk embed Google Maps', 'ysq'),
+            'title'   => 'Lokasi',
+            'content' => '<p>Tambahkan konten atau embed Google Maps</p>',
         ),
         4 => array(
-            'title_default'       => 'Lainnya',
-            'title_description'   => __('Support HTML', 'ysq'),
-            'content_default'     => '<p>Tambahkan konten untuk kolom 4</p>',
-            'content_description' => __('Support HTML. Gunakan <ul><li>, <p>, <a>, <img>, dll', 'ysq'),
+            'title'   => 'Lainnya',
+            'content' => '<p>Tambahkan konten untuk kolom 4</p>',
         ),
     );
 
-    foreach ($footer_columns as $index => $defaults) {
-        $width_setting   = sprintf('ysq_footer_col%d_width', $index);
-        $title_setting   = sprintf('ysq_footer_col%d_title', $index);
-        $title_font      = sprintf('ysq_footer_col%d_title_font_size', $index);
-        $title_weight    = sprintf('ysq_footer_col%d_title_font_weight', $index);
-        $content_setting = sprintf('ysq_footer_col%d_content', $index);
-        $font_setting    = sprintf('ysq_footer_col%d_font_size', $index);
-        $content_weight  = sprintf('ysq_footer_col%d_content_font_weight', $index);
-        $gap_setting     = sprintf('ysq_footer_col%d_content_gap', $index);
-        $color_setting   = sprintf('ysq_footer_col%d_color', $index);
-        $opacity_setting = sprintf('ysq_footer_col%d_opacity', $index);
-
-        $wp_customize->add_setting($width_setting, array(
-            'default'   => '25',
-            'transport' => 'refresh',
-        ));
-
-        $wp_customize->add_control($width_setting, array(
-            'label'       => sprintf(__('Column %d - Width (%%)', 'ysq'), $index),
-            'description' => __('Lebar kolom dalam persen (total 4 kolom = 100%)', 'ysq'),
-            'section'     => 'ysq_footer_section',
-            'type'        => 'number',
-            'input_attrs' => array(
-                'min'  => 10,
-                'max'  => 70,
-                'step' => 5,
-            ),
-        ));
+    foreach ($footer_content_defaults as $index => $defaults) {
+        $title_setting = sprintf('footer_col_%d_title', $index);
+        $content_setting = sprintf('footer_col_%d_content', $index);
 
         $wp_customize->add_setting($title_setting, array(
-            'default'   => $defaults['title_default'],
-            'transport' => 'refresh',
+            'default'           => $defaults['title'],
+            'transport'         => 'refresh',
+            'sanitize_callback' => 'sanitize_text_field',
         ));
 
         $wp_customize->add_control($title_setting, array(
-            'label'       => sprintf(__('Column %d - Title', 'ysq'), $index),
-            'description' => $defaults['title_description'],
-            'section'     => 'ysq_footer_section',
-            'type'        => 'textarea',
-        ));
-
-        $wp_customize->add_setting($title_font, array(
-            'default'   => '18',
-            'transport' => 'refresh',
-        ));
-
-        $wp_customize->add_control($title_font, array(
-            'label'       => sprintf(__('Column %d - Title Font Size (px)', 'ysq'), $index),
-            'section'     => 'ysq_footer_section',
-            'type'        => 'number',
-            'input_attrs' => array(
-                'min'  => 12,
-                'max'  => 32,
-                'step' => 1,
-            ),
-        ));
-
-        $wp_customize->add_setting($title_weight, array(
-            'default'   => 'bold',
-            'transport' => 'refresh',
-        ));
-
-        $wp_customize->add_control($title_weight, array(
-            'label'   => sprintf(__('Column %d - Title Font Weight', 'ysq'), $index),
+            'label'   => sprintf(__('Kolom %d - Judul', 'ysq'), $index),
             'section' => 'ysq_footer_section',
-            'type'    => 'select',
-            'choices' => array(
-                'normal' => __('Normal', 'ysq'),
-                'bold'   => __('Bold', 'ysq'),
-            ),
+            'type'    => 'text',
         ));
 
         $wp_customize->add_setting($content_setting, array(
-            'default'   => $defaults['content_default'],
-            'transport' => 'refresh',
+            'default'           => $defaults['content'],
+            'transport'         => 'refresh',
+            'sanitize_callback' => 'wp_kses_post',
         ));
 
         $wp_customize->add_control($content_setting, array(
-            'label'       => sprintf(__('Column %d - Content', 'ysq'), $index),
-            'description' => $defaults['content_description'],
+            'label'       => sprintf(__('Kolom %d - Konten', 'ysq'), $index),
+            'description' => __('Mendukung HTML dasar seperti <p>, <ul>, <li>, dan tautan.', 'ysq'),
             'section'     => 'ysq_footer_section',
             'type'        => 'textarea',
         ));
-
-        $wp_customize->add_setting($font_setting, array(
-            'default'   => '14',
-            'transport' => 'refresh',
-        ));
-
-        $wp_customize->add_control($font_setting, array(
-            'label'       => sprintf(__('Column %d - Font Size (px)', 'ysq'), $index),
-            'section'     => 'ysq_footer_section',
-            'type'        => 'number',
-            'input_attrs' => array(
-                'min'  => 10,
-                'max'  => 24,
-                'step' => 1,
-            ),
-        ));
-
-        $wp_customize->add_setting($content_weight, array(
-            'default'   => 'normal',
-            'transport' => 'refresh',
-        ));
-
-        $wp_customize->add_control($content_weight, array(
-            'label'   => sprintf(__('Column %d - Content Font Weight', 'ysq'), $index),
-            'section' => 'ysq_footer_section',
-            'type'    => 'select',
-            'choices' => array(
-                'normal' => __('Normal', 'ysq'),
-                'bold'   => __('Bold', 'ysq'),
-            ),
-        ));
-
-        $wp_customize->add_setting($gap_setting, array(
-            'default'           => '12',
-            'transport'         => 'refresh',
-            'sanitize_callback' => 'absint',
-        ));
-
-        $wp_customize->add_control($gap_setting, array(
-            'label'       => sprintf(__('Column %d - Content Gap (px)', 'ysq'), $index),
-            'section'     => 'ysq_footer_section',
-            'type'        => 'number',
-            'input_attrs' => array(
-                'min'  => 0,
-                'max'  => 64,
-                'step' => 1,
-            ),
-        ));
-
-        $wp_customize->add_setting($color_setting, array(
-            'default'   => '#333333',
-            'transport' => 'refresh',
-        ));
-
-        if (class_exists('WP_Customize_Color_Control')) {
-            $wp_customize->add_control(new WP_Customize_Color_Control($wp_customize, $color_setting, array(
-                'label'   => sprintf(__('Column %d - Text Color', 'ysq'), $index),
-                'section' => 'ysq_footer_section',
-            )));
-        }
-
-        $wp_customize->add_setting($opacity_setting, array(
-            'default'   => '100',
-            'transport' => 'refresh',
-        ));
-
-        $wp_customize->add_control($opacity_setting, array(
-            'label'       => sprintf(__('Column %d - Text Opacity (%%)', 'ysq'), $index),
-            'section'     => 'ysq_footer_section',
-            'type'        => 'range',
-            'input_attrs' => array(
-                'min'  => 0,
-                'max'  => 100,
-                'step' => 1,
-            ),
-        ));
     }
 
-    $wp_customize->add_setting('ysq_footer_ahu_text', array(
-        'default'   => 'AHU – 0033732. AH. 01. 04. Tahun 2015 | Tanggal 28 Desember 2015',
-        'transport' => 'refresh',
+    $wp_customize->add_setting('footer_bottom_copy', array(
+        'default'           => '&copy; 2025 Yayasan Sabilul Qur\'an &bull; HCIS v1.0',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'wp_kses_post',
     ));
 
-    $wp_customize->add_control('ysq_footer_ahu_text', array(
-        'label'       => __('Footer Bottom - Title', 'ysq'),
-        'description' => __('Support HTML', 'ysq'),
+    $wp_customize->add_control('footer_bottom_copy', array(
+        'label'       => __('Teks Footer Bawah', 'ysq'),
+        'description' => __('Gunakan teks singkat untuk copyright atau informasi lisensi.', 'ysq'),
         'section'     => 'ysq_footer_section',
         'type'        => 'textarea',
-    ));
-
-    $wp_customize->add_setting('ysq_footer_copyright_text', array(
-        'default'   => 'Yayasan Sabilul Qur\'an • HRIS Internal v1.2',
-        'transport' => 'refresh',
-    ));
-
-    $wp_customize->add_control('ysq_footer_copyright_text', array(
-        'label'   => __('Footer Bottom - Copyright Text', 'ysq'),
-        'section' => 'ysq_footer_section',
-        'type'    => 'text',
     ));
 }
 add_action('customize_register', 'ysq_customize_register');
@@ -602,7 +419,7 @@ function ysq_custom_styles() {
     $footer_bg_opacity  = get_theme_mod('ysq_footer_bg_opacity', '100');
     $footer_bg_rgba     = ysq_hex_to_rgba($footer_bg, floatval($footer_bg_opacity) / 100);
 
-    $footer_bottom_bg         = get_theme_mod('ysq_footer_bottom_bg_color', '#2d5f5d');
+    $footer_bottom_bg         = get_theme_mod('ysq_footer_bottom_bg_color', '#2f7e20');
     $footer_bottom_bg_opacity = get_theme_mod('ysq_footer_bottom_bg_opacity', '100');
     $footer_bottom_bg_rgba    = ysq_hex_to_rgba($footer_bottom_bg, floatval($footer_bottom_bg_opacity) / 100);
     $footer_bottom_text_color = get_theme_mod('ysq_footer_bottom_text_color', '#ffffff');
@@ -610,38 +427,6 @@ function ysq_custom_styles() {
     $show_branding = get_theme_mod('ysq_show_branding_card', true);
     $show_buttons  = get_theme_mod('ysq_show_header_buttons', true);
 
-    $title_row_height   = absint(get_theme_mod('ysq_footer_title_row_height', '56'));
-    $content_row_height = absint(get_theme_mod('ysq_footer_content_row_height', '140'));
-
-    $footer_columns = array();
-
-    for ($i = 1; $i <= 4; $i++) {
-        $width           = get_theme_mod('ysq_footer_col' . $i . '_width', '25');
-        $title_size      = get_theme_mod('ysq_footer_col' . $i . '_title_font_size', '18');
-        $title_weight    = get_theme_mod('ysq_footer_col' . $i . '_title_font_weight', 'bold');
-        $font_size       = get_theme_mod('ysq_footer_col' . $i . '_font_size', '14');
-        $content_weight  = get_theme_mod('ysq_footer_col' . $i . '_content_font_weight', 'normal');
-        $content_gap     = get_theme_mod('ysq_footer_col' . $i . '_content_gap', '12');
-        $color           = get_theme_mod('ysq_footer_col' . $i . '_color', '#333333');
-        $opacity         = get_theme_mod('ysq_footer_col' . $i . '_opacity', '100');
-
-        $width_value      = is_numeric($width) ? floatval($width) : 25;
-        $title_size_value = is_numeric($title_size) ? floatval($title_size) : 18;
-        $font_size_value  = is_numeric($font_size) ? floatval($font_size) : 14;
-        $content_gap_value = is_numeric($content_gap) ? floatval($content_gap) : 12;
-        $opacity_value    = is_numeric($opacity) ? floatval($opacity) : 100;
-
-        $footer_columns[$i] = array(
-            'width'          => max(0, min(100, $width_value)),
-            'title_size'     => max(0, $title_size_value),
-            'title_weight'   => in_array($title_weight, array('normal', 'bold'), true) ? $title_weight : 'bold',
-            'font_size'      => max(0, $font_size_value),
-            'content_weight' => in_array($content_weight, array('normal', 'bold'), true) ? $content_weight : 'normal',
-            'content_gap'    => max(0, $content_gap_value),
-            'color'          => $color,
-            'opacity'        => max(0, min(100, $opacity_value)),
-        );
-    }
     $header_bg_half     = ysq_hex_to_rgba($header_bg, 0.5);
     ?>
     <style type="text/css">
@@ -690,27 +475,15 @@ function ysq_custom_styles() {
 
         .ysq-footer {
             background-color: <?php echo esc_attr($footer_bg_rgba); ?> !important;
-            --footer-title-row-height: <?php echo esc_attr($title_row_height > 0 ? $title_row_height . 'px' : 'auto'); ?>;
-            --footer-content-row-height: <?php echo esc_attr($content_row_height > 0 ? $content_row_height . 'px' : 'auto'); ?>;
-<?php foreach ($footer_columns as $index => $column) :
-    $color_rgba = ysq_hex_to_rgba($column['color'], max(0, min(1, $column['opacity'] / 100)));
-?>
-            --footer-col<?php echo esc_attr($index); ?>-width: <?php echo esc_attr($column['width']); ?>%;
-            --footer-col<?php echo esc_attr($index); ?>-title-font-size: <?php echo esc_attr($column['title_size']); ?>px;
-            --footer-col<?php echo esc_attr($index); ?>-title-font-weight: <?php echo esc_attr($column['title_weight']); ?>;
-            --footer-col<?php echo esc_attr($index); ?>-content-font-size: <?php echo esc_attr($column['font_size']); ?>px;
-            --footer-col<?php echo esc_attr($index); ?>-content-font-weight: <?php echo esc_attr($column['content_weight']); ?>;
-            --footer-col<?php echo esc_attr($index); ?>-content-gap: <?php echo esc_attr($column['content_gap']); ?>px;
-            --footer-col<?php echo esc_attr($index); ?>-text-color: <?php echo esc_attr($color_rgba); ?>;
-<?php endforeach; ?>
         }
 
-        .ysq-footer__bottom {
+        .footer-bottom {
             background-color: <?php echo esc_attr($footer_bottom_bg_rgba); ?> !important;
         }
 
-        .ysq-footer__bottom,
-        .ysq-footer__bottom a {
+        .footer-bottom,
+        .footer-bottom a,
+        .footer-copy {
             color: <?php echo esc_attr($footer_bottom_text_color); ?> !important;
         }
     </style>
