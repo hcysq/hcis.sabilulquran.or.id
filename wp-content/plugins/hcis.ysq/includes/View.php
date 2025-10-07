@@ -348,39 +348,97 @@ class View {
               <h3 class="hcisysq-card-title">Tambah Tugas</h3>
               <form id="hcisysq-task-form" class="hcisysq-task-form" autocomplete="off">
                 <input type="hidden" name="task_id" value="">
-                <div class="hcisysq-task-form__grid">
-                  <label for="hcisysq-task-title" class="hcisysq-task-form__field hcisysq-task-form__field--full">
-                    <span class="hcisysq-task-form__label">Nama Tugas <span class="req">*</span></span>
-                    <input type="text" id="hcisysq-task-title" name="title" class="hcisysq-task-form__control" placeholder="Masukkan nama tugas" required>
-                  </label>
-                  <label for="hcisysq-task-description" class="hcisysq-task-form__field hcisysq-task-form__field--full">
-                    <span class="hcisysq-task-form__label">Uraian</span>
-                    <textarea id="hcisysq-task-description" name="description" class="hcisysq-task-form__control" rows="6" placeholder="Tuliskan uraian tugas"></textarea>
-                  </label>
-                  <label for="hcisysq-task-deadline" class="hcisysq-task-form__field">
-                    <span class="hcisysq-task-form__label">Batas Waktu</span>
-                    <input type="date" id="hcisysq-task-deadline" name="deadline" class="hcisysq-task-form__control">
-                  </label>
-                  <label for="hcisysq-task-link-label" class="hcisysq-task-form__field">
-                    <span class="hcisysq-task-form__label">Nama Tautan</span>
-                    <input type="text" id="hcisysq-task-link-label" name="link_label" class="hcisysq-task-form__control" placeholder="Masukkan nama tautan (opsional)">
-                  </label>
-                  <label for="hcisysq-task-link-url" class="hcisysq-task-form__field">
-                    <span class="hcisysq-task-form__label">Link Tautan</span>
-                    <input type="url" id="hcisysq-task-link-url" name="link_url" class="hcisysq-task-form__control" placeholder="Masukkan URL tautan (opsional)">
-                  </label>
-                </div>
-                <div class="hcisysq-task-form__grid hcisysq-task-form__grid--options">
-                  <div class="hcisysq-task-form__fieldset">
-                    <span class="hcisysq-task-form__label">Unit Tujuan <span class="req">*</span></span>
-                    <div class="hcisysq-task-checkboxes" data-role="task-unit-options"></div>
-                    <p class="form-helper hcisysq-task-form__helper">Pilih minimal satu unit kerja.</p>
+                <input type="hidden" name="unit_ids" value="">
+                <input type="hidden" name="employee_ids" value="">
+                <div class="hcisysq-task-form__wrapper">
+                  <div class="hcisysq-task-form__main">
+                    <div class="hcisysq-form-row">
+                      <label for="hcisysq-task-title" class="hcisysq-form-label">Nama Tugas <span class="req">*</span></label>
+                      <div class="hcisysq-form-field">
+                        <input type="text" id="hcisysq-task-title" name="title" class="hcisysq-form-control" placeholder="Masukkan nama tugas" required>
+                      </div>
+                    </div>
+                    <div class="hcisysq-form-row">
+                      <label for="hcisysq-task-description" class="hcisysq-form-label">Uraian</label>
+                      <div class="hcisysq-form-field">
+                        <textarea id="hcisysq-task-description" name="description" class="hcisysq-form-control hcisysq-form-control--textarea" placeholder="Tuliskan uraian tugas"></textarea>
+                      </div>
+                    </div>
+                    <div class="hcisysq-form-row">
+                      <label for="hcisysq-task-deadline" class="hcisysq-form-label">Batas Waktu</label>
+                      <div class="hcisysq-form-field">
+                        <input type="date" id="hcisysq-task-deadline" name="deadline" class="hcisysq-form-control">
+                      </div>
+                    </div>
+                    <div class="hcisysq-form-row">
+                      <label for="hcisysq-task-link-label" class="hcisysq-form-label">Nama Tautan</label>
+                      <div class="hcisysq-form-field">
+                        <input type="text" id="hcisysq-task-link-label" name="link_label" class="hcisysq-form-control" placeholder="Masukkan nama tautan (opsional)">
+                      </div>
+                    </div>
+                    <div class="hcisysq-form-row">
+                      <label for="hcisysq-task-link-url" class="hcisysq-form-label">Link Tautan</label>
+                      <div class="hcisysq-form-field">
+                        <input type="url" id="hcisysq-task-link-url" name="link_url" class="hcisysq-form-control" placeholder="Masukkan URL tautan (opsional)">
+                      </div>
+                    </div>
                   </div>
-                  <div class="hcisysq-task-form__fieldset">
-                    <span class="hcisysq-task-form__label">Pegawai Ditugaskan <span class="req">*</span></span>
-                    <div class="hcisysq-task-checkboxes" data-role="task-employee-options"></div>
-                    <p class="form-helper hcisysq-task-form__helper">Daftar pegawai mengikuti unit yang dipilih.</p>
-                  </div>
+
+                  <section class="hcisysq-task-card" aria-labelledby="hcisysq-assignment-title">
+                    <header class="hcisysq-task-card__header">
+                      <h4 class="hcisysq-task-card__title" id="hcisysq-assignment-title">Tujuan Penugasan</h4>
+                      <p class="hcisysq-task-card__helper">Pilih unit kerja dan pegawai yang akan menerima tugas.</p>
+                    </header>
+                    <div class="hcisysq-task-card__body">
+                      <div class="hcisysq-form-row">
+                        <label for="hcisysq-task-units" class="hcisysq-form-label">Unit <span class="req">*</span></label>
+                        <div class="hcisysq-form-field">
+                          <div class="hcisysq-multiselect" data-role="unit-dropdown">
+                            <button type="button" class="hcisysq-multiselect__toggle" id="hcisysq-task-units" data-role="toggle" aria-haspopup="true" aria-expanded="false" aria-controls="hcisysq-task-units-panel">
+                              <span class="hcisysq-multiselect__text" data-role="label">Pilih Unit</span>
+                              <span class="hcisysq-multiselect__badge" data-role="badge" hidden>0</span>
+                              <span class="hcisysq-multiselect__chevron" aria-hidden="true"></span>
+                            </button>
+                            <div class="hcisysq-multiselect__panel" id="hcisysq-task-units-panel" data-role="panel" role="group" tabindex="-1" hidden aria-labelledby="hcisysq-task-units">
+                              <div class="hcisysq-multiselect__action">
+                                <label class="hcisysq-multiselect__option hcisysq-multiselect__option--select-all">
+                                  <input type="checkbox" data-role="select-all">
+                                  <span>Pilih semua</span>
+                                </label>
+                              </div>
+                              <div class="hcisysq-multiselect__status" data-role="status" aria-live="polite"></div>
+                              <div class="hcisysq-multiselect__options" data-role="options"></div>
+                            </div>
+                          </div>
+                          <p class="hcisysq-form-error" data-role="unit-error" hidden>Minimal pilih satu unit.</p>
+                          <p class="form-helper">Pilih minimal satu unit kerja.</p>
+                        </div>
+                      </div>
+                      <div class="hcisysq-form-row">
+                        <label for="hcisysq-task-employees" class="hcisysq-form-label">Pegawai</label>
+                        <div class="hcisysq-form-field">
+                          <div class="hcisysq-multiselect" data-role="employee-dropdown">
+                            <button type="button" class="hcisysq-multiselect__toggle" id="hcisysq-task-employees" data-role="toggle" aria-haspopup="true" aria-expanded="false" aria-controls="hcisysq-task-employees-panel">
+                              <span class="hcisysq-multiselect__text" data-role="label">Pilih Pegawai</span>
+                              <span class="hcisysq-multiselect__badge" data-role="badge" hidden>0</span>
+                              <span class="hcisysq-multiselect__chevron" aria-hidden="true"></span>
+                            </button>
+                            <div class="hcisysq-multiselect__panel" id="hcisysq-task-employees-panel" data-role="panel" role="group" tabindex="-1" hidden aria-labelledby="hcisysq-task-employees">
+                              <div class="hcisysq-multiselect__action">
+                                <label class="hcisysq-multiselect__option hcisysq-multiselect__option--select-all">
+                                  <input type="checkbox" data-role="select-all">
+                                  <span>Pilih semua</span>
+                                </label>
+                              </div>
+                              <div class="hcisysq-multiselect__status" data-role="status" aria-live="polite"></div>
+                              <div class="hcisysq-multiselect__options" data-role="options"></div>
+                            </div>
+                          </div>
+                          <p class="form-helper">Daftar pegawai mengikuti unit yang dipilih.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
                 </div>
                 <div class="form-actions">
                   <button type="submit" class="btn-primary" data-role="task-submit">Simpan Tugas</button>

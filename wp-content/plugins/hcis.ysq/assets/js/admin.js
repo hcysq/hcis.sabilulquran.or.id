@@ -195,8 +195,11 @@
     const taskMessage = taskForm ? taskForm.querySelector('[data-role="task-message"]') : null;
     const taskSubmit = taskForm ? taskForm.querySelector('[data-role="task-submit"]') : null;
     const taskReset = taskForm ? taskForm.querySelector('[data-role="task-reset"]') : null;
-    const taskUnitContainer = taskForm ? taskForm.querySelector('[data-role="task-unit-options"]') : null;
-    const taskEmployeeContainer = taskForm ? taskForm.querySelector('[data-role="task-employee-options"]') : null;
+    const unitDropdownEl = taskForm ? taskForm.querySelector('[data-role="unit-dropdown"]') : null;
+    const employeeDropdownEl = taskForm ? taskForm.querySelector('[data-role="employee-dropdown"]') : null;
+    const unitError = taskForm ? taskForm.querySelector('[data-role="unit-error"]') : null;
+    const hiddenUnitInput = taskForm ? taskForm.querySelector('input[name="unit_ids"]') : null;
+    const hiddenEmployeeInput = taskForm ? taskForm.querySelector('input[name="employee_ids"]') : null;
     const taskListContainer = root.querySelector('[data-role="task-list"]');
 
     const taskSelection = {
@@ -204,6 +207,342 @@
       employees: new Set(),
       editingId: '',
     };
+
+    class DropdownMultiSelect {
+      constructor(element, options = {}) {
+        this.element = element;
+        this.toggle = element ? element.querySelector('[data-role="toggle"]') : null;
+        this.panel = element ? element.querySelector('[data-role="panel"]') : null;
+        this.optionsContainer = element ? element.querySelector('[data-role="options"]') : null;
+        this.statusEl = element ? element.querySelector('[data-role="status"]') : null;
+        this.selectAll = element ? element.querySelector('[data-role="select-all"]') : null;
+        this.labelEl = element ? element.querySelector('[data-role="label"]') : null;
+        this.badgeEl = element ? element.querySelector('[data-role="badge"]') : null;
+        this.items = [];
+        this.selected = new Set();
+        this.valueMap = new Map();
+        this.isOpen = false;
+        this.disabled = false;
+        this.loading = false;
+        this.config = {
+          baseLabel: 'Pilih',
+          emptyText: 'Data tidak tersedia.',
+          loadingText: 'Memuat...',
+          ...options,
+        };
+
+        this.handleDocumentClick = this.handleDocumentClick.bind(this);
+        this.handlePanelKeyDown = this.handlePanelKeyDown.bind(this);
+        this.handleToggleKeyDown = this.handleToggleKeyDown.bind(this);
+
+        if (this.toggle && this.panel) {
+          const toggleId = this.toggle.getAttribute('id') || `hcisysq-select-${Math.random().toString(36).slice(2)}`;
+          const panelId = this.panel.getAttribute('id') || `${toggleId}-panel`;
+          this.toggle.setAttribute('id', toggleId);
+          this.toggle.setAttribute('aria-controls', panelId);
+          this.panel.setAttribute('id', panelId);
+          this.panel.setAttribute('aria-labelledby', toggleId);
+        }
+
+        this.registerEvents();
+        this.updateToggleLabel();
+        if (this.statusEl) {
+          this.setStatus('info', this.config.emptyText);
+        }
+        if (this.selectAll) {
+          this.selectAll.disabled = true;
+        }
+      }
+
+      registerEvents() {
+        if (this.toggle) {
+          this.toggle.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (this.disabled) return;
+            this.isOpen ? this.close() : this.open();
+          });
+          this.toggle.addEventListener('keydown', this.handleToggleKeyDown);
+        }
+
+        if (this.panel) {
+          this.panel.addEventListener('change', (event) => {
+            const input = event.target && event.target.closest('input[type="checkbox"]');
+            if (!input || input === this.selectAll) return;
+            const value = input.value;
+            if (!value) return;
+            if (input.checked) {
+              this.selected.add(value);
+            } else {
+              this.selected.delete(value);
+            }
+            this.refreshSelection();
+            this.dispatchChange();
+          });
+        }
+
+        if (this.selectAll) {
+          this.selectAll.addEventListener('change', () => {
+            if (this.selectAll.checked) {
+              this.selected = new Set(this.items.map((item) => item.value));
+            } else {
+              this.selected.clear();
+            }
+            this.refreshSelection();
+            this.dispatchChange();
+          });
+        }
+      }
+
+      handleToggleKeyDown(event) {
+        const { key } = event;
+        if (key === ' ' || key === 'Enter' || key === 'Spacebar') {
+          event.preventDefault();
+          if (this.disabled) return;
+          if (!this.isOpen) {
+            this.open();
+          } else {
+            this.close();
+          }
+        } else if (key === 'ArrowDown' && !this.isOpen) {
+          event.preventDefault();
+          if (!this.disabled) this.open();
+        } else if (key === 'Escape' && this.isOpen) {
+          event.preventDefault();
+          this.close();
+        }
+      }
+
+      handleDocumentClick(event) {
+        if (!this.element || !this.isOpen) return;
+        if (!this.element.contains(event.target)) {
+          this.close();
+        }
+      }
+
+      handlePanelKeyDown(event) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          this.close();
+          if (this.toggle) this.toggle.focus();
+        }
+      }
+
+      open() {
+        if (this.isOpen || this.disabled || !this.panel) return;
+        this.isOpen = true;
+        this.panel.hidden = false;
+        this.element.setAttribute('data-open', 'true');
+        if (this.toggle) this.toggle.setAttribute('aria-expanded', 'true');
+        document.addEventListener('mousedown', this.handleDocumentClick);
+        document.addEventListener('touchstart', this.handleDocumentClick);
+        document.addEventListener('keydown', this.handlePanelKeyDown);
+        setTimeout(() => {
+          if (!this.panel) return;
+          if (typeof this.panel.focus === 'function') {
+            try {
+              this.panel.focus({ preventScroll: true });
+            } catch (err) {
+              this.panel.focus();
+            }
+          }
+          this.focusFirstOption();
+        }, 0);
+      }
+
+      close() {
+        if (!this.isOpen || !this.panel) return;
+        this.isOpen = false;
+        this.panel.hidden = true;
+        this.element.removeAttribute('data-open');
+        if (this.toggle) this.toggle.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('mousedown', this.handleDocumentClick);
+        document.removeEventListener('touchstart', this.handleDocumentClick);
+        document.removeEventListener('keydown', this.handlePanelKeyDown);
+      }
+
+      focusFirstOption() {
+        if (!this.panel) return;
+        if (this.selectAll && !this.selectAll.disabled) {
+          this.selectAll.focus();
+          return;
+        }
+        if (!this.optionsContainer) return;
+        const input = this.optionsContainer.querySelector('input[type="checkbox"]');
+        if (input) input.focus();
+      }
+
+      setStatus(state, message) {
+        if (!this.statusEl) return;
+        const text = message ? String(message) : '';
+        this.statusEl.textContent = text;
+        if (text) {
+          this.statusEl.dataset.state = state || 'info';
+          this.statusEl.hidden = false;
+        } else {
+          this.statusEl.dataset.state = '';
+          this.statusEl.hidden = true;
+        }
+      }
+
+      setLoading(isLoading, message) {
+        this.loading = Boolean(isLoading);
+        if (this.loading) {
+          this.element.setAttribute('data-loading', 'true');
+          this.setStatus('loading', message || this.config.loadingText);
+        } else {
+          this.element.removeAttribute('data-loading');
+          if (this.items.length) {
+            this.setStatus('', '');
+          } else {
+            this.setStatus('info', this.config.emptyText);
+          }
+        }
+      }
+
+      setDisabled(disabled) {
+        this.disabled = Boolean(disabled);
+        if (this.disabled) {
+          this.close();
+          this.element.setAttribute('data-disabled', 'true');
+          if (this.toggle) this.toggle.setAttribute('disabled', 'disabled');
+        } else {
+          this.element.removeAttribute('data-disabled');
+          if (this.toggle) this.toggle.removeAttribute('disabled');
+        }
+      }
+
+      setItems(items) {
+        const list = Array.isArray(items)
+          ? items
+              .map((item) => {
+                const value = item && item.value !== undefined ? String(item.value) : '';
+                const label = item && item.label !== undefined ? String(item.label) : value;
+                const hint = item && item.hint ? String(item.hint) : '';
+                return { value, label, hint };
+              })
+              .filter((item) => item.value && item.label)
+          : [];
+
+        this.items = list;
+        this.valueMap = new Map(list.map((item) => [item.value, item]));
+        if (this.optionsContainer) {
+          this.optionsContainer.innerHTML = list
+            .map((item) => {
+              const value = shared.escapeHtmlText(item.value);
+              const label = shared.escapeHtmlText(item.label);
+              const hint = item.hint ? `<small>${shared.escapeHtmlText(item.hint)}</small>` : '';
+              return `
+                <label class="hcisysq-multiselect__option" data-value="${value}">
+                  <input type="checkbox" value="${value}">
+                  <span>${label}${hint}</span>
+                </label>
+              `;
+            })
+            .join('');
+        }
+
+        if (this.selectAll) {
+          this.selectAll.disabled = !list.length;
+        }
+
+        this.selected.forEach((value) => {
+          if (!this.valueMap.has(value)) {
+            this.selected.delete(value);
+          }
+        });
+
+        if (!list.length) {
+          this.setStatus('info', this.config.emptyText);
+        } else if (!this.loading) {
+          this.setStatus('', '');
+        }
+
+        this.refreshSelection();
+      }
+
+      updateSelectAllState() {
+        if (!this.selectAll) return;
+        const total = this.items.length;
+        const selected = this.selected.size;
+        if (!total) {
+          this.selectAll.checked = false;
+          this.selectAll.indeterminate = false;
+          return;
+        }
+        if (selected === 0) {
+          this.selectAll.checked = false;
+          this.selectAll.indeterminate = false;
+        } else if (selected === total) {
+          this.selectAll.checked = true;
+          this.selectAll.indeterminate = false;
+        } else {
+          this.selectAll.checked = false;
+          this.selectAll.indeterminate = true;
+        }
+      }
+
+      updateToggleLabel() {
+        const base = this.config.baseLabel || 'Pilih';
+        const count = this.selected.size;
+        if (this.labelEl) {
+          this.labelEl.textContent = count ? `${base} (${count})` : base;
+        }
+        if (this.badgeEl) {
+          if (count) {
+            this.badgeEl.hidden = false;
+            this.badgeEl.textContent = String(count);
+          } else {
+            this.badgeEl.hidden = true;
+            this.badgeEl.textContent = '';
+          }
+        }
+      }
+
+      refreshSelection() {
+        if (this.optionsContainer) {
+          const inputs = this.optionsContainer.querySelectorAll('input[type="checkbox"]');
+          inputs.forEach((input) => {
+            input.checked = this.selected.has(input.value);
+          });
+        }
+        this.updateSelectAllState();
+        this.updateToggleLabel();
+      }
+
+      setSelection(values, options = {}) {
+        const allowed = new Set(this.items.map((item) => item.value));
+        const next = Array.isArray(values)
+          ? values.map((value) => String(value)).filter((value) => allowed.has(value))
+          : [];
+        this.selected = new Set(next);
+        this.refreshSelection();
+        if (!options || !options.silent) {
+          this.dispatchChange();
+        }
+      }
+
+      clearSelection(options = {}) {
+        this.setSelection([], options);
+      }
+
+      dispatchChange() {
+        if (!this.element) return;
+        const detail = { values: Array.from(this.selected) };
+        this.element.dispatchEvent(new CustomEvent('ysq-change', { detail }));
+      }
+    }
+
+    const unitDropdown = unitDropdownEl ? new DropdownMultiSelect(unitDropdownEl, {
+      baseLabel: 'Unit',
+      emptyText: 'Data unit belum tersedia.',
+      loadingText: 'Memuat unit...'
+    }) : null;
+    const employeeDropdown = employeeDropdownEl ? new DropdownMultiSelect(employeeDropdownEl, {
+      baseLabel: 'Pegawai',
+      emptyText: 'Tidak ada pegawai untuk unit terpilih.',
+      loadingText: 'Memuat pegawai...'
+    }) : null;
+    let employeeRequestToken = 0;
 
     function getHomeFormOptions() {
       if (!homeForm) return { ...state.home.options };
@@ -346,61 +685,129 @@
       }
     }
 
-    function syncUnitSelection() {
-      const validUnitIds = new Set(state.tasks.units.map((unit) => unit.id));
-      taskSelection.units.forEach((id) => {
-        if (!validUnitIds.has(id)) {
-          taskSelection.units.delete(id);
-        }
-      });
+    function updateHiddenInputs() {
+      if (hiddenUnitInput) {
+        hiddenUnitInput.value = Array.from(taskSelection.units).join(',');
+      }
+      if (hiddenEmployeeInput) {
+        hiddenEmployeeInput.value = Array.from(taskSelection.employees).join(',');
+      }
     }
 
-    function syncEmployeeSelection() {
-      const allowedEmployees = new Set(
-        state.tasks.employees
-          .filter((employee) => !taskSelection.units.size || taskSelection.units.has(employee.unitId))
-          .map((employee) => employee.nip),
-      );
-      taskSelection.employees.forEach((nip) => {
-        if (!allowedEmployees.has(nip)) {
-          taskSelection.employees.delete(nip);
-        }
-      });
+    function showUnitError(show, message) {
+      if (!unitError) return;
+      if (show) {
+        unitError.textContent = message || 'Minimal pilih satu unit.';
+        unitError.hidden = false;
+      } else {
+        unitError.hidden = true;
+      }
     }
 
-    function renderUnitOptions() {
-      if (!taskUnitContainer) return;
-      syncUnitSelection();
-      if (!state.tasks.units.length) {
-        taskUnitContainer.innerHTML = '<p class="hcisysq-empty">Data unit belum tersedia.</p>';
+    function updateUnitDropdownOptions() {
+      if (!unitDropdown) return;
+      const items = state.tasks.units.map((unit) => ({
+        value: unit.id,
+        label: unit.label,
+        hint: unit.count ? `${unit.count} pegawai` : '',
+      }));
+      const allowed = new Set(items.map((item) => item.value));
+      const selected = Array.from(taskSelection.units).filter((value) => allowed.has(value));
+      taskSelection.units = new Set(selected);
+      unitDropdown.setItems(items);
+      unitDropdown.setSelection(selected, { silent: true });
+      updateHiddenInputs();
+    }
+
+    function resetEmployeeDropdown(message = 'Pilih unit terlebih dahulu.') {
+      if (!employeeDropdown) return;
+      employeeDropdown.config.emptyText = message;
+      employeeDropdown.setItems([]);
+      employeeDropdown.clearSelection({ silent: true });
+      employeeDropdown.setDisabled(true);
+      employeeDropdown.setLoading(false);
+      employeeDropdown.setStatus('info', message);
+      taskSelection.employees.clear();
+      updateHiddenInputs();
+    }
+
+    function handleUnitSelection(values) {
+      const normalized = Array.isArray(values) ? values.map((value) => String(value).trim()).filter(Boolean) : [];
+      taskSelection.units = new Set(normalized);
+      updateHiddenInputs();
+      if (!normalized.length) {
+        employeeRequestToken += 1;
+        showUnitError(true);
+        resetEmployeeDropdown();
         return;
       }
-      taskUnitContainer.innerHTML = state.tasks.units.map((unit) => `
-        <label class="hcisysq-task-option">
-          <input type="checkbox" value="${shared.escapeHtmlText(unit.id)}" ${taskSelection.units.has(unit.id) ? 'checked' : ''}>
-          <span>${shared.escapeHtmlText(unit.label)}</span>
-          <small>${shared.escapeHtmlText(String(unit.count))}</small>
-        </label>
-      `).join('');
+      showUnitError(false);
+      if (employeeDropdown) {
+        employeeDropdown.setDisabled(false);
+      }
+      loadEmployeesForUnits(normalized);
     }
 
-    function renderEmployeeOptions() {
-      if (!taskEmployeeContainer) return;
-      const available = state.tasks.employees.filter((employee) => !taskSelection.units.size || taskSelection.units.has(employee.unitId));
-      syncEmployeeSelection();
-      if (!available.length) {
-        taskEmployeeContainer.innerHTML = taskSelection.units.size
-          ? '<p class="hcisysq-empty">Tidak ada pegawai untuk unit terpilih.</p>'
-          : '<p class="hcisysq-empty">Pilih unit terlebih dahulu.</p>';
-        return;
+    function loadEmployeesForUnits(unitIds, options = {}) {
+      if (!employeeDropdown) return Promise.resolve();
+      const ids = Array.isArray(unitIds)
+        ? unitIds.map((id) => String(id).trim()).filter(Boolean)
+        : [];
+      employeeRequestToken += 1;
+      const token = employeeRequestToken;
+
+      if (!ids.length) {
+        resetEmployeeDropdown();
+        return Promise.resolve();
       }
-      taskEmployeeContainer.innerHTML = available.map((employee) => `
-        <label class="hcisysq-task-option">
-          <input type="checkbox" value="${shared.escapeHtmlText(employee.nip)}" ${taskSelection.employees.has(employee.nip) ? 'checked' : ''}>
-          <span>${shared.escapeHtmlText(employee.nama)}</span>
-          <small>${shared.escapeHtmlText(employee.unit)}</small>
-        </label>
-      `).join('');
+
+      employeeDropdown.setDisabled(false);
+      employeeDropdown.setLoading(true, 'Memuat pegawai...');
+      return shared.ajax('ysq_get_employees_by_units', {
+        unit_ids: JSON.stringify(ids),
+      }).then((res) => {
+        if (token !== employeeRequestToken) {
+          return null;
+        }
+
+        if (res && res.success && Array.isArray(res.employees)) {
+          employeeDropdown.config.emptyText = 'Tidak ada pegawai untuk unit terpilih.';
+          const normalized = res.employees
+            .map((item) => ({
+              value: item && item.id !== undefined ? String(item.id) : '',
+              label: item && item.name !== undefined ? String(item.name) : '',
+              hint: item && item.unit ? String(item.unit) : '',
+            }))
+            .filter((item) => item.value && item.label)
+            .sort((a, b) => a.label.localeCompare(b.label, 'id'));
+
+          employeeDropdown.setItems(normalized);
+          employeeDropdown.setLoading(false);
+
+          const allowed = new Set(normalized.map((item) => item.value));
+          const preselect = Array.isArray(options.preselect)
+            ? options.preselect.map((value) => String(value))
+            : Array.from(taskSelection.employees);
+          const filtered = preselect.filter((value) => allowed.has(value));
+          taskSelection.employees = new Set(filtered);
+          employeeDropdown.setSelection(filtered, { silent: true });
+          if (!normalized.length) {
+            employeeDropdown.setStatus('info', 'Tidak ada pegawai untuk unit terpilih.');
+          } else {
+            employeeDropdown.setStatus('', '');
+          }
+          updateHiddenInputs();
+        } else {
+          employeeDropdown.config.emptyText = 'Tidak ada pegawai untuk unit terpilih.';
+          employeeDropdown.setItems([]);
+          employeeDropdown.setLoading(false);
+          employeeDropdown.clearSelection({ silent: true });
+          employeeDropdown.setStatus('error', (res && res.msg) ? res.msg : 'Gagal memuat pegawai.');
+          taskSelection.employees.clear();
+          updateHiddenInputs();
+        }
+        return null;
+      });
     }
 
     function formatTaskStatus(status) {
@@ -477,8 +884,12 @@
 
     function updateTaskState(data) {
       state.tasks = normalizeTasks(data);
-      renderUnitOptions();
-      renderEmployeeOptions();
+      updateUnitDropdownOptions();
+      if (taskSelection.units.size) {
+        loadEmployeesForUnits(Array.from(taskSelection.units));
+      } else {
+        resetEmployeeDropdown();
+      }
       renderTaskList();
     }
 
@@ -489,9 +900,11 @@
       taskSelection.units.clear();
       taskSelection.employees.clear();
       taskSelection.editingId = '';
+      updateHiddenInputs();
       updateTaskButtons();
-      renderUnitOptions();
-      renderEmployeeOptions();
+      showUnitError(false);
+      updateUnitDropdownOptions();
+      resetEmployeeDropdown();
     }
 
     function getTaskById(id) {
@@ -509,8 +922,14 @@
       if (taskForm.link_url) taskForm.link_url.value = task.linkUrl || '';
       taskSelection.units = new Set(task.units || []);
       taskSelection.employees = new Set(task.employees || []);
-      renderUnitOptions();
-      renderEmployeeOptions();
+      updateHiddenInputs();
+      updateUnitDropdownOptions();
+      if (taskSelection.units.size) {
+        loadEmployeesForUnits(Array.from(taskSelection.units), { preselect: Array.from(taskSelection.employees) });
+      } else {
+        resetEmployeeDropdown();
+      }
+      showUnitError(false);
       updateTaskButtons();
       setTaskMessage('info', 'Mode edit tugas aktif. Perbarui data dan simpan untuk menyimpan perubahan.');
       if (typeof taskForm.scrollIntoView === 'function') {
@@ -597,8 +1016,8 @@
 
     renderAnnouncements(state.announcements);
     updateHomeUI(state.home);
-    renderUnitOptions();
-    renderEmployeeOptions();
+    updateUnitDropdownOptions();
+    resetEmployeeDropdown();
     renderTaskList();
     updateTaskButtons();
 
@@ -611,7 +1030,11 @@
           return;
         }
         if (!taskSelection.units.size) {
-          setTaskMessage('error', 'Pilih minimal satu unit tujuan.');
+          showUnitError(true);
+          setTaskMessage('error', 'Minimal pilih satu unit.');
+          if (unitDropdown && unitDropdown.toggle) {
+            unitDropdown.toggle.focus();
+          }
           return;
         }
         if (!taskSelection.employees.size) {
@@ -619,6 +1042,7 @@
           return;
         }
 
+        updateHiddenInputs();
         const payload = {
           title,
           description: taskForm.description ? taskForm.description.value : '',
@@ -651,34 +1075,22 @@
       });
     }
 
-    if (taskUnitContainer) {
-      taskUnitContainer.addEventListener('change', (event) => {
-        const input = event.target.closest('input[type="checkbox"]');
-        if (!input) return;
-        const value = input.value;
-        if (!value) return;
-        if (input.checked) {
-          taskSelection.units.add(value);
-        } else {
-          taskSelection.units.delete(value);
-        }
-        syncEmployeeSelection();
-        renderUnitOptions();
-        renderEmployeeOptions();
+    if (unitDropdownEl && unitDropdown) {
+      unitDropdownEl.addEventListener('ysq-change', (event) => {
+        const values = event && event.detail && Array.isArray(event.detail.values)
+          ? event.detail.values
+          : [];
+        handleUnitSelection(values);
       });
     }
 
-    if (taskEmployeeContainer) {
-      taskEmployeeContainer.addEventListener('change', (event) => {
-        const input = event.target.closest('input[type="checkbox"]');
-        if (!input) return;
-        const value = input.value;
-        if (!value) return;
-        if (input.checked) {
-          taskSelection.employees.add(value);
-        } else {
-          taskSelection.employees.delete(value);
-        }
+    if (employeeDropdownEl && employeeDropdown) {
+      employeeDropdownEl.addEventListener('ysq-change', (event) => {
+        const values = event && event.detail && Array.isArray(event.detail.values)
+          ? event.detail.values
+          : [];
+        taskSelection.employees = new Set(values.map((value) => String(value)));
+        updateHiddenInputs();
       });
     }
 

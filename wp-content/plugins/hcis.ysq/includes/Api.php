@@ -230,6 +230,69 @@ class Api {
     return array_keys($result);
   }
 
+  public static function ysq_get_employees_by_units(){
+    self::check_nonce();
+    self::require_admin();
+
+    $rawUnits = $_POST['unit_ids'] ?? ($_POST['units'] ?? []);
+    $unitIds = self::parse_string_list($rawUnits);
+
+    $normalize = static function($value){
+      $value = strtolower(trim((string)$value));
+      $value = preg_replace('~[^a-z0-9]+~', '-', $value);
+      $value = trim($value, '-');
+      return $value === '' ? 'unit' : $value;
+    };
+
+    $unitKeys = array_map($normalize, $unitIds);
+    $unitKeys = array_values(array_unique(array_filter($unitKeys)));
+
+    if (empty($unitKeys)) {
+      wp_send_json(['success' => true, 'employees' => []]);
+    }
+
+    $directory = Tasks::get_employee_directory();
+    $seen = [];
+    $employees = [];
+
+    foreach ($directory as $row) {
+      if (!is_array($row)) {
+        continue;
+      }
+      $nip = isset($row['nip']) ? trim((string)$row['nip']) : '';
+      $name = isset($row['nama']) ? trim((string)$row['nama']) : '';
+      if ($nip === '' || $name === '') {
+        continue;
+      }
+      $unitLabel = isset($row['unit']) ? trim((string)$row['unit']) : '';
+      $unitId = isset($row['unit_id']) ? trim((string)$row['unit_id']) : $unitLabel;
+      $unitKey = $normalize($unitId);
+      if (!in_array($unitKey, $unitKeys, true)) {
+        continue;
+      }
+      if (isset($seen[$nip])) {
+        continue;
+      }
+      $seen[$nip] = true;
+      $employees[] = [
+        'id'   => $nip,
+        'name' => $name,
+        'unit' => $unitLabel,
+      ];
+    }
+
+    usort($employees, function($a, $b){
+      $nameA = isset($a['name']) ? strtolower($a['name']) : '';
+      $nameB = isset($b['name']) ? strtolower($b['name']) : '';
+      return strcmp($nameA, $nameB);
+    });
+
+    wp_send_json([
+      'success'   => true,
+      'employees' => $employees,
+    ]);
+  }
+
   public static function admin_create_announcement(){
     self::check_nonce();
     self::require_admin();
