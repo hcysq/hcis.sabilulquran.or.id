@@ -1,121 +1,75 @@
 </main>
 
 <footer id="site-footer" class="ysq-footer">
-    <div class="ysq-footer__container">
-        <?php
-        $footer_columns = array(
-            1 => array(
-                'title_mod'       => 'ysq_footer_col1_title',
-                'content_mod'     => 'ysq_footer_col1_content',
-                'title_default'   => 'Info',
-                'content_default' => '<ul><li>Nasihat</li><li>Karir</li><li>Program Orang Tua Asuh</li><li>Pengaduan</li><li>Program Qurban</li></ul>',
-            ),
-            2 => array(
-                'title_mod'       => 'ysq_footer_col2_title',
-                'content_mod'     => 'ysq_footer_col2_content',
-                'title_default'   => 'Kontak',
-                'content_default' => '<ul><li><a href="mailto:Email.Sabilulquran@gmail.com">Email Sabilulquran</a></li><li>Telp: 0851-7536-2016</li></ul>',
-            ),
-            3 => array(
-                'title_mod'       => 'ysq_footer_col3_title',
-                'content_mod'     => 'ysq_footer_col3_content',
-                'title_default'   => 'Lokasi',
-                'content_default' => '<p>Tambahkan konten atau embed Google Maps</p>',
-            ),
-            4 => array(
-                'title_mod'       => 'ysq_footer_col4_title',
-                'content_mod'     => 'ysq_footer_col4_content',
-                'title_default'   => 'Lainnya',
-                'content_default' => '<p>Tambahkan konten untuk kolom 4</p>',
-            ),
-        );
+    <?php
+    $footer_defaults = [
+        1 => [
+            'title'   => 'Info',
+            'content' => '<ul><li>Nasihat</li><li>Karir</li><li>Program Orang Tua Asuh</li><li>Pengaduan</li><li>Program Qurban</li></ul>',
+        ],
+        2 => [
+            'title'   => 'Kontak',
+            'content' => '<ul><li><a href="mailto:Email.Sabilulquran@gmail.com">Email Sabilulquran</a></li><li>Telp: 0851-7536-2016</li></ul>',
+        ],
+        3 => [
+            'title'   => 'Lokasi',
+            'content' => '<p>Tambahkan konten atau embed Google Maps</p>',
+        ],
+        4 => [
+            'title'   => 'Lainnya',
+            'content' => '<p>Tambahkan konten untuk kolom 4</p>',
+        ],
+    ];
 
-        $footer_data = array();
+    $footer_columns = [];
 
-        foreach ($footer_columns as $index => $column) {
-            $raw_title   = get_theme_mod($column['title_mod'], $column['title_default']);
-            $raw_content = get_theme_mod($column['content_mod'], $column['content_default']);
+    foreach ($footer_defaults as $index => $defaults) {
+        $title_mod   = 'footer_col_' . $index . '_title';
+        $content_mod = 'footer_col_' . $index . '_content';
+        $legacy_title_mod   = 'ysq_footer_col' . $index . '_title';
+        $legacy_content_mod = 'ysq_footer_col' . $index . '_content';
 
-            $title        = is_string($raw_title) ? $raw_title : '';
-            $content      = is_string($raw_content) ? $raw_content : '';
-            $has_title    = '' !== trim(wp_strip_all_tags($title));
-            $has_menu     = (4 === $index) && has_nav_menu('footer-col4');
-            $menu_markup  = '';
-
-            if ($has_menu) {
-                $menu_markup = wp_nav_menu(
-                    array(
-                        'theme_location' => 'footer-col4',
-                        'container'      => false,
-                        'menu_class'     => 'ysq-footer__menu',
-                        'depth'          => 1,
-                        'fallback_cb'    => '__return_empty_string',
-                        'echo'           => false,
-                    )
-                );
-            }
-
-            $has_content = '' !== trim($content) || '' !== $menu_markup;
-
-            $footer_data[$index] = array(
-                'title'       => $title,
-                'content'     => $content,
-                'menu_markup' => $menu_markup,
-                'has_title'   => $has_title,
-                'has_content' => $has_content,
-            );
+        $title = get_theme_mod($title_mod, null);
+        if (null === $title) {
+            $title = get_theme_mod($legacy_title_mod, $defaults['title']);
         }
-        ?>
+        $content = get_theme_mod($content_mod, null);
+        if (null === $content) {
+            $content = get_theme_mod($legacy_content_mod, $defaults['content']);
+        }
 
-        <div class="ysq-footer__grid" role="presentation">
-            <?php foreach ($footer_data as $index => $column) :
-                $title_classes = array(
-                    'ysq-footer__title',
-                    'ysq-footer__title--col' . $index,
-                );
+        $title = is_string($title) ? $title : '';
+        $content = is_string($content) ? $content : '';
 
-                if (!$column['has_title']) {
-                    $title_classes[] = 'ysq-footer__title--empty';
-                }
-                ?>
-                <div class="<?php echo esc_attr(implode(' ', array_map('sanitize_html_class', $title_classes))); ?>"<?php echo $column['has_title'] ? '' : ' aria-hidden="true"'; ?>>
-                    <?php if ($column['has_title']) : ?>
-                        <span class="ysq-footer__title-text"><?php echo esc_html($column['title']); ?></span>
-                    <?php endif; ?>
-                </div>
+        $footer_columns[$index] = [
+            'title'   => $title !== '' ? $title : $defaults['title'],
+            'content' => $content !== '' ? $content : $defaults['content'],
+        ];
+    }
+
+    $footer_bottom_default = '&copy; 2025 Yayasan Sabilul Qur\'an &bull; HCIS v1.0';
+    $footer_bottom_copy = get_theme_mod('footer_bottom_copy', null);
+    if (null === $footer_bottom_copy) {
+        $footer_bottom_copy = get_theme_mod('ysq_footer_copyright_text', $footer_bottom_default);
+    }
+    $footer_bottom_copy = is_string($footer_bottom_copy) ? $footer_bottom_copy : $footer_bottom_default;
+    ?>
+
+    <div class="ysq-footer__container">
+        <div class="ysq-footer__grid">
+            <?php foreach ($footer_columns as $column) : ?>
+                <div class="ysq-footer__title"><?php echo esc_html($column['title']); ?></div>
             <?php endforeach; ?>
 
-            <?php foreach ($footer_data as $index => $column) :
-                $content_classes = array(
-                    'ysq-footer__content',
-                    'ysq-footer__content--col' . $index,
-                );
-
-                if (!$column['has_content']) {
-                    $content_classes[] = 'ysq-footer__content--empty';
-                }
-                ?>
-                <div class="<?php echo esc_attr(implode(' ', array_map('sanitize_html_class', $content_classes))); ?>"<?php echo $column['has_content'] ? '' : ' aria-hidden="true"'; ?>>
-                    <?php if ($column['has_content']) : ?>
-                        <?php
-                        if ('' !== $column['menu_markup']) {
-                            echo $column['menu_markup']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-                        }
-
-                        if ('' !== trim($column['content'])) {
-                            echo '<div class="ysq-footer__custom-content">' . wp_kses_post($column['content']) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-                        }
-                        ?>
-                    <?php endif; ?>
-                </div>
+            <?php foreach ($footer_columns as $column) : ?>
+                <div class="ysq-footer__content"><?php echo wp_kses_post($column['content']); ?></div>
             <?php endforeach; ?>
         </div>
     </div>
 
-    <div class="ysq-footer__bottom">
-        <div class="ysq-footer__bottom-inner">
-            <p class="ysq-footer__bottom-text"><?php echo wp_kses_post(get_theme_mod('ysq_footer_ahu_text', 'AHU – 0033732. AH. 01. 04. Tahun 2015 | Tanggal 28 Desember 2015')); ?></p>
-            <p class="ysq-footer__bottom-text">&copy; <?php echo ysq_get_current_year(); ?> <?php echo esc_html(get_theme_mod('ysq_footer_copyright_text', 'Yayasan Sabilul Qur\'an • HRIS Internal v1.2')); ?></p>
+    <div class="footer-bottom">
+        <div class="container">
+            <p class="footer-copy"><?php echo wp_kses_post($footer_bottom_copy); ?></p>
         </div>
     </div>
 </footer>
