@@ -120,6 +120,10 @@ project/
 → Check folder names: `ysq-theme` and `hcis.ysq`
 → Check permissions: 755 for folders
 
+**Folder plugin ganda (`hcis.ysq_`) muncul setelah update**
+→ Hapus folder lama lalu ekstrak ulang paket sehingga hanya tersisa `wp-content/plugins/hcis.ysq/`
+→ Jika paket dari GitHub (`hcis.ysq-main.zip`), rename folder internal menjadi `hcis.ysq` sebelum upload atau gunakan fitur *Upload Plugin* → **Replace current with uploaded**
+
 **500 Internal Server Error**
 → Check wp-content/debug.log
 → Increase PHP memory: add to wp-config.php:
