@@ -292,7 +292,6 @@ class Auth {
     }
     return true;
   }
-
   private static function build_admin_identity($username = null, $displayName = null, ?array $settings = null){
     if (!$settings) {
       $settings = self::get_admin_settings();
