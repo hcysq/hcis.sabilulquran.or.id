@@ -87,6 +87,12 @@ class Announcements {
   }
 
   public static function ensure_seed(){
+    $environment = function_exists('wp_get_environment_type') ? wp_get_environment_type() : 'production';
+    $default_should_seed = in_array($environment, ['local', 'development'], true);
+    $should_seed = apply_filters('hcisysq_should_seed_announcements', $default_should_seed);
+
+    if (!$should_seed) return;
+
     $existing = get_posts([
       'post_type'      => self::POST_TYPE,
       'posts_per_page' => 1,

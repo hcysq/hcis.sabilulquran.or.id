@@ -346,40 +346,40 @@ class View {
           <section class="hcisysq-admin-view" data-view="tugas">
             <article class="hcisysq-card hcisysq-card--elevated">
               <h3 class="hcisysq-card-title">Tambah Tugas</h3>
-              <form id="hcisysq-task-form" class="hcisysq-form-grid">
+              <form id="hcisysq-task-form" class="hcisysq-task-form" autocomplete="off">
                 <input type="hidden" name="task_id" value="">
-                <div class="form-group">
-                  <label for="hcisysq-task-title">Judul Tugas <span class="req">*</span></label>
-                  <input type="text" id="hcisysq-task-title" name="title" class="hcisysq-input" placeholder="Contoh: Lengkapi Data Pribadi" required>
+                <div class="hcisysq-task-form__grid">
+                  <label for="hcisysq-task-title" class="hcisysq-task-form__field hcisysq-task-form__field--full">
+                    <span class="hcisysq-task-form__label">Nama Tugas <span class="req">*</span></span>
+                    <input type="text" id="hcisysq-task-title" name="title" class="hcisysq-task-form__control" placeholder="Masukkan nama tugas" required>
+                  </label>
+                  <label for="hcisysq-task-description" class="hcisysq-task-form__field hcisysq-task-form__field--full">
+                    <span class="hcisysq-task-form__label">Uraian</span>
+                    <textarea id="hcisysq-task-description" name="description" class="hcisysq-task-form__control" rows="6" placeholder="Tuliskan uraian tugas"></textarea>
+                  </label>
+                  <label for="hcisysq-task-deadline" class="hcisysq-task-form__field">
+                    <span class="hcisysq-task-form__label">Batas Waktu</span>
+                    <input type="date" id="hcisysq-task-deadline" name="deadline" class="hcisysq-task-form__control">
+                  </label>
+                  <label for="hcisysq-task-link-label" class="hcisysq-task-form__field">
+                    <span class="hcisysq-task-form__label">Nama Tautan</span>
+                    <input type="text" id="hcisysq-task-link-label" name="link_label" class="hcisysq-task-form__control" placeholder="Masukkan nama tautan (opsional)">
+                  </label>
+                  <label for="hcisysq-task-link-url" class="hcisysq-task-form__field">
+                    <span class="hcisysq-task-form__label">Link Tautan</span>
+                    <input type="url" id="hcisysq-task-link-url" name="link_url" class="hcisysq-task-form__control" placeholder="Masukkan URL tautan (opsional)">
+                  </label>
                 </div>
-                <div class="form-group">
-                  <label for="hcisysq-task-description">Keterangan</label>
-                  <textarea id="hcisysq-task-description" name="description" class="hcisysq-textarea hcisysq-textarea--code" rows="6" placeholder="Instruksi atau detail tambahan"></textarea>
-                </div>
-                <div class="form-group form-group--columns">
-                  <div class="form-field">
-                    <label for="hcisysq-task-deadline">Batas Waktu</label>
-                    <input type="date" id="hcisysq-task-deadline" name="deadline" class="hcisysq-input">
-                  </div>
-                  <div class="form-field">
-                    <label for="hcisysq-task-link-label">Teks Tautan</label>
-                    <input type="text" id="hcisysq-task-link-label" name="link_label" class="hcisysq-input" placeholder="Contoh: Buka Formulir">
-                  </div>
-                  <div class="form-field">
-                    <label for="hcisysq-task-link-url">URL Tautan</label>
-                    <input type="url" id="hcisysq-task-link-url" name="link_url" class="hcisysq-input" placeholder="https://contoh.id">
-                  </div>
-                </div>
-                <div class="form-group form-group--columns">
-                  <div class="form-field">
-                    <label>Unit Tujuan <span class="req">*</span></label>
+                <div class="hcisysq-task-form__grid hcisysq-task-form__grid--options">
+                  <div class="hcisysq-task-form__fieldset">
+                    <span class="hcisysq-task-form__label">Unit Tujuan <span class="req">*</span></span>
                     <div class="hcisysq-task-checkboxes" data-role="task-unit-options"></div>
-                    <p class="form-helper">Pilih minimal satu unit kerja.</p>
+                    <p class="form-helper hcisysq-task-form__helper">Pilih minimal satu unit kerja.</p>
                   </div>
-                  <div class="form-field">
-                    <label>Pegawai Ditugaskan <span class="req">*</span></label>
+                  <div class="hcisysq-task-form__fieldset">
+                    <span class="hcisysq-task-form__label">Pegawai Ditugaskan <span class="req">*</span></span>
                     <div class="hcisysq-task-checkboxes" data-role="task-employee-options"></div>
-                    <p class="form-helper">Daftar pegawai mengikuti unit yang dipilih.</p>
+                    <p class="form-helper hcisysq-task-form__helper">Daftar pegawai mengikuti unit yang dipilih.</p>
                   </div>
                 </div>
                 <div class="form-actions">
@@ -892,11 +892,11 @@ class View {
                       <thead>
                         <tr>
                           <th scope="col">No.</th>
-                          <th scope="col">Tugas</th>
-                          <th scope="col">Keterangan</th>
+                          <th scope="col">Nama Tugas</th>
+                          <th scope="col">Uraian</th>
                           <th scope="col">Batas Waktu</th>
-                          <th scope="col">Ketuntasan</th>
-                          <th scope="col">Tautan</th>
+                          <th scope="col">Nama Tautan</th>
+                          <th scope="col">Link Tautan</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -960,7 +960,15 @@ class View {
                           ?>
                           <tr>
                             <td><?= esc_html($index + 1) ?></td>
-                            <td><?= esc_html($update['task'] ?? '') ?></td>
+                            <td>
+                              <div class="hcisysq-task-name">
+                                <span class="hcisysq-task-name__title"><?= esc_html($update['task'] ?? '') ?></span>
+                                <span class="hcisysq-status-chip <?= esc_attr($statusClass) ?>"><?= esc_html($statusLabel) ?></span>
+                                <?php if ($completedNote !== ''): ?>
+                                  <div class="hcisysq-status-meta"><?= esc_html($completedNote) ?></div>
+                                <?php endif; ?>
+                              </div>
+                            </td>
                             <td>
                               <?php if ($description !== ''): ?>
                                 <?= wp_kses_post($description) ?>
@@ -970,18 +978,17 @@ class View {
                             </td>
                             <td><?= esc_html($deadlineDisplay) ?></td>
                             <td>
-                              <span class="hcisysq-status-chip <?= esc_attr($statusClass) ?>"><?= esc_html($statusLabel) ?></span>
-                              <?php if ($completedNote !== ''): ?>
-                                <div class="hcisysq-status-meta"><?= esc_html($completedNote) ?></div>
+                              <?php if ($linkLabel !== ''): ?>
+                                <?= esc_html($linkLabel) ?>
+                              <?php else: ?>
+                                <span>-</span>
                               <?php endif; ?>
                             </td>
                             <td>
                               <?php if ($linkUrl !== ''): ?>
                                 <a href="<?= esc_url($linkUrl) ?>" target="_blank" rel="noopener">
-                                  <?= esc_html($linkLabel !== '' ? $linkLabel : 'Buka tautan') ?>
+                                  <?= esc_html($linkUrl) ?>
                                 </a>
-                              <?php elseif ($linkLabel !== ''): ?>
-                                <?= esc_html($linkLabel) ?>
                               <?php else: ?>
                                 <span>-</span>
                               <?php endif; ?>
