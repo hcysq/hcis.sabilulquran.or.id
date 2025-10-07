@@ -167,5 +167,40 @@ add_action('template_redirect', function () {
 });
 
 /* =======================================================
+ *  Login redirect overrides
+ * ======================================================= */
+if (!function_exists('hcisysq_custom_login_redirect')) {
+  /**
+   * Redirect HCIS admin users to the custom admin portal page after login.
+   *
+   * The guard defined in template_redirect above already keeps authenticated
+   * users away from the public homepage, so we only override the login redirect
+   * when the role explicitly matches to avoid conflicts and redirect loops.
+   *
+   * @param string  $redirect_to           Default redirect URL.
+   * @param string  $requested_redirect_to Requested redirect from request.
+   * @param WP_User $user                  Authenticated user object.
+   * @return string
+   */
+  function hcisysq_custom_login_redirect($redirect_to, $requested_redirect_to, $user) {
+    if (!$user || is_wp_error($user)) {
+      return $redirect_to;
+    }
+
+    $roles = is_object($user) && property_exists($user, 'roles') ? (array) $user->roles : [];
+    if (in_array('hcis_admin', $roles, true)) {
+      $target = admin_url('admin.php?page=hcis-admin-portal');
+      // Prevent loops if WordPress already intends to send the user there.
+      if (empty($requested_redirect_to) || $requested_redirect_to === $redirect_to || $requested_redirect_to === $target) {
+        return $target;
+      }
+    }
+
+    return $redirect_to;
+  }
+}
+add_filter('login_redirect', 'hcisysq_custom_login_redirect', 10, 3);
+
+/* =======================================================
  *  Selesai
  * ======================================================= */
