@@ -49,6 +49,8 @@ project/
     └── uploads/                  ✅ Upload Directory
 ```
 
+> ℹ️ **Catatan update plugin:** Saat merilis versi baru, pastikan hanya ada satu folder `wp-content/plugins/hcis.ysq/`. Hapus atau rename folder lama sebelum mengekstrak paket zip baru (banyak file manager akan membuat folder `hcis.ysq_` alih-alih merge). Jika mengunggah dari GitHub (`hcis.ysq-main.zip`), rename folder hasil ekstraksi menjadi `hcis.ysq` sebelum dipaketkan ulang atau di-upload melalui WordPress (menu *Upload Plugin* → pilih **Replace current with uploaded**).
+
 ---
 
 ## 🚀 Opsi Deployment
