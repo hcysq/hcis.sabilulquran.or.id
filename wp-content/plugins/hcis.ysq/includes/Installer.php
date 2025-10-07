@@ -72,7 +72,47 @@ class Installer {
       wp_schedule_event(time() + 600, 'daily', 'hcisysq_users_cron');
     }
 
+    self::add_roles_and_capabilities();
+
     Publikasi::on_activation();
     Tasks::on_activation();
+  }
+
+  public static function deactivate(){
+    self::remove_roles_and_capabilities();
+  }
+
+  protected static function add_roles_and_capabilities(){
+    if (!function_exists('add_role') || !function_exists('get_role')) {
+      return;
+    }
+
+    $role = get_role('hcis_admin');
+    if (!$role) {
+      add_role('hcis_admin', 'HCIS Admin', [
+        'read' => true,
+        'manage_hcis_portal' => true,
+      ]);
+      $role = get_role('hcis_admin');
+    }
+
+    if ($role) {
+      $role->add_cap('read', true);
+      $role->add_cap('manage_hcis_portal', true);
+    }
+  }
+
+  protected static function remove_roles_and_capabilities(){
+    if (!function_exists('remove_role') || !function_exists('get_role')) {
+      return;
+    }
+
+    $role = get_role('hcis_admin');
+    if ($role) {
+      $role->remove_cap('manage_hcis_portal');
+      $role->remove_cap('read');
+    }
+
+    remove_role('hcis_admin');
   }
 }
