@@ -502,8 +502,22 @@ class Api {
   }
 
   public static function logout(){
+    $has_wp_session = function_exists('is_user_logged_in') && is_user_logged_in();
+
     Auth::logout();
-    wp_send_json(['ok'=>true]);
+
+    if ($has_wp_session && function_exists('wp_logout')) {
+      wp_logout();
+    }
+
+    $response = ['ok' => true];
+
+    if ($has_wp_session) {
+      $response['needs_wp_redirect'] = true;
+      $response['wp_logout_url'] = wp_logout_url();
+    }
+
+    wp_send_json($response);
   }
 
   /** POST multipart: nama_pelatihan, tahun, pembiayaan, kategori, sertifikat (file) */
