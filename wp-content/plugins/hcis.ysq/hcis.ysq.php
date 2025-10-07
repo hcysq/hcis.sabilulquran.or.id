@@ -75,9 +75,10 @@ require_once HCISYSQ_DIR . 'includes/Hcis_Gas_Token.php';
 require_once HCISYSQ_DIR . 'includes/Legacy_Admin_Bridge.php';
 
 /* =======================================================
- *  Activation (create tables)
+ *  Activation / Deactivation hooks
  * ======================================================= */
 register_activation_hook(__FILE__, ['HCISYSQ\\Installer', 'activate']);
+register_deactivation_hook(__FILE__, ['HCISYSQ\\Installer', 'deactivate']);
 
 /* =======================================================
  *  Init modules
