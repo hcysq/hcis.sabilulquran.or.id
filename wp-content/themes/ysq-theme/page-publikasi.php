@@ -7,30 +7,38 @@
 
 get_header();
 
-$category_map = array();
-if (class_exists('HCISYSQ\\Announcements')) {
-    $category_map = \HCISYSQ\Announcements::CATEGORY_TERMS;
-} else {
-    $terms = get_terms(
-        array(
-            'taxonomy'   => 'ysq_publication_category',
-            'hide_empty' => false,
-        )
-    );
+$category_ids = get_posts(
+    array(
+        'post_type'      => 'publikasi',
+        'post_status'    => 'publish',
+        'fields'         => 'ids',
+        'posts_per_page' => -1,
+        'no_found_rows'  => true,
+    )
+);
 
-    if (!is_wp_error($terms) && !empty($terms)) {
-        foreach ($terms as $term) {
+wp_reset_postdata();
+
+$term_args = array(
+    'taxonomy'   => 'category',
+    'hide_empty' => false,
+);
+
+if (!empty($category_ids)) {
+    $term_args['object_ids'] = $category_ids;
+}
+
+$terms = get_terms($term_args);
+
+$category_map = array('all' => __('Semua', 'ysq'));
+
+if (!is_wp_error($terms) && !empty($terms)) {
+    foreach ($terms as $term) {
+        if (isset($term->slug) && isset($term->name)) {
             $category_map[$term->slug] = $term->name;
         }
     }
 }
-
-if (!is_array($category_map)) {
-    $category_map = array();
-}
-
-$category_map = array_filter($category_map, 'is_string');
-$category_map = array_merge(array('all' => __('Semua', 'ysq')), $category_map);
 
 $current_category = isset($_GET['category']) ? sanitize_title(wp_unslash($_GET['category'])) : 'all';
 if ($current_category !== 'all' && !array_key_exists($current_category, $category_map)) {
@@ -43,7 +51,7 @@ if ($paged < 1) {
 }
 
 $query_args = array(
-    'post_type'      => 'ysq_announcement',
+    'post_type'      => 'publikasi',
     'post_status'    => 'publish',
     'posts_per_page' => 8,
     'orderby'        => 'date',
@@ -54,7 +62,7 @@ $query_args = array(
 if ($current_category !== 'all') {
     $query_args['tax_query'] = array(
         array(
-            'taxonomy' => 'ysq_publication_category',
+            'taxonomy' => 'category',
             'field'    => 'slug',
             'terms'    => $current_category,
         ),
@@ -128,7 +136,7 @@ $base_permalink = $base_permalink ? $base_permalink : home_url('/publikasi/');
                 $thumb_url     = get_the_post_thumbnail_url($post_id, 'large');
                 $date_iso      = get_post_time('c', false, $post_id);
                 $date_display  = get_the_date('j M Y', $post_id);
-                $terms         = wp_get_post_terms($post_id, 'ysq_publication_category');
+                $terms         = wp_get_post_terms($post_id, 'category');
                 $primary_term  = (!empty($terms) && !is_wp_error($terms)) ? $terms[0] : null;
                 $category_name = '';
 

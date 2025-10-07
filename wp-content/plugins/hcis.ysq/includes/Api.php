@@ -245,7 +245,7 @@ class Api {
     [$label, $url] = self::normalize_link($_POST);
 
     if ($title === '' || $plainBody === '') {
-      wp_send_json(['ok' => false, 'msg' => 'Judul dan isi pengumuman wajib diisi.']);
+      wp_send_json(['ok' => false, 'msg' => 'Judul dan isi publikasi wajib diisi.']);
     }
 
     $category = sanitize_text_field($_POST['category'] ?? '');
@@ -274,12 +274,12 @@ class Api {
     ]);
 
     if (!$created) {
-      wp_send_json(['ok' => false, 'msg' => 'Gagal membuat pengumuman.']);
+      wp_send_json(['ok' => false, 'msg' => 'Gagal membuat publikasi.']);
     }
 
     wp_send_json([
       'ok' => true,
-      'msg' => 'Pengumuman baru berhasil dibuat.',
+      'msg' => 'Publikasi baru berhasil dibuat.',
       'announcements' => self::format_admin_announcements(),
     ]);
   }
@@ -290,7 +290,7 @@ class Api {
 
     $id = sanitize_text_field($_POST['id'] ?? '');
     if ($id === '') {
-      wp_send_json(['ok' => false, 'msg' => 'ID pengumuman tidak valid.']);
+      wp_send_json(['ok' => false, 'msg' => 'ID publikasi tidak valid.']);
     }
 
     $title = sanitize_text_field($_POST['title'] ?? '');
@@ -335,7 +335,7 @@ class Api {
       'attachments'   => $attachments,
     ];
     if ($plainBody === '') {
-      wp_send_json(['ok' => false, 'msg' => 'Isi pengumuman tidak boleh kosong.']);
+      wp_send_json(['ok' => false, 'msg' => 'Isi publikasi tidak boleh kosong.']);
     }
     if ($status !== '') {
       $payload['status'] = $status;
@@ -343,12 +343,12 @@ class Api {
 
     $updated = Announcements::update($id, $payload);
     if (!$updated) {
-      wp_send_json(['ok' => false, 'msg' => 'Pengumuman tidak ditemukan.']);
+      wp_send_json(['ok' => false, 'msg' => 'Publikasi tidak ditemukan.']);
     }
 
     wp_send_json([
       'ok' => true,
-      'msg' => 'Pengumuman berhasil diperbarui.',
+      'msg' => 'Publikasi berhasil diperbarui.',
       'announcements' => self::format_admin_announcements(),
     ]);
   }
@@ -359,12 +359,12 @@ class Api {
 
     $id = sanitize_text_field($_POST['id'] ?? '');
     if ($id === '' || !Announcements::delete($id)) {
-      wp_send_json(['ok' => false, 'msg' => 'Gagal menghapus pengumuman.']);
+      wp_send_json(['ok' => false, 'msg' => 'Gagal menghapus publikasi.']);
     }
 
     wp_send_json([
       'ok' => true,
-      'msg' => 'Pengumuman dihapus.',
+      'msg' => 'Publikasi dihapus.',
       'announcements' => self::format_admin_announcements(),
     ]);
   }
@@ -378,12 +378,12 @@ class Api {
 
     $updated = Announcements::set_status($id, $status);
     if (!$updated) {
-      wp_send_json(['ok' => false, 'msg' => 'Gagal memperbarui status pengumuman.']);
+      wp_send_json(['ok' => false, 'msg' => 'Gagal memperbarui status publikasi.']);
     }
 
     wp_send_json([
       'ok' => true,
-      'msg' => 'Status pengumuman diperbarui.',
+      'msg' => 'Status publikasi diperbarui.',
       'announcements' => self::format_admin_announcements(),
     ]);
   }

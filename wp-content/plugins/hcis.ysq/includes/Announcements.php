@@ -14,7 +14,7 @@ class Announcements {
 
   const CATEGORY_TERMS = [
     'berita'           => 'Berita',
-    'pengumuman'       => 'Pengumuman',
+    'pengumuman'       => 'Publikasi',
     'dokumen-panduan'  => 'Dokumen & Panduan',
     'wawasan'          => 'Wawasan',
   ];
@@ -87,55 +87,11 @@ class Announcements {
   }
 
   public static function ensure_seed(){
-    $existing = get_posts([
-      'post_type'      => self::POST_TYPE,
-      'posts_per_page' => 1,
-      'post_status'    => ['publish', 'draft'],
-      'fields'         => 'ids',
-    ]);
+    $should_seed = apply_filters('hcisysq_should_seed_announcements', false);
 
-    if (!empty($existing)) return;
+    if (!$should_seed) return;
 
-    $now = current_time('mysql');
-    $defaults = [
-      [
-        'title'       => 'Pembaruan Data Pegawai',
-        'body'        => 'Isi form pelatihan terbaru.',
-        'link_label'  => 'Isi form pelatihan terbaru',
-        'link_url'    => '__TRAINING_FORM__',
-        'status'      => 'published',
-        'created_at'  => $now,
-        'updated_at'  => $now,
-        'archived_at' => null,
-        'category'    => 'pengumuman',
-      ],
-      [
-        'title'       => 'SPMB 2026/2027',
-        'body'        => 'Pendaftaran telah dibuka.',
-        'link_label'  => 'Pendaftaran telah dibuka',
-        'link_url'    => 'https://ppdb.sabilulquran.or.id',
-        'status'      => 'published',
-        'created_at'  => $now,
-        'updated_at'  => $now,
-        'archived_at' => null,
-        'category'    => 'berita',
-      ],
-      [
-        'title'       => "Ikuti Sabilul Qur'an di Instagram",
-        'body'        => '@sabilulquran.',
-        'link_label'  => '@sabilulquran',
-        'link_url'    => 'https://instagram.com/sabilulquran',
-        'status'      => 'published',
-        'created_at'  => $now,
-        'updated_at'  => $now,
-        'archived_at' => null,
-        'category'    => 'wawasan',
-      ],
-    ];
-
-    foreach ($defaults as $default) {
-      self::create($default);
-    }
+    do_action('hcisysq_seed_announcements');
   }
 
   public static function ensure_terms(){

@@ -66,6 +66,29 @@ class View {
     }, $items);
   }
 
+  private static function format_long_date(\DateTimeInterface $date){
+    if (class_exists('IntlDateFormatter')) {
+      $formatter = new \IntlDateFormatter(
+        'id_ID',
+        \IntlDateFormatter::LONG,
+        \IntlDateFormatter::NONE,
+        'Asia/Jakarta',
+        \IntlDateFormatter::GREGORIAN,
+        'd MMMM yyyy'
+      );
+      $formatted = $formatter->format($date);
+      if ($formatted !== false) {
+        return $formatted;
+      }
+    }
+
+    if (function_exists('wp_date')) {
+      return wp_date('d F Y', $date->getTimestamp());
+    }
+
+    return $date->format('d F Y');
+  }
+
   private static function render_admin_dashboard(array $identity){
     $publicSettings = Auth::get_admin_public_settings();
     $announcements  = self::format_admin_announcements(Announcements::all());
@@ -118,6 +141,7 @@ class View {
         </div>
         <nav class="hcisysq-sidebar-nav" data-admin-nav>
           <a href="#" class="is-active" data-view="home">Beranda HCIS</a>
+          <a href="#" data-view="publikasi">Publikasi</a>
           <a href="#" data-view="pegawai">Data Pegawai</a>
           <a href="#" data-view="pelatihan">Pelatihan</a>
           <a href="#" data-view="tugas">Tugas</a>
@@ -214,9 +238,11 @@ class View {
                 </div>
               </form>
             </article>
+          </section>
 
+          <section class="hcisysq-admin-view" data-view="publikasi">
             <article class="hcisysq-card hcisysq-card--elevated">
-              <h3 class="hcisysq-card-title">Buat Pengumuman Baru</h3>
+              <h3 class="hcisysq-card-title">Publikasi Baru</h3>
               <form id="hcisysq-announcement-form" class="hcisysq-form-grid" enctype="multipart/form-data">
                 <input type="hidden" name="announcement_id" value="">
                 <input type="hidden" name="thumbnail_existing" value="0">
@@ -237,7 +263,7 @@ class View {
                   </div>
                 </div>
                 <div class="form-group">
-                  <label for="hcisysq-ann-body">Isi Pengumuman (HTML) <span class="req">*</span></label>
+                  <label for="hcisysq-ann-body">Isi Publikasi (HTML) <span class="req">*</span></label>
                   <textarea id="hcisysq-ann-body" name="body" class="hcisysq-textarea hcisysq-textarea--code" rows="10" aria-describedby="hcisysq-ann-body-help"></textarea>
                   <p class="form-helper" id="hcisysq-ann-body-help">Tulis dengan struktur HTML sederhana. Gunakan &lt;p&gt; untuk paragraf, &lt;ul&gt; dan &lt;li&gt; untuk daftar, atau &lt;strong&gt; untuk penekanan.</p>
                 </div>
@@ -282,7 +308,7 @@ class View {
             </article>
 
             <article class="hcisysq-card hcisysq-card--elevated">
-              <h3 class="hcisysq-card-title">Riwayat Pengumuman</h3>
+              <h3 class="hcisysq-card-title">Riwayat Publikasi</h3>
               <div class="hcisysq-announcement-list" data-announcement-list>
                 <?php if ($announcements): ?>
                   <?php foreach ($announcements as $item): ?>
@@ -337,7 +363,7 @@ class View {
                     </div>
                   <?php endforeach; ?>
                 <?php else: ?>
-                  <p class="hcisysq-empty">Belum ada pengumuman.</p>
+                  <p class="hcisysq-empty">Belum ada publikasi.</p>
                 <?php endif; ?>
               </div>
             </article>
@@ -346,40 +372,40 @@ class View {
           <section class="hcisysq-admin-view" data-view="tugas">
             <article class="hcisysq-card hcisysq-card--elevated">
               <h3 class="hcisysq-card-title">Tambah Tugas</h3>
-              <form id="hcisysq-task-form" class="hcisysq-form-grid">
+              <form id="hcisysq-task-form" class="hcisysq-task-form" autocomplete="off">
                 <input type="hidden" name="task_id" value="">
-                <div class="form-group">
-                  <label for="hcisysq-task-title">Judul Tugas <span class="req">*</span></label>
-                  <input type="text" id="hcisysq-task-title" name="title" class="hcisysq-input" placeholder="Contoh: Lengkapi Data Pribadi" required>
+                <div class="hcisysq-task-form__grid">
+                  <label for="hcisysq-task-title" class="hcisysq-task-form__field hcisysq-task-form__field--full">
+                    <span class="hcisysq-task-form__label">Nama Tugas <span class="req">*</span></span>
+                    <input type="text" id="hcisysq-task-title" name="title" class="hcisysq-task-form__control" placeholder="Masukkan nama tugas" required>
+                  </label>
+                  <label for="hcisysq-task-description" class="hcisysq-task-form__field hcisysq-task-form__field--full">
+                    <span class="hcisysq-task-form__label">Uraian</span>
+                    <textarea id="hcisysq-task-description" name="description" class="hcisysq-task-form__control" rows="6" placeholder="Tuliskan uraian tugas"></textarea>
+                  </label>
+                  <label for="hcisysq-task-deadline" class="hcisysq-task-form__field">
+                    <span class="hcisysq-task-form__label">Batas Waktu</span>
+                    <input type="date" id="hcisysq-task-deadline" name="deadline" class="hcisysq-task-form__control">
+                  </label>
+                  <label for="hcisysq-task-link-label" class="hcisysq-task-form__field">
+                    <span class="hcisysq-task-form__label">Nama Tautan</span>
+                    <input type="text" id="hcisysq-task-link-label" name="link_label" class="hcisysq-task-form__control" placeholder="Masukkan nama tautan (opsional)">
+                  </label>
+                  <label for="hcisysq-task-link-url" class="hcisysq-task-form__field">
+                    <span class="hcisysq-task-form__label">Link Tautan</span>
+                    <input type="url" id="hcisysq-task-link-url" name="link_url" class="hcisysq-task-form__control" placeholder="Masukkan URL tautan (opsional)">
+                  </label>
                 </div>
-                <div class="form-group">
-                  <label for="hcisysq-task-description">Keterangan</label>
-                  <textarea id="hcisysq-task-description" name="description" class="hcisysq-textarea hcisysq-textarea--code" rows="6" placeholder="Instruksi atau detail tambahan"></textarea>
-                </div>
-                <div class="form-group form-group--columns">
-                  <div class="form-field">
-                    <label for="hcisysq-task-deadline">Batas Waktu</label>
-                    <input type="date" id="hcisysq-task-deadline" name="deadline" class="hcisysq-input">
-                  </div>
-                  <div class="form-field">
-                    <label for="hcisysq-task-link-label">Teks Tautan</label>
-                    <input type="text" id="hcisysq-task-link-label" name="link_label" class="hcisysq-input" placeholder="Contoh: Buka Formulir">
-                  </div>
-                  <div class="form-field">
-                    <label for="hcisysq-task-link-url">URL Tautan</label>
-                    <input type="url" id="hcisysq-task-link-url" name="link_url" class="hcisysq-input" placeholder="https://contoh.id">
-                  </div>
-                </div>
-                <div class="form-group form-group--columns">
-                  <div class="form-field">
-                    <label>Unit Tujuan <span class="req">*</span></label>
+                <div class="hcisysq-task-form__grid hcisysq-task-form__grid--options">
+                  <div class="hcisysq-task-form__fieldset">
+                    <span class="hcisysq-task-form__label">Unit Tujuan <span class="req">*</span></span>
                     <div class="hcisysq-task-checkboxes" data-role="task-unit-options"></div>
-                    <p class="form-helper">Pilih minimal satu unit kerja.</p>
+                    <p class="form-helper hcisysq-task-form__helper">Pilih minimal satu unit kerja.</p>
                   </div>
-                  <div class="form-field">
-                    <label>Pegawai Ditugaskan <span class="req">*</span></label>
+                  <div class="hcisysq-task-form__fieldset">
+                    <span class="hcisysq-task-form__label">Pegawai Ditugaskan <span class="req">*</span></span>
                     <div class="hcisysq-task-checkboxes" data-role="task-employee-options"></div>
-                    <p class="form-helper">Daftar pegawai mengikuti unit yang dipilih.</p>
+                    <p class="form-helper hcisysq-task-form__helper">Daftar pegawai mengikuti unit yang dipilih.</p>
                   </div>
                 </div>
                 <div class="form-actions">
@@ -527,15 +553,7 @@ class View {
     if ($tmt) {
       try {
         $dt = new \DateTimeImmutable($tmt);
-        $formatter = new \IntlDateFormatter(
-          'id_ID',
-          \IntlDateFormatter::LONG,
-          \IntlDateFormatter::NONE,
-          'Asia/Jakarta',
-          \IntlDateFormatter::GREGORIAN,
-          'd MMMM yyyy'
-        );
-        $tmtFormatted = $formatter->format($dt);
+        $tmtFormatted = self::format_long_date($dt);
       } catch (\Exception $e) {
         $tmtFormatted = $tmt;
       }
@@ -892,11 +910,11 @@ class View {
                       <thead>
                         <tr>
                           <th scope="col">No.</th>
-                          <th scope="col">Tugas</th>
-                          <th scope="col">Keterangan</th>
+                          <th scope="col">Nama Tugas</th>
+                          <th scope="col">Uraian</th>
                           <th scope="col">Batas Waktu</th>
-                          <th scope="col">Ketuntasan</th>
-                          <th scope="col">Tautan</th>
+                          <th scope="col">Nama Tautan</th>
+                          <th scope="col">Link Tautan</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -907,15 +925,7 @@ class View {
                           if ($deadlineDisplay === '' && $deadlineRaw !== '') {
                             try {
                               $deadlineDate = new \DateTimeImmutable($deadlineRaw);
-                              $deadlineFormatter = new \IntlDateFormatter(
-                                'id_ID',
-                                \IntlDateFormatter::LONG,
-                                \IntlDateFormatter::NONE,
-                                'Asia/Jakarta',
-                                \IntlDateFormatter::GREGORIAN,
-                                'd MMMM yyyy'
-                              );
-                              $deadlineDisplay = $deadlineFormatter->format($deadlineDate);
+                              $deadlineDisplay = self::format_long_date($deadlineDate);
                             } catch (\Exception $e) {
                               $deadlineDisplay = $deadlineRaw;
                             }
@@ -940,15 +950,7 @@ class View {
                           if ($status === 'completed' && $completedRaw !== '') {
                             try {
                               $completedDate = new \DateTimeImmutable($completedRaw);
-                              $completedFormatter = new \IntlDateFormatter(
-                                'id_ID',
-                                \IntlDateFormatter::LONG,
-                                \IntlDateFormatter::NONE,
-                                'Asia/Jakarta',
-                                \IntlDateFormatter::GREGORIAN,
-                                'd MMMM yyyy'
-                              );
-                              $completedNote = $completedFormatter->format($completedDate);
+                              $completedNote = self::format_long_date($completedDate);
                             } catch (\Exception $e) {
                               $completedNote = $completedRaw;
                             }
@@ -960,7 +962,15 @@ class View {
                           ?>
                           <tr>
                             <td><?= esc_html($index + 1) ?></td>
-                            <td><?= esc_html($update['task'] ?? '') ?></td>
+                            <td>
+                              <div class="hcisysq-task-name">
+                                <span class="hcisysq-task-name__title"><?= esc_html($update['task'] ?? '') ?></span>
+                                <span class="hcisysq-status-chip <?= esc_attr($statusClass) ?>"><?= esc_html($statusLabel) ?></span>
+                                <?php if ($completedNote !== ''): ?>
+                                  <div class="hcisysq-status-meta"><?= esc_html($completedNote) ?></div>
+                                <?php endif; ?>
+                              </div>
+                            </td>
                             <td>
                               <?php if ($description !== ''): ?>
                                 <?= wp_kses_post($description) ?>
@@ -970,18 +980,17 @@ class View {
                             </td>
                             <td><?= esc_html($deadlineDisplay) ?></td>
                             <td>
-                              <span class="hcisysq-status-chip <?= esc_attr($statusClass) ?>"><?= esc_html($statusLabel) ?></span>
-                              <?php if ($completedNote !== ''): ?>
-                                <div class="hcisysq-status-meta"><?= esc_html($completedNote) ?></div>
+                              <?php if ($linkLabel !== ''): ?>
+                                <?= esc_html($linkLabel) ?>
+                              <?php else: ?>
+                                <span>-</span>
                               <?php endif; ?>
                             </td>
                             <td>
                               <?php if ($linkUrl !== ''): ?>
                                 <a href="<?= esc_url($linkUrl) ?>" target="_blank" rel="noopener">
-                                  <?= esc_html($linkLabel !== '' ? $linkLabel : 'Buka tautan') ?>
+                                  <?= esc_html($linkUrl) ?>
                                 </a>
-                              <?php elseif ($linkLabel !== ''): ?>
-                                <?= esc_html($linkLabel) ?>
                               <?php else: ?>
                                 <span>-</span>
                               <?php endif; ?>

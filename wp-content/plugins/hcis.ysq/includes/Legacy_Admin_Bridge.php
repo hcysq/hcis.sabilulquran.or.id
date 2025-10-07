@@ -144,7 +144,7 @@ class Legacy_Admin_Bridge {
       : '';
 
     if (!$nonce || !wp_verify_nonce($nonce, 'ysq_save_announcement')) {
-      self::add_notice('error', __('Sesi tidak valid saat menyimpan pengumuman.', 'ysq'));
+      self::add_notice('error', __('Sesi tidak valid saat menyimpan publikasi.', 'ysq'));
       self::redirect();
     }
 
@@ -157,7 +157,7 @@ class Legacy_Admin_Bridge {
       : '';
 
     if ($title === '') {
-      self::add_notice('error', __('Judul pengumuman wajib diisi.', 'ysq'));
+      self::add_notice('error', __('Judul publikasi wajib diisi.', 'ysq'));
       self::redirect();
     }
 
@@ -168,12 +168,12 @@ class Legacy_Admin_Bridge {
       ]);
 
       if ($result) {
-        self::add_notice('success', __('Pengumuman berhasil diperbarui.', 'ysq'));
+        self::add_notice('success', __('Publikasi berhasil diperbarui.', 'ysq'));
         $referer = wp_get_referer();
         $target  = $referer ? remove_query_arg('ysq_edit', $referer) : '';
         self::redirect($target);
       } else {
-        self::add_notice('error', __('Pengumuman tidak dapat diperbarui. Silakan coba lagi.', 'ysq'));
+        self::add_notice('error', __('Publikasi tidak dapat diperbarui. Silakan coba lagi.', 'ysq'));
         self::redirect();
       }
     } else {
@@ -183,9 +183,9 @@ class Legacy_Admin_Bridge {
       ]);
 
       if ($result) {
-        self::add_notice('success', __('Pengumuman baru berhasil ditambahkan.', 'ysq'));
+        self::add_notice('success', __('Publikasi baru berhasil ditambahkan.', 'ysq'));
       } else {
-        self::add_notice('error', __('Pengumuman baru gagal disimpan.', 'ysq'));
+        self::add_notice('error', __('Publikasi baru gagal disimpan.', 'ysq'));
       }
       self::redirect();
     }
@@ -200,15 +200,15 @@ class Legacy_Admin_Bridge {
       : '';
 
     if (!$announcement_id || !$nonce || !wp_verify_nonce($nonce, 'ysq_delete_announcement_' . $announcement_id)) {
-      self::add_notice('error', __('Sesi tidak valid saat menghapus pengumuman.', 'ysq'));
+      self::add_notice('error', __('Sesi tidak valid saat menghapus publikasi.', 'ysq'));
       self::redirect();
     }
 
     $deleted = Announcements::delete($announcement_id);
     if ($deleted) {
-      self::add_notice('success', __('Pengumuman berhasil dihapus.', 'ysq'));
+      self::add_notice('success', __('Publikasi berhasil dihapus.', 'ysq'));
     } else {
-      self::add_notice('error', __('Pengumuman tidak dapat dihapus.', 'ysq'));
+      self::add_notice('error', __('Publikasi tidak dapat dihapus.', 'ysq'));
     }
 
     self::redirect();

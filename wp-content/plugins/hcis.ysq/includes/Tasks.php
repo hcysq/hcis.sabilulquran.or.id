@@ -385,11 +385,30 @@ class Tasks {
     if (!$deadline) return '';
     try {
       $date = new \DateTimeImmutable($deadline);
-      $formatter = new \IntlDateFormatter('id_ID', \IntlDateFormatter::LONG, \IntlDateFormatter::NONE, 'Asia/Jakarta', \IntlDateFormatter::GREGORIAN, 'd MMMM yyyy');
-      return $formatter->format($date);
     } catch (\Exception $e) {
       return $deadline;
     }
+
+    if (class_exists('IntlDateFormatter')) {
+      $formatter = new \IntlDateFormatter(
+        'id_ID',
+        \IntlDateFormatter::LONG,
+        \IntlDateFormatter::NONE,
+        'Asia/Jakarta',
+        \IntlDateFormatter::GREGORIAN,
+        'd MMMM yyyy'
+      );
+      $formatted = $formatter->format($date);
+      if ($formatted !== false) {
+        return $formatted;
+      }
+    }
+
+    if (function_exists('wp_date')) {
+      return wp_date('d F Y', $date->getTimestamp());
+    }
+
+    return $date->format('d F Y');
   }
 
   private static function build_history_url(array $task){

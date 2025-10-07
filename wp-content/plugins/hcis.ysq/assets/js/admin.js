@@ -266,7 +266,7 @@
     function renderAnnouncements(items) {
       if (!annContainer) return;
       if (!items.length) {
-        annContainer.innerHTML = '<p class="hcisysq-empty">Belum ada pengumuman.</p>';
+        annContainer.innerHTML = '<p class="hcisysq-empty">Belum ada publikasi.</p>';
         return;
       }
 
@@ -715,7 +715,7 @@
           id: formData.get('announcement_id') || '',
           title: formData.get('title') || '',
           body: formData.get('body') || '',
-        }).then((res) => handleAnnouncementResponse(res, isEditing ? 'Pengumuman diperbarui.' : 'Pengumuman ditambahkan.'));
+        }).then((res) => handleAnnouncementResponse(res, isEditing ? 'Publikasi diperbarui.' : 'Publikasi ditambahkan.'));
       });
     }
 
@@ -728,16 +728,16 @@
         if (!action) return;
 
         if (action === 'delete') {
-          if (!window.confirm('Hapus pengumuman ini?')) return;
+          if (!window.confirm('Hapus publikasi ini?')) return;
           setAnnMessage('info', 'Menghapus...');
           shared.ajax('hcisysq_admin_delete_announcement', { id }).then((res) => {
-            handleAnnouncementResponse(res, 'Pengumuman dihapus.');
+            handleAnnouncementResponse(res, 'Publikasi dihapus.');
           });
         } else if (action === 'toggle-status') {
           const status = event.target.getAttribute('data-status') || 'archived';
           setAnnMessage('info', 'Memperbarui status...');
           shared.ajax('hcisysq_admin_set_announcement_status', { id, status }).then((res) => {
-            handleAnnouncementResponse(res, 'Status pengumuman diperbarui.');
+            handleAnnouncementResponse(res, 'Status publikasi diperbarui.');
           });
         } else if (action === 'edit') {
           const item = state.announcements.find((entry) => entry.id === id);
