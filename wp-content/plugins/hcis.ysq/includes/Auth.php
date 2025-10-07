@@ -293,9 +293,17 @@ class Auth {
     return true;
   }
 
-  public static function current_identity(){
+  public static function current_identity($allowLegacyFallback = true){
     $payload = self::get_session_payload();
-    if (!$payload) return null;
+    if (!$payload) {
+      if ($allowLegacyFallback && class_exists(__NAMESPACE__ . '\\Legacy_Admin_Bridge')) {
+        $legacyIdentity = Legacy_Admin_Bridge::get_legacy_admin_identity();
+        if ($legacyIdentity) {
+          return $legacyIdentity;
+        }
+      }
+      return null;
+    }
 
     $type = $payload['type'] ?? 'user';
     if ($type === 'admin') {

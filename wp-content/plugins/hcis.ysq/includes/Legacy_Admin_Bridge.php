@@ -296,14 +296,109 @@ class Legacy_Admin_Bridge {
     exit;
   }
 
+  private static function extract_legacy_admin_session() {
+    self::start_session();
+
+    $username = '';
+    $authenticated = false;
+
+    $composite = $_SESSION['ysq_admin'] ?? null;
+    if (is_array($composite)) {
+      if (!empty($composite['username'])) {
+        $candidate = sanitize_user(wp_unslash($composite['username']), true);
+        if ($candidate !== '') {
+          $username = $candidate;
+        }
+      }
+
+      foreach (['authenticated', 'logged_in', 'login', 'status'] as $key) {
+        if (!empty($composite[$key])) {
+          $authenticated = true;
+          break;
+        }
+      }
+    }
+
+    $usernameKeys = [
+      'ysq_admin_username',
+      'ysq_admin_user',
+      'ysq_admin_name',
+      'admin_username',
+      'username_admin',
+    ];
+
+    foreach ($usernameKeys as $key) {
+      if (!empty($_SESSION[$key]) && is_string($_SESSION[$key])) {
+        $candidate = sanitize_user(wp_unslash($_SESSION[$key]), true);
+        if ($candidate !== '') {
+          $username = $candidate;
+          break;
+        }
+      }
+    }
+
+    if ($username === '' && !empty($_COOKIE['ysq_admin_username'])) {
+      $candidate = sanitize_user(wp_unslash($_COOKIE['ysq_admin_username']), true);
+      if ($candidate !== '') {
+        $username = $candidate;
+      }
+    }
+
+    $flagSources = [
+      $_SESSION['ysq_admin_logged_in'] ?? null,
+      $_SESSION['ysq_admin_login'] ?? null,
+      $_SESSION['ysq_admin_authenticated'] ?? null,
+      $_SESSION['ysq_admin_status'] ?? null,
+      $_SESSION['admin_logged_in'] ?? null,
+      is_array($composite) ? ($composite['flag'] ?? null) : null,
+    ];
+
+    foreach ($flagSources as $flag) {
+      if ($flag) {
+        $authenticated = true;
+        break;
+      }
+    }
+
+    if ($username === '' && !$authenticated) {
+      return null;
+    }
+
+    return [
+      'username'      => $username,
+      'authenticated' => $authenticated || $username !== '',
+    ];
+  }
+
+  public static function get_legacy_admin_identity() {
+    $session = self::extract_legacy_admin_session();
+    if (!$session || empty($session['authenticated'])) {
+      return null;
+    }
+
+    $settings = Auth::get_admin_settings();
+    $username = $session['username'] !== '' ? $session['username'] : $settings['username'];
+
+    return [
+      'type'         => 'admin',
+      'username'     => $username,
+      'display_name' => $settings['display_name'],
+      'settings'     => $settings,
+    ];
+  }
+
   public static function get_username() {
     $settings = Auth::get_admin_settings();
     return $settings['username'];
   }
 
   public static function is_admin_authenticated() {
-    $identity = Auth::current_identity();
-    return $identity && ($identity['type'] ?? '') === 'admin';
+    $identity = Auth::current_identity(false);
+    if ($identity && ($identity['type'] ?? '') === 'admin') {
+      return true;
+    }
+
+    return self::get_legacy_admin_identity() !== null;
   }
 
 }
