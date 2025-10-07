@@ -8,7 +8,7 @@
 .hcisysq-icon-button:hover{background:rgba(255,255,255,.32);color:var(--brand);transform:translateY(-1px)}
 .hcisysq-sidebar-close{display:none}
 .hcisysq-sidebar-nav{display:flex;flex-direction:column;gap:4px;font-size:var(--font-body);color:var(--text-light)}
-.hcisysq-sidebar-nav a{display:block;padding:8px 10px;border-radius:10px;color:#0f172a;background:transparent;border:1px solid transparent;transition:background .2s ease,color .2s ease,transform .2s ease;font-weight:600}
+.hcisysq-sidebar-nav a{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;color:#0f172a;background:transparent;border:1px solid transparent;transition:background .2s ease,color .2s ease,transform .2s ease;font-weight:600}
 .hcisysq-sidebar-nav a:hover{background:rgba(15,23,42,.08);color:#0f172a;border-color:rgba(15,23,42,.12);transform:translateY(-1px)}
 .hcisysq-sidebar-nav a.is-active{background:rgba(23,88,135,.12);color:#0f172a;border-color:rgba(23,88,135,.28);box-shadow:0 10px 20px rgba(23,88,135,.18);font-weight:700}
 .hcisysq-sidebar-nav hr{border:none;border-top:1px solid rgba(148,163,184,.35);margin:10px 0}
@@ -59,17 +59,6 @@
 .hcisysq-card--empty{text-align:center;gap:10px}
 .hcisysq-card--empty p{margin:0 auto;font-size:var(--font-body);color:var(--muted);max-width:360px}
 
-.hcisysq-running{--running-bg:rgba(255,255,255,.72);--running-gap:32px;--running-letter:0px;--running-duration:36s;position:relative;overflow:hidden;border-radius:12px;border:1px solid rgba(15,23,42,.18);background:var(--running-bg);padding:10px 12px;margin-bottom:18px}
-.hcisysq-running__track{display:inline-flex;align-items:center;gap:var(--running-gap);white-space:nowrap;animation:hcisysq-running var(--running-duration) linear infinite;will-change:transform}
-.hcisysq-running:hover .hcisysq-running__track,.hcisysq-running:focus-within .hcisysq-running__track{animation-play-state:paused}
-.hcisysq-running__item{display:inline-flex;align-items:center;font-weight:600;letter-spacing:var(--running-letter);color:#0f172a}
-.hcisysq-running__sep{display:inline-flex;align-items:center;color:rgba(15,23,42,.45);font-weight:700;padding:0 14px}
-
-@keyframes hcisysq-running{
-  0%{transform:translateX(0)}
-  100%{transform:translateX(-50%)}
-}
-
 .hcisysq-card--wip{gap:16px;align-items:center}
 .hcisysq-wip{display:flex;flex-direction:row;gap:18px;align-items:center}
 .hcisysq-wip__illustration{flex:0 0 96px;height:96px;border-radius:20px;background:linear-gradient(135deg,rgba(23,88,135,.08),rgba(14,165,233,.24));display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
@@ -80,8 +69,17 @@
 .hcisysq-progress{width:100%;height:8px;border-radius:999px;background:rgba(15,23,42,.12);overflow:hidden;position:relative}
 .hcisysq-progress__bar{position:absolute;inset:0;width:45%;border-radius:999px;background:linear-gradient(90deg,rgba(14,165,233,.75),rgba(23,88,135,.95));animation:hcisysq-progress-loop 2.4s ease-in-out infinite}
 
+.hcisysq-task-badge{display:inline-flex;align-items:center;justify-content:center;margin-left:8px;min-width:20px;padding:0 6px;height:20px;border-radius:999px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;line-height:1}
+.hcisysq-status-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.hcisysq-status-chip.is-pending{background:rgba(239,68,68,.14);color:#b91c1c}
+.hcisysq-status-chip.is-published{background:rgba(14,165,233,.16);color:#0f172a}
+.hcisysq-status-chip.is-done{background:rgba(34,197,94,.18);color:#15803d}
+.hcisysq-status-chip.is-info{background:rgba(59,130,246,.14);color:#1d4ed8}
+.hcisysq-status-chip.is-archived{background:rgba(148,163,184,.2);color:#475569}
+.hcisysq-status-meta{margin-top:4px;font-size:11px;font-weight:600;color:#475569}
+
 .hcisysq-updates{overflow-x:auto}
-.hcisysq-updates table{width:100%;border-collapse:collapse;min-width:520px;background:rgba(255,255,255,.92);border-radius:12px;overflow:hidden}
+.hcisysq-updates table{width:100%;border-collapse:collapse;min-width:520px;background:rgba(255,255,255,.95);border-radius:16px;overflow:hidden;box-shadow:0 18px 36px rgba(15,23,42,.12);border:1px solid rgba(15,23,42,.08)}
 .hcisysq-updates th,.hcisysq-updates td{padding:10px 14px;text-align:left;border-bottom:1px solid rgba(15,23,42,.08);font-size:var(--font-body);color:#0f172a}
 .hcisysq-updates thead th{background:rgba(23,88,135,.12);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:11px;color:#0f172a}
 .hcisysq-updates tbody tr:last-child td{border-bottom:none}

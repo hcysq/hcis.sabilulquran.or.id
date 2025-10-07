@@ -206,6 +206,30 @@ class Api {
     ];
   }
 
+  private static function parse_string_list($value){
+    if (is_string($value)) {
+      $decoded = json_decode(wp_unslash($value), true);
+      if (is_array($decoded)) {
+        $value = $decoded;
+      } else {
+        $value = array_map('trim', explode(',', $value));
+      }
+    }
+
+    if (!is_array($value)) {
+      return [];
+    }
+
+    $result = [];
+    foreach ($value as $entry) {
+      $entry = trim((string)$entry);
+      if ($entry === '') continue;
+      $result[$entry] = true;
+    }
+
+    return array_keys($result);
+  }
+
   public static function admin_create_announcement(){
     self::check_nonce();
     self::require_admin();
@@ -492,5 +516,118 @@ class Api {
     }
 
     wp_send_json(['ok'=>true]);
+  }
+
+  private static function task_payload_from_request(){
+    return [
+      'title'       => sanitize_text_field($_POST['title'] ?? ''),
+      'description' => wp_unslash($_POST['description'] ?? ''),
+      'deadline'    => sanitize_text_field($_POST['deadline'] ?? ''),
+      'link_label'  => sanitize_text_field($_POST['link_label'] ?? ''),
+      'link_url'    => esc_url_raw($_POST['link_url'] ?? ''),
+      'units'       => self::parse_string_list($_POST['units'] ?? []),
+      'employees'   => self::parse_string_list($_POST['employees'] ?? []),
+    ];
+  }
+
+  public static function admin_create_task(){
+    self::check_nonce();
+    self::require_admin();
+
+    $result = Tasks::create(self::task_payload_from_request());
+    if (is_wp_error($result)) {
+      wp_send_json(['ok' => false, 'msg' => $result->get_error_message()]);
+    }
+
+    wp_send_json([
+      'ok'    => true,
+      'msg'   => __('Tugas berhasil ditambahkan.', 'hcisysq'),
+      'tasks' => Tasks::get_admin_bootstrap(),
+    ]);
+  }
+
+  public static function admin_update_task(){
+    self::check_nonce();
+    self::require_admin();
+
+    $id = sanitize_text_field($_POST['id'] ?? '');
+    if ($id === '') {
+      wp_send_json(['ok' => false, 'msg' => __('ID tugas tidak valid.', 'hcisysq')]);
+    }
+
+    $result = Tasks::update($id, self::task_payload_from_request());
+    if (is_wp_error($result)) {
+      wp_send_json(['ok' => false, 'msg' => $result->get_error_message()]);
+    }
+
+    wp_send_json([
+      'ok'    => true,
+      'msg'   => __('Perubahan tugas tersimpan.', 'hcisysq'),
+      'tasks' => Tasks::get_admin_bootstrap(),
+    ]);
+  }
+
+  public static function admin_delete_task(){
+    self::check_nonce();
+    self::require_admin();
+
+    $id = sanitize_text_field($_POST['id'] ?? '');
+    if ($id === '') {
+      wp_send_json(['ok' => false, 'msg' => __('ID tugas tidak valid.', 'hcisysq')]);
+    }
+
+    Tasks::delete($id);
+
+    wp_send_json([
+      'ok'    => true,
+      'msg'   => __('Tugas dihapus.', 'hcisysq'),
+      'tasks' => Tasks::get_admin_bootstrap(),
+    ]);
+  }
+
+  public static function admin_set_task_status(){
+    self::check_nonce();
+    self::require_admin();
+
+    $id = sanitize_text_field($_POST['id'] ?? '');
+    $status = sanitize_text_field($_POST['status'] ?? '');
+    if ($id === '') {
+      wp_send_json(['ok' => false, 'msg' => __('ID tugas tidak valid.', 'hcisysq')]);
+    }
+
+    $result = Tasks::set_status($id, $status);
+    if (is_wp_error($result)) {
+      wp_send_json(['ok' => false, 'msg' => $result->get_error_message()]);
+    }
+
+    wp_send_json([
+      'ok'    => true,
+      'msg'   => __('Status tugas diperbarui.', 'hcisysq'),
+      'tasks' => Tasks::get_admin_bootstrap(),
+    ]);
+  }
+
+  public static function admin_update_assignment(){
+    self::check_nonce();
+    self::require_admin();
+
+    $taskId = sanitize_text_field($_POST['task_id'] ?? '');
+    $nip    = sanitize_text_field($_POST['nip'] ?? '');
+    $status = sanitize_text_field($_POST['status'] ?? '');
+
+    if ($taskId === '' || $nip === '') {
+      wp_send_json(['ok' => false, 'msg' => __('Parameter tidak valid.', 'hcisysq')]);
+    }
+
+    $result = Tasks::mark_assignment($taskId, $nip, $status === 'completed' ? 'completed' : 'pending');
+    if (is_wp_error($result)) {
+      wp_send_json(['ok' => false, 'msg' => $result->get_error_message()]);
+    }
+
+    wp_send_json([
+      'ok'    => true,
+      'msg'   => __('Status pegawai diperbarui.', 'hcisysq'),
+      'tasks' => Tasks::get_admin_bootstrap(),
+    ]);
   }
 }

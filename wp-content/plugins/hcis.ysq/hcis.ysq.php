@@ -65,6 +65,7 @@ require_once HCISYSQ_DIR . 'includes/Users.php';
 require_once HCISYSQ_DIR . 'includes/Trainings.php';
 require_once HCISYSQ_DIR . 'includes/RichText.php';
 require_once HCISYSQ_DIR . 'includes/Announcements.php';
+require_once HCISYSQ_DIR . 'includes/Tasks.php';
 require_once HCISYSQ_DIR . 'includes/Admin.php';
 require_once HCISYSQ_DIR . 'includes/Assets.php';
 require_once HCISYSQ_DIR . 'includes/Shortcodes.php';
@@ -87,6 +88,7 @@ HCISYSQ\Forgot::init();
 HCISYSQ\Announcements::init();
 HCISYSQ\Publikasi::init();
 HCISYSQ\Hcis_Gas_Token::init();
+HCISYSQ\Tasks::init();
 HCISYSQ\Legacy_Admin_Bridge::init();
 
 /* =======================================================
@@ -111,6 +113,11 @@ add_action('wp_ajax_hcisysq_admin_save_settings', ['HCISYSQ\\Api', 'admin_save_s
 add_action('wp_ajax_nopriv_hcisysq_admin_save_settings', ['HCISYSQ\\Api', 'admin_save_settings']);
 add_action('wp_ajax_hcisysq_admin_save_home_settings', ['HCISYSQ\\Api', 'admin_save_home_settings']);
 add_action('wp_ajax_nopriv_hcisysq_admin_save_home_settings', ['HCISYSQ\\Api', 'admin_save_home_settings']);
+add_action('wp_ajax_hcisysq_admin_create_task', ['HCISYSQ\\Api', 'admin_create_task']);
+add_action('wp_ajax_hcisysq_admin_update_task', ['HCISYSQ\\Api', 'admin_update_task']);
+add_action('wp_ajax_hcisysq_admin_delete_task', ['HCISYSQ\\Api', 'admin_delete_task']);
+add_action('wp_ajax_hcisysq_admin_set_task_status', ['HCISYSQ\\Api', 'admin_set_task_status']);
+add_action('wp_ajax_hcisysq_admin_update_assignment', ['HCISYSQ\\Api', 'admin_update_assignment']);
 
 /* =======================================================
  *  Cron (jika pakai import)
