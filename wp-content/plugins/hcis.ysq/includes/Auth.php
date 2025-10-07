@@ -292,44 +292,63 @@ class Auth {
     }
     return true;
   }
-
-  public static function current_identity($allowLegacyFallback = true){
-    $payload = self::get_session_payload();
-    if (!$payload) {
-      if ($allowLegacyFallback && class_exists(__NAMESPACE__ . '\\Legacy_Admin_Bridge')) {
-        $legacyIdentity = Legacy_Admin_Bridge::get_legacy_admin_identity();
-        if ($legacyIdentity) {
-          return $legacyIdentity;
-        }
-      }
-      return null;
-    }
-
-    $type = $payload['type'] ?? 'user';
-    if ($type === 'admin') {
+  private static function build_admin_identity($username = null, $displayName = null, ?array $settings = null){
+    if (!$settings) {
       $settings = self::get_admin_settings();
-      $username = $payload['username'] ?? $settings['username'];
-      return [
-        'type'         => 'admin',
-        'username'     => $username,
-        'display_name' => $settings['display_name'],
-        'settings'     => $settings,
-      ];
     }
 
-    $nip = $payload['nip'] ?? null;
-    if (!$nip && isset($payload['username'])) {
-      $nip = $payload['username'];
+    $username = $username ? sanitize_user($username, true) : '';
+    if ($username === '') {
+      $username = $settings['username'];
     }
-    if (!$nip) return null;
 
-    $user = self::get_user_by_nip($nip);
-    if (!$user) return null;
+    $displayName = $displayName ? sanitize_text_field($displayName) : '';
+    if ($displayName === '') {
+      $displayName = $settings['display_name'];
+    }
 
     return [
-      'type' => 'user',
-      'user' => $user,
+      'type'         => 'admin',
+      'username'     => $username,
+      'display_name' => $displayName,
+      'settings'     => $settings,
     ];
+  }
+
+  public static function current_identity(){
+    $payload = self::get_session_payload();
+    if ($payload) {
+      $type = $payload['type'] ?? 'user';
+      if ($type === 'admin') {
+        $settings    = self::get_admin_settings();
+        $username    = $payload['username'] ?? null;
+        $displayName = $payload['display_name'] ?? null;
+        return self::build_admin_identity($username, $displayName, $settings);
+      }
+
+      $nip = $payload['nip'] ?? null;
+      if (!$nip && isset($payload['username'])) {
+        $nip = $payload['username'];
+      }
+      if ($nip) {
+        $user = self::get_user_by_nip($nip);
+        if ($user) {
+          return [
+            'type' => 'user',
+            'user' => $user,
+          ];
+        }
+      }
+    }
+
+    if (is_user_logged_in() && current_user_can('manage_hcis_portal')) {
+      $wpUser = wp_get_current_user();
+      $username = $wpUser && $wpUser->exists() ? $wpUser->user_login : null;
+      $displayName = $wpUser && $wpUser->exists() ? $wpUser->display_name : null;
+      return self::build_admin_identity($username, $displayName);
+    }
+
+    return null;
   }
 
   public static function current_user(){

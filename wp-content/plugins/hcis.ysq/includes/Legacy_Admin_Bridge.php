@@ -13,8 +13,48 @@ class Legacy_Admin_Bridge {
     add_action('init', [__CLASS__, 'handle_requests'], 20);
   }
 
+  private static function is_wordpress_admin_context() {
+    if (function_exists('is_admin') && is_admin()) {
+      return true;
+    }
+
+    if (!function_exists('wp_get_current_user')) {
+      return false;
+    }
+
+    if (!class_exists('\\WP_User')) {
+      return false;
+    }
+
+    $user = wp_get_current_user();
+    if (!$user || !($user instanceof \WP_User) || !$user->exists()) {
+      return false;
+    }
+
+    $capabilities = apply_filters('hcisysq_legacy_bridge_bypass_caps', ['manage_options']);
+    if (!is_array($capabilities)) {
+      $capabilities = ['manage_options'];
+    }
+
+    foreach ($capabilities as $capability) {
+      if ($capability && user_can($user, $capability)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private static function is_legacy_context() {
+    if (self::is_wordpress_admin_context()) {
+      return false;
+    }
+
+    return true;
+  }
+
   public static function start_session() {
-    if (is_admin()) return;
+    if (!self::is_legacy_context()) return;
     if (session_status() === PHP_SESSION_ACTIVE) return;
 
     $cookie_lifetime = (int) apply_filters('hcisysq_admin_session_lifetime', 6 * HOUR_IN_SECONDS);
@@ -73,7 +113,7 @@ class Legacy_Admin_Bridge {
   }
 
   public static function handle_requests() {
-    if (is_admin()) return;
+    if (!self::is_legacy_context()) return;
 
     self::ensure_default_credentials();
 
