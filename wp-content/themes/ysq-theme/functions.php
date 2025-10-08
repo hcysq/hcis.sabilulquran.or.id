@@ -525,3 +525,28 @@ function ysq_remove_unused_dashboard_cards_script() {
 }
 add_action('wp_footer', 'ysq_remove_unused_dashboard_cards_script', 20);
 
+
+/**
+ * Memuat file CSS kustom di semua halaman login WordPress.
+ */
+function ysq_custom_login_stylesheet() {
+    wp_enqueue_style( 'ysq-custom-login', get_stylesheet_directory_uri() . '/css/custom-login-style.css' );
+}
+add_action( 'login_enqueue_scripts', 'ysq_custom_login_stylesheet' );
+
+/**
+ * Mengubah URL logo di halaman login agar mengarah ke halaman utama situs.
+ */
+function ysq_login_logo_url() {
+    return home_url();
+}
+add_filter( 'login_headerurl', 'ysq_login_logo_url' );
+
+/**
+ * Mengubah teks 'title' pada logo di halaman login.
+ */
+function ysq_login_logo_url_title() {
+    return get_bloginfo( 'name' );
+}
+add_filter( 'login_headertext', 'ysq_login_logo_url_title' );
+
