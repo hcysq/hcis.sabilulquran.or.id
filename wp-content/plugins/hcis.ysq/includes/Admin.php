@@ -30,6 +30,18 @@ class Admin {
    * Render the view for the new "Portal HCIS" admin page.
    */
   public static function render_admin_portal_page() {
+    ?>
+    <div class="wrap">
+      <h1>Welcome to the HCIS Portal</h1>
+      <p>This is the new, secure dashboard for HCIS Administrators. All management features will be migrated here.</p>
+    </div>
+    <?php
+  }
+
+  /**
+   * Render the view for the new "Portal HCIS" admin page.
+   */
+  public static function render_admin_portal_page() {
     if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) return;
 
     self::render_settings_interface();
