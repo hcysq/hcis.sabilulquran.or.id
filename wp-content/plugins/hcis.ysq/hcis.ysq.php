@@ -47,6 +47,7 @@ if (!defined('HCISYSQ_URL')) define('HCISYSQ_URL', plugin_dir_url(__FILE__));
 if (!defined('HCISYSQ_LOGIN_SLUG'))     define('HCISYSQ_LOGIN_SLUG', 'masuk');
 if (!defined('HCISYSQ_DASHBOARD_SLUG')) define('HCISYSQ_DASHBOARD_SLUG', 'dashboard');
 if (!defined('HCISYSQ_FORM_SLUG'))      define('HCISYSQ_FORM_SLUG', 'pelatihan');
+if (!defined('HCISYSQ_RESET_SLUG'))     define('HCISYSQ_RESET_SLUG', 'ganti-password');
 
 // StarSender (opsional – untuk "lupa password")
 if (!defined('HCISYSQ_SS_URL')) define('HCISYSQ_SS_URL', 'https://starsender.online/api/sendText');
@@ -120,6 +121,8 @@ add_action('wp_ajax_hcisysq_admin_delete_task', ['HCISYSQ\\Api', 'admin_delete_t
 add_action('wp_ajax_hcisysq_admin_set_task_status', ['HCISYSQ\\Api', 'admin_set_task_status']);
 add_action('wp_ajax_hcisysq_admin_update_assignment', ['HCISYSQ\\Api', 'admin_update_assignment']);
 add_action('wp_ajax_ysq_get_employees_by_units', ['HCISYSQ\\Api', 'ysq_get_employees_by_units']);
+add_action('wp_ajax_hcisysq_reset_password', ['HCISYSQ\\Api', 'reset_password']);
+add_action('wp_ajax_nopriv_hcisysq_reset_password', ['HCISYSQ\\Api', 'reset_password']);
 
 /* =======================================================
  *  Cron (jika pakai import)

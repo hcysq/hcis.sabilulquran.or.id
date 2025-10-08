@@ -15,32 +15,70 @@ class Forgot {
       wp_send_json(['ok' => false, 'msg' => 'Invalid request']);
     }
 
-    $nip = sanitize_text_field($_POST['nip'] ?? '');
-    if (!$nip) {
+    $identifier = sanitize_text_field($_POST['nip'] ?? '');
+    if ($identifier === '') {
       wp_send_json(['ok' => false, 'msg' => 'Akun wajib diisi']);
     }
 
     global $wpdb;
-    $t = $wpdb->prefix . 'hcisysq_users';
-    $emp = $wpdb->get_row($wpdb->prepare("SELECT nama FROM $t WHERE nip=%s", $nip));
-    $nama = $emp ? $emp->nama : '(NIP tidak terdaftar)';
+    $table = $wpdb->prefix . 'hcisysq_users';
 
-    $admin_wa = Assets::get_admin_wa();
-    $wa_token = Assets::get_wa_token();
+    $employee = Auth::get_user_by_nip($identifier);
 
-    if (!$admin_wa || !$wa_token) {
-      wp_send_json(['ok' => false, 'msg' => 'Konfigurasi WhatsApp belum diatur. Hubungi admin.']);
+    if (!$employee) {
+      $normalized = Auth::norm_phone($identifier);
+      if ($normalized !== '') {
+        $candidates = [$normalized];
+        if (strpos($normalized, '62') === 0 && strlen($normalized) > 2) {
+          $candidates[] = '0' . substr($normalized, 2);
+        }
+        $candidates = array_values(array_unique(array_filter($candidates)));
+
+        if ($candidates) {
+          $conditions = array_fill(0, count($candidates), "REPLACE(REPLACE(REPLACE(no_hp, '+', ''), '-', ''), ' ', '') = %s");
+          $sql = 'SELECT * FROM ' . $table . ' WHERE ' . implode(' OR ', $conditions) . ' LIMIT 1';
+          $employee = $wpdb->get_row($wpdb->prepare($sql, ...$candidates));
+        }
+      }
     }
 
-    $message = "Permintaan reset password HCIS.YSQ\nAkun (NIP): {$nip}\nNama: {$nama}";
+    if (!$employee) {
+      wp_send_json(['ok' => false, 'msg' => 'Data akun tidak ditemukan. Hubungi admin untuk bantuan.']);
+    }
 
-    $result = self::send_wa($admin_wa, $message, $wa_token);
+    $phone = Auth::norm_phone($employee->no_hp ?? '');
+    if ($phone === '') {
+      wp_send_json(['ok' => false, 'msg' => 'Nomor WhatsApp belum terdaftar. Hubungi admin HCM untuk memperbarui data Anda.']);
+    }
+
+    $waToken = Assets::get_wa_token();
+    if (!$waToken) {
+      wp_send_json(['ok' => false, 'msg' => 'Layanan WhatsApp belum dikonfigurasi. Hubungi admin.']);
+    }
+
+    $token = wp_generate_uuid4();
+    $transientKey = self::build_transient_key($token);
+    set_transient($transientKey, [
+      'nip'       => $employee->nip,
+      'issued_at' => time(),
+    ], 10 * MINUTE_IN_SECONDS);
+
+    $resetUrl = add_query_arg('token', rawurlencode($token), home_url('/' . trim(HCISYSQ_RESET_SLUG, '/') . '/'));
+
+    $name = sanitize_text_field($employee->nama ?? '');
+    if ($name === '') {
+      $name = 'Pegawai SQ';
+    }
+
+    $message = "Halo {$name}, ini tautan untuk ganti password HCIS Anda. Tautan berlaku 10 menit:\n{$resetUrl}\n\nJika Anda tidak merasa meminta pergantian password, abaikan pesan ini.";
+
+    $result = self::send_wa($phone, $message, $waToken);
 
     if ($result['ok']) {
-      wp_send_json(['ok' => true, 'msg' => 'Permintaan terkirim ke Admin HCM via WhatsApp.']);
-    } else {
-      wp_send_json(['ok' => false, 'msg' => $result['msg']]);
+      wp_send_json(['ok' => true, 'msg' => 'Tautan reset terkirim via WhatsApp ke nomor terdaftar.']);
     }
+
+    wp_send_json(['ok' => false, 'msg' => $result['msg'] ?? 'Gagal mengirim tautan. Coba lagi.']);
   }
 
   private static function send_wa($tujuan, $message, $token) {
@@ -64,5 +102,86 @@ class Forgot {
     }
 
     return ['ok' => false, 'msg' => 'Gagal mengirim (HTTP ' . $code . ')'];
+  }
+
+  private static function build_transient_key($token) {
+    return 'hcisysq_reset_' . sanitize_key(str_replace([' ', '{', '}', '/'], '', $token));
+  }
+
+  public static function get_token_payload($token) {
+    $token = sanitize_text_field($token);
+    if ($token === '') {
+      return null;
+    }
+
+    $payload = get_transient(self::build_transient_key($token));
+    return is_array($payload) ? $payload : null;
+  }
+
+  public static function handle_reset() {
+    $token    = sanitize_text_field($_POST['token'] ?? '');
+    $password = strval($_POST['password'] ?? '');
+    $confirm  = strval($_POST['confirm'] ?? '');
+    $nipInput = sanitize_text_field($_POST['nip'] ?? '');
+
+    if ($token === '') {
+      return ['ok' => false, 'msg' => 'Token tidak ditemukan atau sudah kadaluarsa.'];
+    }
+
+    $password = trim($password);
+    $confirm  = trim($confirm);
+
+    if ($password === '') {
+      return ['ok' => false, 'msg' => 'Password baru wajib diisi.'];
+    }
+
+    if (strlen($password) < 6) {
+      return ['ok' => false, 'msg' => 'Password minimal 6 karakter.'];
+    }
+
+    if ($confirm === '' || !hash_equals($password, $confirm)) {
+      return ['ok' => false, 'msg' => 'Konfirmasi password tidak sama.'];
+    }
+
+    $transientKey = self::build_transient_key($token);
+    $payload = get_transient($transientKey);
+    if (!is_array($payload) || empty($payload['nip'])) {
+      return ['ok' => false, 'msg' => 'Token tidak valid atau sudah kadaluarsa.'];
+    }
+
+    $nip = sanitize_text_field($payload['nip']);
+    if ($nip === '') {
+      delete_transient($transientKey);
+      return ['ok' => false, 'msg' => 'Data token tidak lengkap.'];
+    }
+
+    if ($nipInput !== '' && !hash_equals($nip, $nipInput)) {
+      return ['ok' => false, 'msg' => 'Data akun tidak sesuai dengan token.'];
+    }
+
+    $user = Auth::get_user_by_nip($nip);
+    if (!$user) {
+      delete_transient($transientKey);
+      return ['ok' => false, 'msg' => 'Akun tidak ditemukan. Hubungi admin.'];
+    }
+
+    $hash = password_hash($password, PASSWORD_DEFAULT);
+
+    global $wpdb;
+    $updated = $wpdb->update(
+      $wpdb->prefix . 'hcisysq_users',
+      ['password' => $hash],
+      ['nip' => $nip],
+      ['%s'],
+      ['%s']
+    );
+
+    delete_transient($transientKey);
+
+    if ($updated === false) {
+      return ['ok' => false, 'msg' => 'Gagal memperbarui password. Coba lagi.'];
+    }
+
+    return ['ok' => true, 'msg' => 'Password berhasil diperbarui. Silakan login kembali.'];
   }
 }

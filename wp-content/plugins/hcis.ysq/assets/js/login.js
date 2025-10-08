@@ -82,7 +82,7 @@
             .then((res) => {
               if (res && res.ok) {
                 fMsg.className = 'modal-msg ok';
-                fMsg.textContent = res.msg || 'Permintaan terkirim. Anda akan dihubungi Admin via WhatsApp.';
+                fMsg.textContent = res.msg || 'Tautan reset dikirim ke WhatsApp terdaftar.';
                 setTimeout(closeModal, 1500);
               } else {
                 fMsg.className = 'modal-msg';

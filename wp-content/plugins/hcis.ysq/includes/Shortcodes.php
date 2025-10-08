@@ -10,16 +10,19 @@ class Shortcodes {
     add_shortcode('hcis_ysq_dashboard', [__CLASS__, 'dashboard']);
     add_shortcode('hcis_ysq_form', [__CLASS__, 'form']);
     add_shortcode('hcis_ysq_form_button', [__CLASS__, 'form_button']);
+    add_shortcode('hcis_ysq_reset_password', [__CLASS__, 'reset_password']);
 
     add_shortcode('hcisysq_login', [__CLASS__, 'login']);
     add_shortcode('hcisysq_dashboard', [__CLASS__, 'dashboard']);
     add_shortcode('hcisysq_form', [__CLASS__, 'form']);
     add_shortcode('hcisysq_form_button', [__CLASS__, 'form_button']);
+    add_shortcode('hcisysq_reset_password', [__CLASS__, 'reset_password']);
 
     add_shortcode('hrissq_login', [__CLASS__, 'login']);
     add_shortcode('hrissq_dashboard', [__CLASS__, 'dashboard']);
     add_shortcode('hrissq_form', [__CLASS__, 'form']);
     add_shortcode('hrissq_form_button', [__CLASS__, 'form_button']);
+    add_shortcode('hrissq_reset_password', [__CLASS__, 'reset_password']);
 
     add_filter('the_content', [__CLASS__, 'fix_dot_shortcodes'], 9);
   }
@@ -57,5 +60,9 @@ class Shortcodes {
     }
     $href = home_url('/' . HCISYSQ_FORM_SLUG . '/');
     return '<a class="button button-primary" href="' . esc_url($href) . '">Isi Form Pelatihan</a>';
+  }
+
+  public static function reset_password($atts) {
+    return View::reset_password($atts);
   }
 }
