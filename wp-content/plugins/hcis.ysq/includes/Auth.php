@@ -205,27 +205,6 @@ class Auth {
       return ['ok' => false, 'msg' => 'Akun & Password wajib diisi'];
     }
 
-    $adminSettings = self::get_admin_settings();
-    if (strcasecmp($account, $adminSettings['username']) === 0) {
-      if (!password_verify($plain_pass, $adminSettings['password_hash'])) {
-        return ['ok' => false, 'msg' => 'Password administrator salah.'];
-      }
-
-      self::store_session([
-        'type'     => 'admin',
-        'username' => $adminSettings['username'],
-      ]);
-
-      return [
-        'ok'   => true,
-        'user' => [
-          'role'         => 'admin',
-          'username'     => $adminSettings['username'],
-          'display_name' => $adminSettings['display_name'],
-        ]
-      ];
-    }
-
     $u = self::get_user_by_nip($account);
     if (!$u) return ['ok'=>false, 'msg'=>'Akun tidak ditemukan'];
 
