@@ -32,7 +32,7 @@ class Forgot {
       wp_send_json(['ok' => false, 'msg' => 'Konfigurasi WhatsApp belum diatur. Hubungi admin.']);
     }
 
-    $message = "Permintaan reset pasword HCIS.YSQ\nAkun (NIP): {$nip}\nNama: {$nama}";
+    $message = "Permintaan reset password HCIS.YSQ\nAkun (NIP): {$nip}\nNama: {$nama}";
 
     $result = self::send_wa($admin_wa, $message, $wa_token);
 

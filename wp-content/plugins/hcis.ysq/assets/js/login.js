@@ -25,7 +25,7 @@
       const nip = (form.nip.value || '').trim();
       const pwv = (form.pw.value || '').trim();
       if (!nip || !pwv) {
-        msg.textContent = 'Akun & Pasword wajib diisi.';
+        msg.textContent = 'Akun & Password wajib diisi.';
         return;
       }
 

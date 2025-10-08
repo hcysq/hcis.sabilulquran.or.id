@@ -67,7 +67,7 @@ class Admin {
         Users::set_sheet_config($sheet_id, $tab_name);
 
         if (isset($_POST['import_users']) && $sheet_id) {
-          $url = "https://docs.google.com/spreadsheets/d/{$sheet_id}/export?format=csv&gid=0";
+          $url = Users::build_csv_url($sheet_id, $tab_name);
           $res = Users::import_from_csv($url);
           $msg .= $res['ok']
             ? "<strong>Import Users:</strong> inserted {$res['inserted']}, updated {$res['updated']}.<br>"

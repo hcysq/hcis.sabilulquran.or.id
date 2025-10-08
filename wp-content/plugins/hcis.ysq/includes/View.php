@@ -20,14 +20,14 @@ class View {
           <label for="hcisysq-nip">Akun <span class="req">*</span></label>
           <input id="hcisysq-nip" type="text" name="nip" placeholder="Masukkan NIP" autocomplete="username" required>
 
-          <label for="hcisysq-pw">Pasword <span class="req">*</span></label>
+          <label for="hcisysq-pw">Password <span class="req">*</span></label>
           <div class="pw-row">
             <input id="hcisysq-pw" type="password" name="pw" placeholder="Gunakan No HP" autocomplete="current-password" required>
             <button type="button" id="hcisysq-eye" class="eye">lihat</button>
           </div>
 
           <button type="submit" class="btn-primary">Masuk</button>
-          <button type="button" id="hcisysq-forgot" class="link-forgot">Lupa pasword?</button>
+          <button type="button" id="hcisysq-forgot" class="link-forgot">Lupa password?</button>
           <div class="msg" aria-live="polite"></div>
         </form>
       </div>
@@ -35,7 +35,7 @@ class View {
     <div id="hcisysq-modal" class="modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="hcisysq-forgot-title">
       <div class="modal">
         <button type="button" class="modal-close" id="hcisysq-close-modal" aria-label="Tutup">×</button>
-        <h3 id="hcisysq-forgot-title">Lupa Pasword</h3>
+        <h3 id="hcisysq-forgot-title">Lupa Password</h3>
         <p>Masukkan Akun (NIP) Anda. Kami akan mengirim permintaan ke Admin HCM.</p>
         <label>Akun (NIP)</label>
         <input id="hcisysq-nip-forgot" type="text" placeholder="Masukkan NIP">

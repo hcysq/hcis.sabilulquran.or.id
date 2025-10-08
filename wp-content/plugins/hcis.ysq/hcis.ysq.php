@@ -131,7 +131,8 @@ add_action('hcisysq_profiles_cron', function(){
 add_action('hcisysq_users_cron', function(){
   $sheet_id = \HCISYSQ\Users::get_sheet_id();
   if ($sheet_id) {
-    $url = "https://docs.google.com/spreadsheets/d/{$sheet_id}/export?format=csv&gid=0";
+    $tab_name = \HCISYSQ\Users::get_tab_name();
+    $url = \HCISYSQ\Users::build_csv_url($sheet_id, $tab_name);
     \HCISYSQ\Users::import_from_csv($url);
   }
 });

@@ -26,7 +26,9 @@ Scroll ke **Section 4: WhatsApp & SSO Settings**, isi:
 |-------|-------|--------|
 | Admin WhatsApp | `6285175201627` | ✅ (untuk lupa password) |
 | WhatsApp API Token | `4a74d8ae-...` | ✅ (Starsender key) |
-| Default GAS URL | `https://script.google.com/.../exec` | ✅ (form pelatihan SSO) |
+| HCIS GAS API Key | `shared-secret` | ✅ (harus sama dengan Apps Script) |
+
+> **Catatan:** URL Web App Google Apps Script sekarang diisi pada **Section 3 &mdash; Training Form → Google Sheet**.
 
 Klik **Simpan**.
 
@@ -65,12 +67,12 @@ Buat/edit 2 halaman di WordPress:
 1. Buka `https://hcis.sabilulquran.or.id/`
 2. Input:
    - **Akun**: NIP pegawai (contoh: `123456`)
-   - **Pasword**: No HP (format: `628xxx` atau `08xxx`)
+   - **Password**: No HP (format: `628xxx` atau `08xxx`)
 3. Klik **"Masuk"**
 4. Jika berhasil → redirect ke `/dashboard`
 
 ### Lupa Password Test
-1. Klik **"Lupa pasword?"**
+1. Klik **"Lupa password?"**
 2. Input NIP → Klik **"Kirim"**
 3. Admin HCM akan menerima WA notifikasi
 
@@ -91,7 +93,7 @@ Buat/edit 2 halaman di WordPress:
 2. Halaman `masuk` dan `dashboard` sudah ada
 3. Home page sudah di-set di **Settings → Reading**
 
-### ❌ Tombol "Lupa pasword" tidak kirim WA
+### ❌ Tombol "Lupa password" tidak kirim WA
 **Cek**:
 1. **Settings → HCIS.YSQ** → Admin WhatsApp & Token sudah diisi
 2. Token Starsender valid dan aktif
@@ -99,7 +101,7 @@ Buat/edit 2 halaman di WordPress:
 
 ### ❌ Form Pelatihan (GAS) tidak redirect
 **Cek**:
-1. **Settings → HCIS.YSQ** → Default GAS URL sudah diisi
+1. **Settings → HCIS.YSQ** → Training → Web App URL sudah diisi
 2. Google Apps Script deployed sebagai "Web app" (Execute as: Me, Access: Anyone)
 
 ---
