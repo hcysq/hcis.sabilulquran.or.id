@@ -38,9 +38,22 @@ class Admin {
     <?php
   }
 
+  /**
+   * Render the view for the new "Portal HCIS" admin page.
+   */
+  public static function render_admin_portal_page() {
+    if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) return;
+
+    self::render_settings_interface();
+  }
+
   public static function render(){
     if (!current_user_can('manage_options')) return;
 
+    self::render_settings_interface();
+  }
+
+  private static function render_settings_interface() {
     // handle POST
     $msg = '';
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
