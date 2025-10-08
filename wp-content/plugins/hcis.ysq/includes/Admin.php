@@ -4,14 +4,38 @@ namespace HCISYSQ;
 if (!defined('ABSPATH')) exit;
 
 class Admin {
-  public static function menu(){
-    add_management_page(
+  public static function menu() {
+    // 1. Keep the old settings page, but hook it to 'add_options_page' for consistency.
+    add_options_page(
       'HCIS.YSQ Settings',
       'HCIS.YSQ Settings',
       'manage_options',
       'hcisysq-settings',
-      [__CLASS__,'render']
+      [__CLASS__, 'render']
     );
+
+    // 2. Add the new main admin portal page.
+    add_menu_page(
+      'Portal HCIS',
+      'Portal HCIS',
+      'manage_hcis_portal',
+      'hcis-admin-portal',
+      [__CLASS__, 'render_admin_portal_page'],
+      'dashicons-groups',
+      25
+    );
+  }
+
+  /**
+   * Render the view for the new "Portal HCIS" admin page.
+   */
+  public static function render_admin_portal_page() {
+    ?>
+    <div class="wrap">
+      <h1>Welcome to the HCIS Portal</h1>
+      <p>This is the new, secure dashboard for HCIS Administrators. All management features will be migrated here.</p>
+    </div>
+    <?php
   }
 
   public static function render(){
