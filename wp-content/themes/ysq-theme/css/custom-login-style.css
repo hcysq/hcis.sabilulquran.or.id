@@ -1,0 +1,55 @@
+body.login {
+    background-color: #f1f1f1;
+    background-image: url('../assets/bg.jpg'); /* Pastikan path ke bg.jpg benar */
+    background-size: cover;
+    background-position: center;
+}
+
+#login h1 a {
+    background-image: url('../assets/logo.png'); /* Pastikan path ke logo.png benar */
+    width: 200px;
+    height: 100px;
+    background-size: contain;
+    background-position: center;
+}
+
+#loginform, .login form {
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.login form input[type="text"],
+.login form input[type="password"] {
+    border-radius: 4px;
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+.login form input[type="submit"] {
+    background-color: #2271b1;
+    border-radius: 4px;
+    border: none;
+    padding: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    width: 100%;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.login form input[type="submit"]:hover {
+    background-color: #135e96;
+}
+
+.login #nav, .login #backtoblog {
+    text-align: center;
+}
+
+.login #nav a, .login #backtoblog a {
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.login #nav a:hover, .login #backtoblog a:hover {
+    color: #eee;
+}
