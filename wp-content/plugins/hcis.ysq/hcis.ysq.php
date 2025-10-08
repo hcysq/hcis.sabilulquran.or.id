@@ -168,54 +168,52 @@ add_action('template_redirect', function () {
 });
 
 /* =======================================================
- *  Login redirect overrides
+ *  Login redirect & wp-admin guard overrides
  * ======================================================= */
-if (!function_exists('hcisysq_custom_login_redirect')) {
-  /**
-   * Redirect HCIS admin users to the custom admin portal page after login.
-   *
-   * The guard defined in template_redirect above already keeps authenticated
-   * users away from the public homepage, so we only override the login redirect
-   * when the role explicitly matches to avoid conflicts and redirect loops.
-   *
-   * @param string  $redirect_to           Default redirect URL.
-   * @param string  $requested_redirect_to Requested redirect from request.
-   * @param WP_User $user                  Authenticated user object.
-   * @return string
-   */
-  function hcisysq_custom_login_redirect($redirect_to, $requested_redirect_to, $user) {
-    if ($user && !is_wp_error($user) && isset($user->roles) && is_array($user->roles)) {
-      if (in_array('hcis_admin', $user->roles, true)) {
-        return admin_url('admin.php?page=hcis-admin-portal');
-      }
-    }
 
-    return $redirect_to;
+/**
+ * Mengarahkan pengguna ke halaman yang benar setelah login berdasarkan peran mereka.
+ *
+ * @param string   $redirect_to           URL default untuk pengalihan.
+ * @param string   $requested_redirect_to URL yang diminta pengguna (jika ada).
+ * @param WP_User  $user                  Objek pengguna yang sedang login.
+ * @return string  URL pengalihan yang sudah dimodifikasi.
+ */
+function hcisysq_custom_login_redirect($redirect_to, $requested_redirect_to, $user) {
+  // Periksa apakah pengguna memiliki peran 'hcis_admin'
+  if ($user && !is_wp_error($user) && isset($user->roles) && is_array($user->roles)) {
+    if (in_array('hcis_admin', $user->roles, true)) {
+      // Arahkan ke halaman /dashboard di frontend
+      return home_url('/dashboard');
+    }
   }
+
+  // Kembalikan ke tujuan default untuk pengguna lain
+  return $redirect_to;
 }
 add_filter('login_redirect', 'hcisysq_custom_login_redirect', 10, 3);
 
-/**
- * Hides irrelevant admin menus for the 'hcis_admin' role.
- */
-function hcisysq_hide_admin_menus() {
-  $user = wp_get_current_user();
 
-  if (in_array('hcis_admin', (array) $user->roles, true)) {
-    remove_menu_page('index.php');               // Dashboard
-    remove_menu_page('edit.php');                // Posts
-    remove_menu_page('upload.php');              // Media
-    remove_menu_page('edit.php?post_type=page'); // Pages
-    remove_menu_page('edit-comments.php');       // Comments
-    remove_menu_page('themes.php');              // Appearance
-    remove_menu_page('plugins.php');             // Plugins
-    remove_menu_page('users.php');               // Users
-    remove_menu_page('tools.php');               // Tools
-    remove_menu_page('options-general.php');     // Settings
-    remove_menu_page('profile.php');             // Profile
+/**
+ * Memblokir akses ke area /wp-admin untuk peran 'hcis_admin'
+ * dan mengalihkan mereka ke /dashboard.
+ * Ini menggantikan fungsi hcisysq_hide_admin_menus yang lama.
+ */
+function hcisysq_block_wp_admin_access() {
+  // Jalankan hanya di area admin dan bukan untuk request AJAX
+  if (is_admin() && !wp_doing_ajax()) {
+    // Dapatkan info pengguna saat ini
+    $user = wp_get_current_user();
+
+    // Kondisi: Punya peran 'hcis_admin' TAPI BUKAN 'administrator'
+    if (in_array('hcis_admin', (array) $user->roles, true) && !in_array('administrator', (array) $user->roles, true)) {
+      // Alihkan paksa ke halaman dashboard frontend
+      wp_redirect(home_url('/dashboard'));
+      exit;
+    }
   }
 }
-add_action('admin_menu', 'hcisysq_hide_admin_menus', 999);
+add_action('admin_init', 'hcisysq_block_wp_admin_access');
 
 /* =======================================================
  *  Selesai
