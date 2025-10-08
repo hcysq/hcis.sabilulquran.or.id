@@ -113,7 +113,7 @@ const nonce = (window.hcisysq && hcisysq.nonce) ? hcisysq.nonce : '';
 - [ ] Klik "Keluar" → redirect ke `/`
 
 ### 3. Lupa Password
-- [ ] Klik "Lupa pasword?" di form login
+- [ ] Klik "Lupa password?" di form login
 - [ ] Input NIP → klik "Kirim"
 - [ ] Verifikasi: Response 200 OK dengan pesan sukses/gagal (bukan 400)
 - [ ] Admin HCM menerima notifikasi WA (jika konfigurasi benar)
@@ -129,7 +129,7 @@ const nonce = (window.hcisysq && hcisysq.nonce) ? hcisysq.nonce : '';
 
 ### 6. Settings
 - [ ] Admin → Tools → HCIS.YSQ Settings
-- [ ] Isi field: Admin WhatsApp, WA Token, GAS URL
+- [ ] Isi field: Admin WhatsApp, WA Token, HCIS GAS API Key
 - [ ] Klik "Simpan" → verifikasi tersimpan di `wp_options`
 
 ---

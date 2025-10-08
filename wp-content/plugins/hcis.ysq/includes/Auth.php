@@ -202,13 +202,13 @@ class Auth {
     $plain_pass = trim(strval($plain_pass));
 
     if ($account === '' || $plain_pass === '') {
-      return ['ok' => false, 'msg' => 'Akun & Pasword wajib diisi'];
+      return ['ok' => false, 'msg' => 'Akun & Password wajib diisi'];
     }
 
     $adminSettings = self::get_admin_settings();
     if (strcasecmp($account, $adminSettings['username']) === 0) {
       if (!password_verify($plain_pass, $adminSettings['password_hash'])) {
-        return ['ok' => false, 'msg' => 'Pasword administrator salah.'];
+        return ['ok' => false, 'msg' => 'Password administrator salah.'];
       }
 
       self::store_session([
@@ -254,7 +254,7 @@ class Auth {
     }
 
     if (!$passOk) {
-      return ['ok'=>false, 'msg'=>'Pasword salah. Gunakan nomor HP sebagai pasword.'];
+      return ['ok'=>false, 'msg'=>'Password salah. Gunakan nomor HP sebagai password.'];
     }
 
     self::store_session([

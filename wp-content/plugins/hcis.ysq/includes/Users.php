@@ -24,17 +24,21 @@ class Users {
 
   /** Build URL CSV dari Sheet ID + Tab Name */
   public static function get_csv_url(){
-    $sid = self::get_sheet_id();
-    if (!$sid) return '';
+    return self::build_csv_url(self::get_sheet_id(), self::get_tab_name());
+  }
 
-    // Dapatkan gid dari nama tab (API Sheet v4)
-    // Untuk sederhana, asumsi tab "User" = gid 0, atau kita bisa query API
-    // Tapi cara paling mudah: gunakan publish to web format dengan gid manual
-    // Format: https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}
+  /**
+   * Build URL CSV menggunakan endpoint gviz sehingga bisa pakai nama tab langsung.
+   * https://docs.google.com/spreadsheets/d/<SID>/gviz/tq?tqx=out:csv&sheet=<TAB>
+   */
+  public static function build_csv_url($sheet_id, $tab_name = 'User'){
+    $sheet_id = trim((string)$sheet_id);
+    if (!$sheet_id) return '';
 
-    // Alternatif: user harus publish to web dulu, lalu kasih URL lengkap
-    // Untuk sekarang kita return format manual
-    return "https://docs.google.com/spreadsheets/d/{$sid}/export?format=csv&gid=0";
+    $tab_name = $tab_name !== '' ? $tab_name : 'User';
+    $encoded_tab = rawurlencode($tab_name);
+
+    return "https://docs.google.com/spreadsheets/d/{$sheet_id}/gviz/tq?tqx=out:csv&sheet={$encoded_tab}";
   }
 
   /** Map header → index (case-insensitive) */
@@ -69,6 +73,13 @@ class Users {
     }
     $body = wp_remote_retrieve_body($resp);
     if (!$body) return ['ok'=>false,'msg'=>'Body kosong'];
+
+    if (stripos($body, 'Cannot find range or sheet') !== false) {
+      return ['ok'=>false,'msg'=>'Tab Google Sheet tidak ditemukan. Periksa nama tab.'];
+    }
+    if (preg_match('/<html/i', $body)) {
+      return ['ok'=>false,'msg'=>'Respon bukan CSV. Pastikan sheet dapat diakses publik.'];
+    }
 
     // Parse CSV
     $fh = fopen('php://temp','rw');

@@ -164,6 +164,53 @@ function testPost() {
     },
   };
 
+  const spreadsheet = SpreadsheetApp.openById(dummy.sheetId);
+  const existingSheet = spreadsheet.getSheetByName(dummy.tabName);
+  const beforeRows = existingSheet ? existingSheet.getLastRow() : 0;
+
   const result = doPost({ postData: { contents: JSON.stringify(dummy) } });
-  Logger.log(result.getContent());
+  const raw = result && typeof result.getContent === 'function' ? result.getContent() : '';
+  if (!raw) {
+    throw new Error('Response kosong dari doPost');
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error('Response bukan JSON: ' + raw);
+  }
+
+  if (!parsed.ok) {
+    throw new Error('doPost mengembalikan error: ' + (parsed.msg || raw));
+  }
+
+  const sheetAfter = spreadsheet.getSheetByName(dummy.tabName);
+  if (!sheetAfter) {
+    throw new Error('Sheet tidak ditemukan setelah doPost dijalankan');
+  }
+
+  const afterRows = sheetAfter.getLastRow();
+  const insertedRowIndex = afterRows;
+
+  if (existingSheet) {
+    if (afterRows !== beforeRows + 1) {
+      throw new Error('Baris baru tidak ditambahkan. Sebelum: ' + beforeRows + ', sesudah: ' + afterRows);
+    }
+  } else if (afterRows < 2) {
+    throw new Error('Sheet baru tidak berisi data yang diharapkan. Jumlah baris: ' + afterRows);
+  }
+
+  const latestRow = sheetAfter.getRange(insertedRowIndex, 1, 1, REQUIRED_HEADERS.length).getValues()[0];
+  const [nama, jabatan, unitKerja] = latestRow;
+  const expectedNama = (dummy.entry.nama || '').toString();
+  const expectedJabatan = (dummy.entry.jabatan || '').toString();
+  const expectedUnit = (dummy.entry.unit_kerja || '').toString();
+  if (nama !== expectedNama || jabatan !== expectedJabatan || unitKerja !== expectedUnit) {
+    throw new Error('Data baris terakhir tidak sesuai dengan payload dummy.');
+  }
+
+  sheetAfter.deleteRow(insertedRowIndex);
+
+  Logger.log('testPost sukses. Link bukti: ' + (parsed.link || '(kosong)'));
 }
