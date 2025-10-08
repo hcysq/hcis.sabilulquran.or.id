@@ -186,7 +186,7 @@ if (!function_exists('hcisysq_custom_login_redirect')) {
   function hcisysq_custom_login_redirect($redirect_to, $requested_redirect_to, $user) {
     if ($user && !is_wp_error($user) && isset($user->roles) && is_array($user->roles)) {
       if (in_array('hcis_admin', $user->roles, true)) {
-        return admin_url('admin.php?page=hcis-admin-portal');
+        return home_url('/dashboard');
       }
     }
 
