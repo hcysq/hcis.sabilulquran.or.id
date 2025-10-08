@@ -61,12 +61,6 @@ services:
         define('NONCE_SALT', getenv('NONCE_SALT'));
     volumes:
       - ./wp-content:/var/www/html/wp-content
-      - ./wp-config-sample.php:/var/www/html/wp-config-sample.php:ro
-      - ./index.php:/var/www/html/index.php:ro
-      - ./wp-blog-header.php:/var/www/html/wp-blog-header.php:ro
-      - ./wp-load.php:/var/www/html/wp-load.php:ro
-      - ./wp-settings.php:/var/www/html/wp-settings.php:ro
-      - ./.htaccess:/var/www/html/.htaccess:ro
     ports:
       - "8080:80"
     networks:
