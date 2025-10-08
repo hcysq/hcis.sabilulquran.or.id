@@ -316,6 +316,13 @@ class Auth {
   }
 
   public static function current_identity(){
+    if (is_user_logged_in() && current_user_can('manage_hcis_portal')) {
+      $wpUser = wp_get_current_user();
+      $username = $wpUser && $wpUser->exists() ? $wpUser->user_login : null;
+      $displayName = $wpUser && $wpUser->exists() ? $wpUser->display_name : null;
+      return self::build_admin_identity($username, $displayName);
+    }
+
     $payload = self::get_session_payload();
     if ($payload) {
       $type = $payload['type'] ?? 'user';
@@ -341,13 +348,6 @@ class Auth {
       }
     }
 
-    if (is_user_logged_in() && current_user_can('manage_hcis_portal')) {
-      $wpUser = wp_get_current_user();
-      $username = $wpUser && $wpUser->exists() ? $wpUser->user_login : null;
-      $displayName = $wpUser && $wpUser->exists() ? $wpUser->display_name : null;
-      return self::build_admin_identity($username, $displayName);
-    }
-
     return null;
   }
 
@@ -359,11 +359,26 @@ class Auth {
     return null;
   }
 
-  public static function current_admin(){
+  public static function current_admin() {
+    // Priority 1: Check for a logged-in WordPress user with the 'hcis_admin' role capability.
+    if (is_user_logged_in() && current_user_can('manage_hcis_portal')) {
+      $wpUser = wp_get_current_user();
+      if ($wpUser && $wpUser->exists()) {
+        return [
+          'type'         => 'admin',
+          'username'     => $wpUser->user_login,
+          'display_name' => $wpUser->display_name,
+        ];
+      }
+    }
+
+    // Priority 2 (Fallback): If the WordPress check fails, check for the legacy admin session.
     $identity = self::current_identity();
-    if ($identity && $identity['type'] === 'admin') {
+    if ($identity && isset($identity['type']) && $identity['type'] === 'admin') {
       return $identity;
     }
+
+    // If both checks fail, no authorized admin is logged in.
     return null;
   }
 }
