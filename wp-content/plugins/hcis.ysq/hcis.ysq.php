@@ -184,16 +184,9 @@ if (!function_exists('hcisysq_custom_login_redirect')) {
    * @return string
    */
   function hcisysq_custom_login_redirect($redirect_to, $requested_redirect_to, $user) {
-    if (!$user || is_wp_error($user)) {
-      return $redirect_to;
-    }
-
-    $roles = is_object($user) && property_exists($user, 'roles') ? (array) $user->roles : [];
-    if (in_array('hcis_admin', $roles, true)) {
-      $target = admin_url('admin.php?page=hcis-admin-portal');
-      // Prevent loops if WordPress already intends to send the user there.
-      if (empty($requested_redirect_to) || $requested_redirect_to === $redirect_to || $requested_redirect_to === $target) {
-        return $target;
+    if ($user && !is_wp_error($user) && isset($user->roles) && is_array($user->roles)) {
+      if (in_array('hcis_admin', $user->roles, true)) {
+        return admin_url('admin.php?page=hcis-admin-portal');
       }
     }
 
@@ -201,6 +194,28 @@ if (!function_exists('hcisysq_custom_login_redirect')) {
   }
 }
 add_filter('login_redirect', 'hcisysq_custom_login_redirect', 10, 3);
+
+/**
+ * Hides irrelevant admin menus for the 'hcis_admin' role.
+ */
+function hcisysq_hide_admin_menus() {
+  $user = wp_get_current_user();
+
+  if (in_array('hcis_admin', (array) $user->roles, true)) {
+    remove_menu_page('index.php');               // Dashboard
+    remove_menu_page('edit.php');                // Posts
+    remove_menu_page('upload.php');              // Media
+    remove_menu_page('edit.php?post_type=page'); // Pages
+    remove_menu_page('edit-comments.php');       // Comments
+    remove_menu_page('themes.php');              // Appearance
+    remove_menu_page('plugins.php');             // Plugins
+    remove_menu_page('users.php');               // Users
+    remove_menu_page('tools.php');               // Tools
+    remove_menu_page('options-general.php');     // Settings
+    remove_menu_page('profile.php');             // Profile
+  }
+}
+add_action('admin_menu', 'hcisysq_hide_admin_menus', 999);
 
 /* =======================================================
  *  Selesai
