@@ -22,10 +22,6 @@ project/
 ├── 📄 license.txt                    ← WordPress license
 ├── 📄 readme.html                    ← WordPress readme
 │
-├── 📂 supabase/                      ← Supabase integration (optional)
-│   └── migrations/
-│       └── 20251005092540_create_secrets_table.sql
-│
 └── 📂 wp-content/                    ← WordPress content directory
     │
     ├── 📄 index.php                  ← Security: prevents directory listing
