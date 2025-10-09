@@ -895,7 +895,514 @@
     }
   }
 
+  const employeeColumns = [
+    { key: 'nip', label: 'NIP', readonly: true },
+    { key: 'nama', label: 'Nama' },
+    { key: 'unit', label: 'Unit Kerja' },
+    { key: 'jabatan', label: 'Jabatan' },
+    { key: 'tempat_lahir', label: 'Tempat Lahir' },
+    { key: 'tanggal_lahir', label: 'Tanggal Lahir' },
+    { key: 'alamat_ktp', label: 'Alamat', multiline: true, rows: 3 },
+    { key: 'desa', label: 'Desa/Kel.' },
+    { key: 'kecamatan', label: 'Kecamatan' },
+    { key: 'kota', label: 'Kota/Kab.' },
+    { key: 'kode_pos', label: 'Kode Pos' },
+    { key: 'hp', label: 'No. HP', inputType: 'tel' },
+    { key: 'email', label: 'Email', inputType: 'email' },
+    { key: 'tmt', label: 'TMT' },
+  ];
+
+  const employeeModule = {
+    container: null,
+    tableWrap: null,
+    placeholder: null,
+    message: null,
+    summary: null,
+    searchInput: null,
+    table: null,
+    tbody: null,
+    loading: false,
+    loaded: false,
+    loadingPromise: null,
+    all: [],
+    filtered: [],
+    index: new Map(),
+    searchTerm: '',
+  };
+
+  function normalizeProfileRecord(raw) {
+    if (!raw || typeof raw !== 'object') {
+      return { nip: '' };
+    }
+    const read = (value) => {
+      if (value === null || value === undefined) return '';
+      return String(value).trim();
+    };
+    const profile = {
+      id: raw.id ? String(raw.id) : '',
+      nip: read(raw.nip),
+      updated_at: read(raw.updated_at),
+    };
+    employeeColumns.forEach((column) => {
+      if (column.key === 'nip') return;
+      profile[column.key] = read(raw[column.key]);
+    });
+    if (!profile.nip && raw.nip) {
+      profile.nip = read(raw.nip);
+    }
+    return profile;
+  }
+
+  function setEmployeePlaceholder(text, visible) {
+    if (!employeeModule.placeholder) return;
+    if (typeof text === 'string') {
+      employeeModule.placeholder.textContent = text;
+    }
+    employeeModule.placeholder.hidden = !visible;
+  }
+
+  function setEmployeeMessage(text, type) {
+    const node = employeeModule.message;
+    if (!node) return;
+    const content = text || '';
+    node.textContent = content;
+    node.classList.remove('is-error', 'is-ok', 'is-info');
+    if (!content) {
+      node.hidden = true;
+      return;
+    }
+    node.hidden = false;
+    if (type === 'error') {
+      node.classList.add('is-error');
+    } else if (type === 'ok') {
+      node.classList.add('is-ok');
+    } else if (type === 'info') {
+      node.classList.add('is-info');
+    }
+  }
+
+  function ensureEmployeeTable() {
+    if (employeeModule.table || !employeeModule.tableWrap) {
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'hcisysq-employee-table';
+
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+
+    const numberTh = document.createElement('th');
+    numberTh.scope = 'col';
+    numberTh.textContent = 'No.';
+    headerRow.appendChild(numberTh);
+
+    employeeColumns.forEach((column) => {
+      const th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = column.label;
+      headerRow.appendChild(th);
+    });
+
+    const actionsTh = document.createElement('th');
+    actionsTh.scope = 'col';
+    actionsTh.textContent = 'Aksi';
+    headerRow.appendChild(actionsTh);
+
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    table.appendChild(tbody);
+
+    employeeModule.tableWrap.appendChild(table);
+    employeeModule.table = table;
+    employeeModule.tbody = tbody;
+  }
+
+  function updateEmployeeSummary() {
+    if (!employeeModule.summary) return;
+    if (!employeeModule.loaded) {
+      employeeModule.summary.textContent = '';
+      return;
+    }
+    const total = employeeModule.all.length;
+    const filtered = employeeModule.filtered.length;
+    const term = employeeModule.searchTerm.trim();
+    if (!term) {
+      employeeModule.summary.textContent = `${total} pegawai`;
+    } else {
+      employeeModule.summary.textContent = `${filtered} dari ${total} pegawai`;
+    }
+  }
+
+  function buildEmployeeRow(profile, index) {
+    const row = document.createElement('tr');
+    row.className = 'hcisysq-employee-row';
+    row.dataset.nip = profile.nip || '';
+
+    const numberCell = document.createElement('td');
+    numberCell.className = 'hcisysq-employee-col--number';
+    numberCell.textContent = String(index + 1);
+    row.appendChild(numberCell);
+
+    employeeColumns.forEach((column) => {
+      const cell = document.createElement('td');
+      cell.dataset.key = column.key;
+      if (column.multiline) {
+        cell.classList.add('is-multiline');
+      }
+      const value = profile[column.key] || '';
+      cell.textContent = value !== '' ? value : '—';
+      row.appendChild(cell);
+    });
+
+    const actions = document.createElement('td');
+    actions.className = 'hcisysq-employee-actions';
+    actions.dataset.role = 'employee-actions';
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'btn-link';
+    editBtn.dataset.employeeAction = 'edit';
+    editBtn.textContent = 'Edit';
+    actions.appendChild(editBtn);
+    row.appendChild(actions);
+
+    return row;
+  }
+
+  function renderEmployeeRows() {
+    ensureEmployeeTable();
+    if (!employeeModule.tbody) return;
+
+    setEmployeePlaceholder('', false);
+    employeeModule.tbody.innerHTML = '';
+    const list = employeeModule.filtered;
+
+    if (!list.length) {
+      const emptyRow = document.createElement('tr');
+      const emptyCell = document.createElement('td');
+      emptyCell.colSpan = employeeColumns.length + 2;
+      emptyCell.className = 'hcisysq-employee-empty';
+      emptyCell.textContent = employeeModule.searchTerm.trim()
+        ? 'Tidak ada pegawai yang cocok dengan pencarian.'
+        : 'Belum ada data pegawai.';
+      emptyRow.appendChild(emptyCell);
+      employeeModule.tbody.appendChild(emptyRow);
+      updateEmployeeSummary();
+      return;
+    }
+
+    list.forEach((profile, index) => {
+      employeeModule.tbody.appendChild(buildEmployeeRow(profile, index));
+    });
+
+    updateEmployeeSummary();
+  }
+
+  function recalcEmployeeFiltered() {
+    const term = employeeModule.searchTerm.trim().toLowerCase();
+    if (!term) {
+      employeeModule.filtered = employeeModule.all.slice();
+      return;
+    }
+    const tokens = term.split(/\s+/).filter(Boolean);
+    employeeModule.filtered = employeeModule.all.filter((profile) => {
+      const haystack = [
+        profile.nip,
+        profile.nama,
+        profile.unit,
+        profile.jabatan,
+        profile.hp,
+        profile.email,
+        profile.kota,
+        profile.kecamatan,
+        profile.desa,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return tokens.every((token) => haystack.includes(token));
+    });
+  }
+
+  function focusEmployeeRow(nip) {
+    if (!employeeModule.tbody || !nip) return;
+    const rows = Array.from(employeeModule.tbody.querySelectorAll('tr[data-nip]'));
+    const target = rows.find((item) => item.dataset.nip === nip);
+    if (!target) return;
+    target.classList.add('is-updated');
+    target.scrollIntoView({ block: 'nearest' });
+    window.setTimeout(() => {
+      target.classList.remove('is-updated');
+    }, 1500);
+  }
+
+  function enterEmployeeEdit(nip) {
+    const profile = employeeModule.index.get(nip);
+    if (!profile) return;
+    setEmployeeMessage('', null);
+    renderEmployeeRows();
+    if (!employeeModule.tbody) return;
+
+    const row = Array.from(employeeModule.tbody.querySelectorAll('tr[data-nip]')).find((item) => item.dataset.nip === nip);
+    if (!row) return;
+
+    row.classList.add('is-editing');
+    employeeColumns.forEach((column) => {
+      if (column.readonly) return;
+      const cell = row.querySelector(`[data-key="${column.key}"]`);
+      if (!cell) return;
+      const input = column.multiline ? document.createElement('textarea') : document.createElement('input');
+      if (column.multiline) {
+        input.rows = column.rows || 3;
+      } else {
+        input.type = column.inputType || 'text';
+      }
+      input.value = profile[column.key] || '';
+      input.className = 'hcisysq-employee-input' + (column.multiline ? ' hcisysq-employee-input--textarea' : '');
+      input.dataset.field = column.key;
+      input.setAttribute('aria-label', column.label);
+      if (column.placeholder) {
+        input.placeholder = column.placeholder;
+      }
+      cell.textContent = '';
+      cell.appendChild(input);
+    });
+
+    const actions = row.querySelector('[data-role="employee-actions"]');
+    if (actions) {
+      actions.innerHTML = '';
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'btn-primary';
+      saveBtn.dataset.employeeAction = 'save';
+      saveBtn.textContent = 'Simpan';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'btn-light';
+      cancelBtn.dataset.employeeAction = 'cancel';
+      cancelBtn.textContent = 'Batal';
+      actions.appendChild(saveBtn);
+      actions.appendChild(cancelBtn);
+    }
+
+    const firstField = row.querySelector('input, textarea');
+    if (firstField) {
+      window.requestAnimationFrame(() => {
+        try {
+          firstField.focus();
+        } catch (err) {
+          /* ignore */
+        }
+      });
+    }
+  }
+
+  function saveEmployeeRow(row, nip, trigger) {
+    const profile = employeeModule.index.get(nip);
+    if (!profile) return;
+
+    const payload = { nip };
+    employeeColumns.forEach((column) => {
+      if (column.readonly) return;
+      const field = row.querySelector(`[data-field="${column.key}"]`);
+      if (!field) return;
+      const value = typeof field.value === 'string' ? field.value.trim() : '';
+      payload[column.key] = value;
+    });
+
+    const originalText = trigger.textContent;
+    trigger.disabled = true;
+    trigger.textContent = 'Menyimpan…';
+
+    let updatedProfile = null;
+    let successMessage = '';
+
+    shared.ajax('ysq_update_profile', payload)
+      .then((response) => {
+        if (!response || response.success !== true) {
+          const message = response && response.data && response.data.message
+            ? response.data.message
+            : 'Gagal memperbarui profil pegawai.';
+          throw new Error(message);
+        }
+        const data = response.data || {};
+        updatedProfile = normalizeProfileRecord(data.profile || {});
+        if (!updatedProfile.nip) {
+          updatedProfile.nip = nip;
+        }
+        successMessage = data.message || 'Profil pegawai berhasil diperbarui.';
+      })
+      .catch((error) => {
+        const message = error && error.message ? error.message : 'Terjadi kesalahan saat menyimpan profil pegawai.';
+        console.error('Gagal memperbarui profil pegawai:', error);
+        setEmployeeMessage(message, 'error');
+      })
+      .finally(() => {
+        trigger.disabled = false;
+        trigger.textContent = originalText;
+        if (updatedProfile) {
+          employeeModule.index.set(updatedProfile.nip, updatedProfile);
+          let replaced = false;
+          employeeModule.all = employeeModule.all.map((item) => {
+            if (item.nip === updatedProfile.nip) {
+              replaced = true;
+              return updatedProfile;
+            }
+            return item;
+          });
+          if (!replaced) {
+            employeeModule.all.push(updatedProfile);
+          }
+          recalcEmployeeFiltered();
+          renderEmployeeRows();
+          setEmployeeMessage(successMessage, 'ok');
+          focusEmployeeRow(updatedProfile.nip);
+        }
+      });
+  }
+
+  function handleEmployeeActionClick(event) {
+    const button = event.target.closest('button[data-employee-action]');
+    if (!button) return;
+
+    const action = button.dataset.employeeAction;
+    const row = button.closest('tr[data-nip]');
+    if (!row) return;
+    const nip = row.dataset.nip || '';
+    if (!nip) return;
+
+    if (action === 'edit') {
+      enterEmployeeEdit(nip);
+    } else if (action === 'cancel') {
+      renderEmployeeRows();
+      focusEmployeeRow(nip);
+    } else if (action === 'save') {
+      saveEmployeeRow(row, nip, button);
+    }
+  }
+
+  function fetchEmployeeProfiles({ force = false } = {}) {
+    if (employeeModule.loading) {
+      return employeeModule.loadingPromise || Promise.resolve();
+    }
+    if (!force && employeeModule.loaded) {
+      return Promise.resolve(employeeModule.all);
+    }
+
+    employeeModule.loading = true;
+    setEmployeePlaceholder('Memuat data pegawai…', true);
+    setEmployeeMessage('', null);
+
+    const request = shared.ajax('ysq_get_all_profiles', {});
+    employeeModule.loadingPromise = request;
+
+    return request
+      .then((response) => {
+        if (!response || response.success !== true) {
+          const message = response && response.data && response.data.message
+            ? response.data.message
+            : 'Gagal memuat data pegawai.';
+          console.error(message);
+          setEmployeeMessage(message, 'error');
+          if (!employeeModule.loaded) {
+            setEmployeePlaceholder(message, true);
+          }
+          return;
+        }
+
+        const list = Array.isArray(response.data && response.data.profiles)
+          ? response.data.profiles
+          : [];
+        const normalized = list.map(normalizeProfileRecord).filter((item) => item.nip);
+        employeeModule.all = normalized;
+        employeeModule.index = new Map(normalized.map((item) => [item.nip, item]));
+        employeeModule.loaded = true;
+        recalcEmployeeFiltered();
+        renderEmployeeRows();
+        if (!normalized.length) {
+          setEmployeeMessage('Belum ada data pegawai yang tersedia.', 'info');
+        } else {
+          setEmployeeMessage('', null);
+        }
+      })
+      .catch((error) => {
+        console.error('Gagal memuat data pegawai:', error);
+        const message = 'Terjadi kesalahan saat memuat data pegawai.';
+        setEmployeeMessage(message, 'error');
+        if (!employeeModule.loaded) {
+          setEmployeePlaceholder(message, true);
+        }
+      })
+      .finally(() => {
+        employeeModule.loading = false;
+        employeeModule.loadingPromise = null;
+      });
+  }
+
+  function bootEmployeesModule() {
+    employeeModule.container = document.getElementById('employee-data');
+    if (!employeeModule.container) return;
+
+    employeeModule.tableWrap = employeeModule.container.querySelector('[data-role="employee-table"]');
+    employeeModule.placeholder = employeeModule.container.querySelector('[data-role="employee-placeholder"]');
+    employeeModule.message = employeeModule.container.querySelector('[data-role="employee-message"]');
+    employeeModule.summary = employeeModule.container.querySelector('[data-role="employee-summary"]');
+    employeeModule.searchInput = employeeModule.container.querySelector('[data-role="employee-search"]');
+
+    if (employeeModule.message) {
+      employeeModule.message.hidden = true;
+    }
+
+    if (employeeModule.tableWrap) {
+      employeeModule.tableWrap.addEventListener('click', handleEmployeeActionClick);
+    }
+
+    if (employeeModule.searchInput) {
+      employeeModule.searchInput.addEventListener('input', (event) => {
+        const value = typeof event.target.value === 'string' ? event.target.value : '';
+        employeeModule.searchTerm = value;
+        recalcEmployeeFiltered();
+        renderEmployeeRows();
+        if (value.trim()) {
+          setEmployeeMessage('', null);
+        }
+      });
+    }
+
+    const nav = document.querySelector('[data-admin-nav]');
+    if (nav) {
+      const navLink = nav.querySelector('a[data-view="pegawai"]');
+      if (navLink) {
+        navLink.addEventListener('click', () => {
+          window.requestAnimationFrame(() => {
+            if (!employeeModule.loaded && !employeeModule.loading) {
+              fetchEmployeeProfiles();
+            }
+          });
+        });
+      }
+    }
+
+    const section = employeeModule.container.closest('.hcisysq-admin-view');
+    if (section) {
+      const observer = new MutationObserver(() => {
+        if (section.classList.contains('is-active') && !employeeModule.loaded && !employeeModule.loading) {
+          fetchEmployeeProfiles();
+        }
+      });
+      observer.observe(section, { attributes: true, attributeFilter: ['class'] });
+      if (section.classList.contains('is-active')) {
+        fetchEmployeeProfiles();
+      }
+    } else {
+      fetchEmployeeProfiles();
+    }
+  }
+
   function boot() {
+    bootEmployeesModule();
     dom.form = document.getElementById('hcisysq-task-form');
     if (!dom.form) return;
 

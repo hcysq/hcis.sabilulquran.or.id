@@ -121,6 +121,8 @@ add_action('wp_ajax_hcisysq_admin_delete_task', ['HCISYSQ\\Api', 'admin_delete_t
 add_action('wp_ajax_hcisysq_admin_set_task_status', ['HCISYSQ\\Api', 'admin_set_task_status']);
 add_action('wp_ajax_hcisysq_admin_update_assignment', ['HCISYSQ\\Api', 'admin_update_assignment']);
 add_action('wp_ajax_ysq_get_employees_by_units', ['HCISYSQ\\Api', 'ysq_get_employees_by_units']);
+add_action('wp_ajax_ysq_get_all_profiles', ['HCISYSQ\\Api', 'ysq_api_get_all_profiles']);
+add_action('wp_ajax_ysq_update_profile', ['HCISYSQ\\Api', 'ysq_api_update_profile']);
 add_action('wp_ajax_hcisysq_reset_password', ['HCISYSQ\\Api', 'reset_password']);
 add_action('wp_ajax_nopriv_hcisysq_reset_password', ['HCISYSQ\\Api', 'reset_password']);
 

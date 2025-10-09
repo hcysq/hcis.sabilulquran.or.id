@@ -241,6 +241,161 @@ class Api {
     return array_keys($result);
   }
 
+  public static function ysq_api_get_all_profiles(){
+    self::check_nonce();
+    self::require_admin();
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'hcisysq_profiles';
+    $results = $wpdb->get_results("SELECT * FROM $table ORDER BY nama ASC");
+    if (!is_array($results)) {
+      $results = [];
+    }
+
+    $to_string = static function($value){
+      if ($value === null) {
+        return '';
+      }
+      return trim((string) $value);
+    };
+
+    $profiles = array_map(static function($row) use ($to_string){
+      return [
+        'id'            => isset($row->id) ? (int) $row->id : 0,
+        'nip'           => $to_string($row->nip ?? ''),
+        'nama'          => $to_string($row->nama ?? ''),
+        'unit'          => $to_string($row->unit ?? ''),
+        'jabatan'       => $to_string($row->jabatan ?? ''),
+        'tempat_lahir'  => $to_string($row->tempat_lahir ?? ''),
+        'tanggal_lahir' => $to_string($row->tanggal_lahir ?? ''),
+        'alamat_ktp'    => $to_string($row->alamat_ktp ?? ''),
+        'desa'          => $to_string($row->desa ?? ''),
+        'kecamatan'     => $to_string($row->kecamatan ?? ''),
+        'kota'          => $to_string($row->kota ?? ''),
+        'kode_pos'      => $to_string($row->kode_pos ?? ''),
+        'email'         => $to_string($row->email ?? ''),
+        'hp'            => $to_string($row->hp ?? ''),
+        'tmt'           => $to_string($row->tmt ?? ''),
+        'updated_at'    => $to_string($row->updated_at ?? ''),
+      ];
+    }, $results);
+
+    wp_send_json_success([
+      'profiles' => $profiles,
+      'count'    => count($profiles),
+    ]);
+  }
+
+  public static function ysq_api_update_profile(){
+    self::check_nonce();
+    self::require_admin();
+
+    $nip = isset($_POST['nip']) ? sanitize_text_field(wp_unslash($_POST['nip'])) : '';
+    if ($nip === '') {
+      wp_send_json_error(['message' => __('NIP wajib diisi.', 'hcisysq')], 400);
+    }
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'hcisysq_profiles';
+    $existing = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE nip = %s", $nip));
+    if (!$existing) {
+      wp_send_json_error(['message' => __('Data profil tidak ditemukan.', 'hcisysq')], 404);
+    }
+
+    $allowedFields = [
+      'nama',
+      'unit',
+      'jabatan',
+      'tempat_lahir',
+      'tanggal_lahir',
+      'alamat_ktp',
+      'desa',
+      'kecamatan',
+      'kota',
+      'kode_pos',
+      'email',
+      'hp',
+      'tmt',
+    ];
+
+    $data = [];
+    foreach ($allowedFields as $field) {
+      if (!array_key_exists($field, $_POST)) {
+        continue;
+      }
+      $raw = wp_unslash($_POST[$field]);
+      if ($field === 'alamat_ktp') {
+        $value = sanitize_textarea_field($raw);
+      } elseif ($field === 'email') {
+        $value = sanitize_email($raw);
+      } else {
+        $value = sanitize_text_field($raw);
+      }
+      $data[$field] = $value;
+    }
+
+    if (empty($data)) {
+      wp_send_json_error(['message' => __('Tidak ada perubahan data yang dikirim.', 'hcisysq')], 400);
+    }
+
+    $updated = $wpdb->update(
+      $table,
+      $data,
+      ['nip' => $nip],
+      array_fill(0, count($data), '%s'),
+      ['%s']
+    );
+
+    if ($updated === false) {
+      wp_send_json_error(['message' => __('Gagal memperbarui data pegawai.', 'hcisysq')], 500);
+    }
+
+    $profile = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE nip = %s", $nip));
+    $to_string = static function($value){
+      if ($value === null) {
+        return '';
+      }
+      return trim((string) $value);
+    };
+
+    if (!$profile) {
+      $normalizedFallback = ['nip' => $nip];
+      foreach ($allowedFields as $field) {
+        if (isset($data[$field])) {
+          $normalizedFallback[$field] = $to_string($data[$field]);
+        }
+      }
+      wp_send_json_success([
+        'message' => __('Profil pegawai berhasil diperbarui.', 'hcisysq'),
+        'profile' => $normalizedFallback,
+      ]);
+    }
+
+    $normalized = [
+      'id'            => isset($profile->id) ? (int) $profile->id : 0,
+      'nip'           => $to_string($profile->nip ?? $nip),
+      'nama'          => $to_string($profile->nama ?? ''),
+      'unit'          => $to_string($profile->unit ?? ''),
+      'jabatan'       => $to_string($profile->jabatan ?? ''),
+      'tempat_lahir'  => $to_string($profile->tempat_lahir ?? ''),
+      'tanggal_lahir' => $to_string($profile->tanggal_lahir ?? ''),
+      'alamat_ktp'    => $to_string($profile->alamat_ktp ?? ''),
+      'desa'          => $to_string($profile->desa ?? ''),
+      'kecamatan'     => $to_string($profile->kecamatan ?? ''),
+      'kota'          => $to_string($profile->kota ?? ''),
+      'kode_pos'      => $to_string($profile->kode_pos ?? ''),
+      'email'         => $to_string($profile->email ?? ''),
+      'hp'            => $to_string($profile->hp ?? ''),
+      'tmt'           => $to_string($profile->tmt ?? ''),
+      'updated_at'    => $to_string($profile->updated_at ?? ''),
+    ];
+
+    wp_send_json_success([
+      'message' => __('Profil pegawai berhasil diperbarui.', 'hcisysq'),
+      'profile' => $normalized,
+    ]);
+  }
+
   public static function ysq_get_employees_by_units(){
     self::check_nonce();
     self::require_admin();
