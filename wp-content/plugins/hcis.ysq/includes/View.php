@@ -1037,18 +1037,32 @@ class View {
             >
               <div class="ysq-track hcisysq-running__track" data-role="running-track"></div>
             </div>
-            <section class="hcisysq-card-grid hcisysq-card-grid--2">
-              <article class="hcisysq-card">
-                <h3 class="hcisysq-card-title">Profil Ringkas</h3>
-                <dl class="hcisysq-meta-list">
-                  <?php foreach ($profilRingkasRows as $row): ?>
-                    <div>
-                      <dt><?= esc_html($row['label']) ?></dt>
-                      <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
-                    </div>
-                  <?php endforeach; ?>
-                </dl>
-              </article>
+            <section class="hcisysq-card-grid hcisysq-card-grid--1">
+              <div class="ysq-row">
+                <article class="hcisysq-card">
+                  <h3 class="hcisysq-card-title">Profil Ringkas</h3>
+                  <dl class="hcisysq-meta-list">
+                    <?php foreach ($profilRingkasRows as $row): ?>
+                      <div>
+                        <dt><?= esc_html($row['label']) ?></dt>
+                        <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
+                      </div>
+                    <?php endforeach; ?>
+                  </dl>
+                </article>
+
+                <article class="hcisysq-card">
+                  <h3 class="hcisysq-card-title">Ringkasan Data Kepegawaian</h3>
+                  <dl class="hcisysq-meta-list">
+                    <?php foreach ($kepegawaianRows as $row): ?>
+                      <div>
+                        <dt><?= esc_html($row['label']) ?></dt>
+                        <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
+                      </div>
+                    <?php endforeach; ?>
+                  </dl>
+                </article>
+              </div>
 
               <article class="hcisysq-card">
                 <h3 class="hcisysq-card-title">Publikasi Terbaru</h3>
@@ -1071,18 +1085,6 @@ class View {
                   <p class="hcisysq-publikasi-empty">Belum ada publikasi terbaru.</p>
                 <?php endif; ?>
                 <?php \wp_reset_postdata(); ?>
-              </article>
-
-              <article class="hcisysq-card">
-                <h3 class="hcisysq-card-title">Data Kepegawaian</h3>
-                <dl class="hcisysq-meta-list">
-                  <?php foreach ($kepegawaianRows as $row): ?>
-                    <div>
-                      <dt><?= esc_html($row['label']) ?></dt>
-                      <dd><?= esc_html($row['value'] !== '' ? $row['value'] : '-') ?></dd>
-                    </div>
-                  <?php endforeach; ?>
-                </dl>
               </article>
             </section>
 

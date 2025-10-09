@@ -4,6 +4,26 @@
   if (!shared || !bootstrap) return;
 
   const tasksBootstrap = bootstrap.tasks || {};
+  const announcementsBootstrap = Array.isArray(bootstrap.announcements) ? bootstrap.announcements : [];
+  const homeBootstrap = bootstrap.home || {};
+
+  const announcementsState = {
+    items: announcementsBootstrap.slice(),
+    editingId: '',
+  };
+
+  const defaultHomeOptions = {
+    speed: 1,
+    background: '#ffffff',
+    duplicates: 2,
+    letter_spacing: 0,
+    gap: 32,
+  };
+
+  const homeState = {
+    text: typeof homeBootstrap.marquee_text === 'string' ? homeBootstrap.marquee_text : '',
+    options: Object.assign({}, defaultHomeOptions, homeBootstrap.options || {}),
+  };
   const state = {
     units: [],
     unitMap: new Map(),
@@ -758,7 +778,7 @@
     };
 
     const isEditing = !!state.editingTaskId;
-    const action = isEditing ? 'admin_update_task' : 'admin_create_task';
+    const action = isEditing ? 'hcisysq_admin_update_task' : 'hcisysq_admin_create_task';
     if (isEditing) {
       payload.id = state.editingTaskId;
     }
@@ -819,7 +839,7 @@
     button.textContent = 'Menyimpan…';
     button.disabled = true;
 
-    shared.ajax('admin_update_task', payload)
+    shared.ajax('hcisysq_admin_update_task', payload)
       .then((response) => {
         if (!response || response.ok !== true) {
           const message = response && response.msg ? response.msg : 'Gagal memperbarui tugas.';
@@ -850,7 +870,7 @@
     button.textContent = 'Menghapus…';
     button.disabled = true;
 
-    shared.ajax('admin_delete_task', { id: taskId })
+    shared.ajax('hcisysq_admin_delete_task', { id: taskId })
       .then((response) => {
         if (!response || response.ok !== true) {
           const message = response && response.msg ? response.msg : 'Gagal menghapus tugas.';
@@ -1371,20 +1391,6 @@
       });
     }
 
-    const nav = document.querySelector('[data-admin-nav]');
-    if (nav) {
-      const navLink = nav.querySelector('a[data-view="pegawai"]');
-      if (navLink) {
-        navLink.addEventListener('click', () => {
-          window.requestAnimationFrame(() => {
-            if (!employeeModule.loaded && !employeeModule.loading) {
-              fetchEmployeeProfiles();
-            }
-          });
-        });
-      }
-    }
-
     const section = employeeModule.container.closest('.hcisysq-admin-view');
     if (section) {
       const observer = new MutationObserver(() => {
@@ -1399,12 +1405,714 @@
     } else {
       fetchEmployeeProfiles();
     }
+
+    document.addEventListener('hcisysq:admin-view-activated', (event) => {
+      if (!event || !event.detail || event.detail.view !== 'pegawai') return;
+      if (!employeeModule.loaded && !employeeModule.loading) {
+        fetchEmployeeProfiles();
+      }
+    });
   }
 
-  function boot() {
-    bootEmployeesModule();
+  function bootAdminNavigation() {
+    const nav = document.querySelector('[data-admin-nav]');
+    const sections = Array.from(document.querySelectorAll('.hcisysq-admin-view[data-view]'));
+    if (!nav || !sections.length) return;
+
+    const links = Array.from(nav.querySelectorAll('a[data-view]'));
+    const sectionMap = new Map(sections.map((section) => [section.dataset.view, section]));
+    let currentView = '';
+
+    function activate(view, { scroll = true } = {}) {
+      const target = sectionMap.get(view) || sectionMap.get('home');
+      if (!target) return;
+
+      const nextView = target.dataset.view || 'home';
+      const changed = nextView !== currentView;
+
+      if (changed) {
+        sections.forEach((section) => {
+          const isActive = section === target;
+          section.classList.toggle('is-active', isActive);
+          section.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+        });
+
+        links.forEach((link) => {
+          const isActive = link.dataset.view === nextView;
+          link.classList.toggle('is-active', isActive);
+          link.setAttribute('aria-current', isActive ? 'page' : 'false');
+        });
+
+        currentView = nextView;
+      }
+
+      if (scroll && changed) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      document.dispatchEvent(new CustomEvent('hcisysq:admin-view-activated', {
+        detail: { view: nextView, section: target },
+      }));
+    }
+
+    nav.addEventListener('click', (event) => {
+      const link = event.target.closest('a[data-view]');
+      if (!link) return;
+      event.preventDefault();
+      activate(link.dataset.view || 'home');
+    });
+
+    const initial = links.find((link) => link.classList.contains('is-active'));
+    if (initial && initial.dataset.view) {
+      window.requestAnimationFrame(() => activate(initial.dataset.view, { scroll: false }));
+    } else {
+      const fallback = sectionMap.get('home');
+      if (fallback) {
+        sections.forEach((section) => {
+          const isActive = section === fallback;
+          section.classList.toggle('is-active', isActive);
+          section.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+        });
+        links.forEach((link) => {
+          const isActive = link.dataset.view === 'home';
+          link.classList.toggle('is-active', isActive);
+          link.setAttribute('aria-current', isActive ? 'page' : 'false');
+        });
+        currentView = 'home';
+        document.dispatchEvent(new CustomEvent('hcisysq:admin-view-activated', {
+          detail: { view: 'home', section: fallback },
+        }));
+      }
+    }
+  }
+
+  function bootLogoutButtons() {
+    const buttons = document.querySelectorAll('#hcisysq-logout');
+    if (!buttons.length) return;
+
+    const goToLogin = () => {
+      const slug = (window.hcisysq && hcisysq.loginSlug) ? hcisysq.loginSlug.replace(/^\/+|\/+$/g, '') : 'masuk';
+      window.location.href = `/${slug}/`;
+    };
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (button.disabled) return;
+        const original = button.textContent;
+        button.disabled = true;
+        button.textContent = 'Keluar…';
+        shared.ajax('hcisysq_logout', {})
+          .then(goToLogin)
+          .catch(goToLogin)
+          .finally(() => {
+            button.textContent = original;
+            button.disabled = false;
+          });
+      });
+    });
+  }
+
+  function bootHomeModule() {
+    const form = document.getElementById('hcisysq-home-settings-form');
+    const previewWrapper = document.querySelector('[data-role="marquee-preview-wrapper"]');
+    const previewTrack = previewWrapper ? previewWrapper.querySelector('[data-role="marquee-preview"]') : null;
+    if (!form && !previewTrack) return;
+
+    const message = form ? form.querySelector('[data-role="home-message"]') : null;
+    const textField = form ? form.querySelector('#hcisysq-home-marquee') : null;
+    const speedField = form ? form.querySelector('[name="marquee_speed"]') : null;
+    const duplicatesField = form ? form.querySelector('[name="marquee_duplicates"]') : null;
+    const gapField = form ? form.querySelector('[name="marquee_gap"]') : null;
+    const gapLabel = form ? form.querySelector('[data-role="marquee-gap-value"]') : null;
+    const letterField = form ? form.querySelector('[name="marquee_letter_spacing"]') : null;
+    const letterLabel = form ? form.querySelector('[data-role="marquee-letter-value"]') : null;
+    const backgroundField = form ? form.querySelector('[name="marquee_background"]') : null;
+
+    const setHomeMessage = (text, type) => {
+      if (!message) return;
+      message.textContent = text || '';
+      message.classList.remove('ok', 'error');
+      if (type) {
+        message.classList.add(type);
+      }
+    };
+
+    const parseFloatSafe = (value, fallback = 0) => {
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
+    const parseIntSafe = (value, fallback = 0) => {
+      const parsed = typeof value === 'string' ? parseInt(value, 10) : Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
+    const collectOptions = () => {
+      const speed = speedField ? parseFloatSafe(speedField.value, homeState.options.speed) : homeState.options.speed;
+      const duplicates = duplicatesField ? parseIntSafe(duplicatesField.value, homeState.options.duplicates) : homeState.options.duplicates;
+      const gap = gapField ? parseIntSafe(gapField.value, homeState.options.gap) : homeState.options.gap;
+      const letter = letterField ? parseFloatSafe(letterField.value, homeState.options.letter_spacing) : homeState.options.letter_spacing;
+      const background = backgroundField && typeof backgroundField.value === 'string'
+        ? backgroundField.value
+        : homeState.options.background;
+
+      return {
+        speed: Math.max(0.5, Math.min(speed, 3)),
+        duplicates: Math.max(1, Math.min(duplicates, 10)),
+        gap: Math.max(8, Math.min(gap, 240)),
+        letter_spacing: Math.max(0, Math.min(letter, 10)),
+        background: background || '#ffffff',
+      };
+    };
+
+    const syncPreviewWidth = () => {
+      if (!previewWrapper || !previewTrack) return;
+      const width = previewWrapper.clientWidth;
+      if (width > 0) {
+        previewTrack.style.width = `${width}px`;
+      }
+    };
+
+    const updatePreview = () => {
+      if (!previewTrack) return;
+
+      const textValue = textField ? textField.value.trim() : homeState.text.trim();
+      const options = collectOptions();
+
+      homeState.text = textValue;
+      homeState.options = Object.assign({}, homeState.options, options);
+
+      if (gapLabel) {
+        gapLabel.textContent = `${options.gap} px`;
+      }
+      if (letterLabel) {
+        const formatted = options.letter_spacing.toFixed(1).replace('.', ',');
+        letterLabel.textContent = `${formatted} px`;
+      }
+
+      previewTrack.innerHTML = '';
+
+      if (!textValue) {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'hcisysq-live-preview__item';
+        placeholder.textContent = 'Belum ada running text.';
+        previewTrack.appendChild(placeholder);
+        previewTrack.style.animationPlayState = 'paused';
+        previewTrack.style.opacity = '0.6';
+      } else {
+        const sanitizedContainer = document.createElement('div');
+        sanitizedContainer.innerHTML = textValue;
+        const htmlContent = sanitizedContainer.innerHTML;
+
+        for (let i = 0; i < options.duplicates; i += 1) {
+          const item = document.createElement('div');
+          item.className = 'hcisysq-live-preview__item';
+          item.innerHTML = htmlContent;
+          previewTrack.appendChild(item);
+        }
+
+        previewTrack.style.animationPlayState = 'running';
+        previewTrack.style.opacity = '1';
+      }
+
+      previewTrack.style.setProperty('--marquee-speed', String(options.speed));
+      previewTrack.style.setProperty('--marquee-gap', `${options.gap}px`);
+      previewTrack.style.setProperty('--marquee-letter-spacing', `${options.letter_spacing}px`);
+      previewTrack.style.setProperty('--marquee-background', options.background);
+
+      syncPreviewWidth();
+    };
+
+    if (form) {
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.textContent = 'Menyimpan…';
+        }
+        setHomeMessage('', null);
+
+        const formData = new FormData(form);
+        const payload = {};
+        formData.forEach((value, key) => {
+          payload[key] = typeof value === 'string' ? value : '';
+        });
+
+        shared.ajax('hcisysq_admin_save_home_settings', payload)
+          .then((response) => {
+            if (!response || response.ok !== true) {
+              const msg = response && response.msg ? response.msg : 'Gagal menyimpan pengaturan.';
+              setHomeMessage(msg, 'error');
+              return;
+            }
+            setHomeMessage(response.msg || 'Pengaturan tersimpan.', 'ok');
+            updatePreview();
+          })
+          .catch((error) => {
+            console.error('Gagal menyimpan pengaturan home:', error);
+            setHomeMessage('Terjadi kesalahan saat menyimpan.', 'error');
+          })
+          .finally(() => {
+            if (submitButton) {
+              submitButton.disabled = false;
+              submitButton.textContent = 'Simpan Pengaturan';
+            }
+          });
+      });
+
+      const inputs = [textField, speedField, duplicatesField, gapField, letterField, backgroundField].filter(Boolean);
+      inputs.forEach((input) => {
+        input.addEventListener('input', () => {
+          updatePreview();
+        });
+      });
+    }
+
+    if (typeof ResizeObserver === 'function' && previewWrapper) {
+      const observer = new ResizeObserver(() => {
+        syncPreviewWidth();
+      });
+      observer.observe(previewWrapper);
+    } else {
+      window.addEventListener('resize', syncPreviewWidth);
+    }
+
+    document.addEventListener('hcisysq:admin-view-activated', (event) => {
+      if (!event || !event.detail || event.detail.view !== 'home') return;
+      window.requestAnimationFrame(() => {
+        syncPreviewWidth();
+        updatePreview();
+      });
+    });
+
+    updatePreview();
+  }
+
+  function bootAnnouncementsModule() {
+    const form = document.getElementById('hcisysq-announcement-form');
+    const list = document.querySelector('[data-announcement-list]');
+    if (!form && !list) {
+      return;
+    }
+
+    const escapeHtml = typeof shared.escapeHtmlText === 'function'
+      ? shared.escapeHtmlText
+      : ((value) => (value === null || value === undefined ? '' : String(value)));
+
+    const message = form ? form.querySelector('[data-role="announcement-message"]') : null;
+    const submitButton = form ? form.querySelector('[data-role="announcement-submit"]') : null;
+    const cancelButton = form ? form.querySelector('[data-role="announcement-cancel"]') : null;
+    const idField = form ? form.querySelector('input[name="announcement_id"]') : null;
+    const thumbnailExistingField = form ? form.querySelector('input[name="thumbnail_existing"]') : null;
+    const thumbnailActionField = form ? form.querySelector('input[name="thumbnail_action"]') : null;
+    const existingAttachmentsField = form ? form.querySelector('input[name="existing_attachments"]') : null;
+    const categoryField = form ? form.querySelector('#hcisysq-ann-category') : null;
+    const titleField = form ? form.querySelector('#hcisysq-ann-title') : null;
+    const bodyField = form ? form.querySelector('#hcisysq-ann-body') : null;
+    const linkLabelField = form ? form.querySelector('#hcisysq-ann-link-label') : null;
+    const linkTypeField = form ? form.querySelector('#hcisysq-ann-link-type') : null;
+    const linkUrlField = form ? form.querySelector('#hcisysq-ann-link-url') : null;
+    const thumbnailPreview = form ? form.querySelector('[data-role="thumbnail-preview"]') : null;
+    const thumbnailRemoveButton = form ? form.querySelector('[data-action="remove-thumbnail"]') : null;
+    const attachmentsInput = form ? form.querySelector('#hcisysq-ann-attachments') : null;
+    const attachmentsList = form ? form.querySelector('[data-role="attachment-list"]') : null;
+
+    let currentAttachments = [];
+
+    const setMessage = (text, type) => {
+      if (!message) return;
+      message.textContent = text || '';
+      message.classList.remove('ok', 'error');
+      if (type) {
+        message.classList.add(type);
+      }
+    };
+
+    const clearMessage = () => setMessage('', null);
+
+    const formatDate = (value) => {
+      if (!value) return '';
+      try {
+        const normalized = value.replace(' ', 'T');
+        const date = new Date(normalized);
+        if (Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('id-ID', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(date);
+      } catch (err) {
+        return '';
+      }
+    };
+
+    const statusBadge = (status) => {
+      const normalized = status === 'archived' ? 'archived' : 'published';
+      const label = normalized === 'archived' ? 'Diarsipkan' : 'Dipublikasikan';
+      const className = normalized === 'archived' ? 'is-archived' : 'is-published';
+      return `<span class="hcisysq-status-badge ${className}">${label}</span>`;
+    };
+
+    const renderAttachmentList = (existing = [], freshFiles = []) => {
+      if (!attachmentsList) return;
+      attachmentsList.innerHTML = '';
+
+      existing.forEach((attachment) => {
+        const li = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = attachment.url || '#';
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = attachment.title || attachment.filename || attachment.url || 'Lampiran';
+        li.appendChild(link);
+        attachmentsList.appendChild(li);
+      });
+
+      freshFiles.forEach((file) => {
+        const li = document.createElement('li');
+        li.classList.add('is-new');
+        li.textContent = file.name || 'Lampiran baru';
+        attachmentsList.appendChild(li);
+      });
+    };
+
+    const renderThumbnailPreview = (url) => {
+      if (!thumbnailPreview) return;
+      thumbnailPreview.innerHTML = '';
+      if (!url) return;
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'Thumbnail pengumuman';
+      thumbnailPreview.appendChild(img);
+    };
+
+    const renderAnnouncementsList = () => {
+      if (!list) return;
+      if (!announcementsState.items.length) {
+        list.innerHTML = '<p class="hcisysq-empty">Belum ada pengumuman.</p>';
+        return;
+      }
+
+      const html = announcementsState.items.map((item) => {
+        const updated = formatDate(item.updated_at);
+        const categoryLabel = item.category && item.category.label
+          ? `<span class="hcisysq-announcement-category">Kategori: ${escapeHtml(item.category.label)}</span>`
+          : '';
+        const isTraining = item.link_url === '__TRAINING_FORM__';
+        const linkLabel = item.link_label ? escapeHtml(item.link_label) : '';
+        let linkHtml = '';
+        if (item.link_url) {
+          if (isTraining) {
+            linkHtml = `<p class="hcisysq-announcement-link"><span>${linkLabel || 'Form Pelatihan Terbaru'}</span><span class="hcisysq-announcement-note">(tersedia dinamis di dashboard pegawai)</span></p>`;
+          } else {
+            const href = escapeHtml(item.link_url);
+            const label = linkLabel || 'Buka tautan';
+            linkHtml = `<p class="hcisysq-announcement-link"><a href="${href}" target="_blank" rel="noopener">${escapeHtml(label)}</a></p>`;
+          }
+        } else if (linkLabel) {
+          linkHtml = `<p class="hcisysq-announcement-link">${linkLabel}</p>`;
+        }
+
+        const attachments = Array.isArray(item.attachments) && item.attachments.length
+          ? `<ul class="hcisysq-announcement-files">${item.attachments.map((attachment) => `<li><a href="${escapeHtml(attachment.url || '#')}" target="_blank" rel="noopener">${escapeHtml(attachment.title || attachment.filename || 'Lampiran')}</a></li>`).join('')}</ul>`
+          : '';
+
+        const nextStatus = item.status === 'archived' ? 'published' : 'archived';
+        const toggleLabel = item.status === 'archived' ? 'Publikasikan' : 'Arsipkan';
+
+        const editingClass = announcementsState.editingId === item.id ? ' is-editing' : '';
+
+        return `
+          <div class="hcisysq-announcement-item${editingClass}" data-id="${escapeHtml(item.id)}">
+            <div class="hcisysq-announcement-header">
+              <div>
+                <h4>${escapeHtml(item.title || '')}</h4>
+                <div class="hcisysq-announcement-meta">
+                  ${statusBadge(item.status)}
+                  ${updated ? `<span>Diperbarui ${escapeHtml(updated)}</span>` : ''}
+                  ${categoryLabel}
+                </div>
+              </div>
+              <div class="hcisysq-announcement-actions">
+                <button type="button" class="btn-link" data-action="edit">Edit</button>
+                <button type="button" class="btn-link" data-action="toggle" data-status="${nextStatus}">${toggleLabel}</button>
+                <button type="button" class="btn-link btn-danger" data-action="delete">Hapus</button>
+              </div>
+            </div>
+            <div class="hcisysq-announcement-body">${item.body || ''}</div>
+            ${attachments}
+            ${linkHtml}
+          </div>
+        `;
+      }).join('');
+
+      list.innerHTML = html;
+    };
+
+    const resetForm = ({ preserveMessage = false } = {}) => {
+      if (!form) return;
+      form.reset();
+      announcementsState.editingId = '';
+      currentAttachments = [];
+      if (idField) idField.value = '';
+      if (thumbnailExistingField) thumbnailExistingField.value = '0';
+      if (thumbnailActionField) thumbnailActionField.value = 'keep';
+      if (existingAttachmentsField) existingAttachmentsField.value = '[]';
+      if (submitButton) submitButton.textContent = 'Publikasikan';
+      if (cancelButton) cancelButton.hidden = true;
+      if (linkUrlField) {
+        linkUrlField.value = '';
+        linkUrlField.disabled = true;
+      }
+      if (thumbnailPreview) thumbnailPreview.innerHTML = '';
+      if (thumbnailRemoveButton) thumbnailRemoveButton.hidden = true;
+      if (attachmentsList) attachmentsList.innerHTML = '';
+      if (!preserveMessage) {
+        clearMessage();
+      }
+      renderAnnouncementsList();
+    };
+
+    const populateForm = (item) => {
+      if (!form || !item) return;
+      announcementsState.editingId = item.id || '';
+      currentAttachments = Array.isArray(item.attachments) ? item.attachments.slice() : [];
+
+      if (idField) idField.value = item.id || '';
+      if (categoryField && item.category && item.category.slug) {
+        categoryField.value = item.category.slug;
+      }
+      if (titleField) titleField.value = item.title || '';
+      if (bodyField) bodyField.value = item.body || '';
+      if (linkLabelField) linkLabelField.value = item.link_label || '';
+
+      if (linkTypeField) {
+        let type = '';
+        if (item.link_url === '__TRAINING_FORM__') {
+          type = 'training';
+        } else if (item.link_url) {
+          type = 'external';
+        }
+        linkTypeField.value = type;
+      }
+
+      if (linkUrlField) {
+        if (item.link_url && item.link_url !== '__TRAINING_FORM__') {
+          linkUrlField.value = item.link_url;
+          linkUrlField.disabled = false;
+        } else {
+          linkUrlField.value = '';
+          linkUrlField.disabled = true;
+        }
+      }
+
+      if (thumbnailExistingField) {
+        const thumbId = item.thumbnail && item.thumbnail.id ? String(item.thumbnail.id) : '0';
+        thumbnailExistingField.value = thumbId;
+      }
+      if (thumbnailActionField) thumbnailActionField.value = 'keep';
+
+      if (thumbnailPreview) {
+        const url = item.thumbnail && item.thumbnail.url ? item.thumbnail.url : '';
+        renderThumbnailPreview(url);
+        if (thumbnailRemoveButton) {
+          thumbnailRemoveButton.hidden = !url;
+        }
+      }
+
+      if (existingAttachmentsField) {
+        const ids = currentAttachments.map((attachment) => attachment.id).filter((id) => id);
+        existingAttachmentsField.value = JSON.stringify(ids);
+      }
+
+      if (attachmentsInput) {
+        attachmentsInput.value = '';
+      }
+      renderAttachmentList(currentAttachments, []);
+
+      if (submitButton) submitButton.textContent = 'Perbarui Pengumuman';
+      if (cancelButton) cancelButton.hidden = false;
+      clearMessage();
+      renderAnnouncementsList();
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    if (form) {
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (!submitButton) return;
+
+        const editing = announcementsState.editingId !== '';
+        const action = editing ? 'hcisysq_admin_update_announcement' : 'hcisysq_admin_create_announcement';
+
+        const formData = new FormData(form);
+        if (editing) {
+          formData.set('id', announcementsState.editingId);
+        }
+        formData.delete('announcement_id');
+
+        submitButton.disabled = true;
+        submitButton.textContent = editing ? 'Memperbarui…' : 'Menyimpan…';
+        clearMessage();
+
+        shared.ajax(action, formData, true)
+          .then((response) => {
+            if (!response || response.ok !== true) {
+              const msg = response && response.msg ? response.msg : 'Gagal menyimpan pengumuman.';
+              setMessage(msg, 'error');
+              return;
+            }
+            if (Array.isArray(response.announcements)) {
+              announcementsState.items = response.announcements;
+            }
+            const successMsg = response.msg || 'Pengumuman tersimpan.';
+            resetForm({ preserveMessage: true });
+            setMessage(successMsg, 'ok');
+          })
+          .catch((error) => {
+            console.error('Gagal menyimpan pengumuman:', error);
+            setMessage('Terjadi kesalahan saat menyimpan.', 'error');
+          })
+          .finally(() => {
+            submitButton.disabled = false;
+            submitButton.textContent = editing ? 'Perbarui Pengumuman' : 'Publikasikan';
+          });
+      });
+
+      if (cancelButton) {
+        cancelButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          resetForm();
+        });
+      }
+
+      if (linkTypeField && linkUrlField) {
+        linkTypeField.addEventListener('change', () => {
+          if (linkTypeField.value === 'external') {
+            linkUrlField.disabled = false;
+          } else {
+            linkUrlField.value = '';
+            linkUrlField.disabled = true;
+          }
+        });
+      }
+
+      if (thumbnailRemoveButton) {
+        thumbnailRemoveButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          if (thumbnailPreview) thumbnailPreview.innerHTML = '';
+          if (thumbnailExistingField) thumbnailExistingField.value = '0';
+          if (thumbnailActionField) thumbnailActionField.value = 'remove';
+          thumbnailRemoveButton.hidden = true;
+        });
+      }
+
+      if (attachmentsInput) {
+        attachmentsInput.addEventListener('change', () => {
+          const files = Array.from(attachmentsInput.files || []);
+          renderAttachmentList(currentAttachments, files);
+        });
+      }
+    }
+
+    if (list) {
+      list.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const itemNode = button.closest('[data-id]');
+        if (!itemNode) return;
+        const id = itemNode.dataset.id || '';
+        if (!id) return;
+
+        const action = button.dataset.action;
+        if (action === 'edit') {
+          const item = announcementsState.items.find((entry) => entry.id === id);
+          if (item) {
+            populateForm(item);
+          }
+          return;
+        }
+
+        if (action === 'toggle') {
+          const status = button.dataset.status || 'archived';
+          button.disabled = true;
+          const original = button.textContent;
+          button.textContent = 'Memproses…';
+          shared.ajax('hcisysq_admin_set_announcement_status', { id, status })
+            .then((response) => {
+              if (!response || response.ok !== true) {
+                const msg = response && response.msg ? response.msg : 'Gagal memperbarui status.';
+                setMessage(msg, 'error');
+                return;
+              }
+              if (Array.isArray(response.announcements)) {
+                announcementsState.items = response.announcements;
+              }
+              setMessage(response.msg || 'Status diperbarui.', 'ok');
+              renderAnnouncementsList();
+            })
+            .catch((error) => {
+              console.error('Gagal memperbarui status pengumuman:', error);
+              setMessage('Terjadi kesalahan saat memperbarui status.', 'error');
+            })
+            .finally(() => {
+              button.disabled = false;
+              button.textContent = original;
+            });
+          return;
+        }
+
+        if (action === 'delete') {
+          if (!window.confirm('Hapus pengumuman ini? Tindakan ini tidak dapat dibatalkan.')) {
+            return;
+          }
+          button.disabled = true;
+          const original = button.textContent;
+          button.textContent = 'Menghapus…';
+          shared.ajax('hcisysq_admin_delete_announcement', { id })
+            .then((response) => {
+              if (!response || response.ok !== true) {
+                const msg = response && response.msg ? response.msg : 'Gagal menghapus pengumuman.';
+                setMessage(msg, 'error');
+                return;
+              }
+              if (Array.isArray(response.announcements)) {
+                announcementsState.items = response.announcements;
+              }
+              const successMsg = response.msg || 'Pengumuman dihapus.';
+              if (announcementsState.editingId === id) {
+                resetForm({ preserveMessage: true });
+              } else {
+                renderAnnouncementsList();
+              }
+              setMessage(successMsg, 'ok');
+            })
+            .catch((error) => {
+              console.error('Gagal menghapus pengumuman:', error);
+              setMessage('Terjadi kesalahan saat menghapus pengumuman.', 'error');
+            })
+            .finally(() => {
+              button.disabled = false;
+              button.textContent = original;
+            });
+        }
+      });
+    }
+
+    renderAnnouncementsList();
+  }
+
+  function bootTaskModule() {
     dom.form = document.getElementById('hcisysq-task-form');
-    if (!dom.form) return;
+    dom.taskList = document.querySelector('[data-role="task-list"]');
+    if (!dom.form) {
+      applyBootstrap(tasksBootstrap);
+      return;
+    }
 
     dom.message = dom.form.querySelector('[data-role="task-message"]');
     dom.resetButton = dom.form.querySelector('[data-role="task-reset"]');
@@ -1413,7 +2121,6 @@
     dom.employeeHidden = dom.form.querySelector('input[name="employee_ids"]');
     dom.unitError = dom.form.querySelector('[data-role="unit-error"]');
     dom.employeeError = dom.form.querySelector('[data-role="employee-error"]');
-    dom.taskList = document.querySelector('[data-role="task-list"]');
     dom.unitDropdown = dom.form.querySelector('[data-role="unit-dropdown"]');
     dom.employeeDropdown = dom.form.querySelector('[data-role="employee-dropdown"]');
 
@@ -1448,6 +2155,15 @@
     }
 
     applyBootstrap(tasksBootstrap);
+  }
+
+  function boot() {
+    bootAdminNavigation();
+    bootLogoutButtons();
+    bootHomeModule();
+    bootAnnouncementsModule();
+    bootEmployeesModule();
+    bootTaskModule();
   }
 
   document.addEventListener('DOMContentLoaded', boot);
