@@ -48,6 +48,14 @@
 .hcisysq-card-link::after{content:"→";font-size:13px;transition:transform .2s ease}
 .hcisysq-card-link:hover{transform:translateX(2px)}
 .hcisysq-card-link:hover::after{transform:translateX(3px)}
+.hcisysq-publikasi-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.hcisysq-publikasi-item{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.92);border:1px solid rgba(15,23,42,.08);box-shadow:0 8px 18px rgba(15,23,42,.06);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.hcisysq-publikasi-item:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(15,23,42,.12);border-color:rgba(23,88,135,.25)}
+.hcisysq-publikasi-link{font-weight:700;font-size:var(--font-body);color:#0f172a;text-decoration:none;line-height:1.4}
+.hcisysq-publikasi-link:hover{color:var(--brand)}
+.hcisysq-publikasi-meta{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#64748b;font-weight:600}
+.hcisysq-publikasi-excerpt{margin:0;color:#475569;font-size:calc(var(--font-body) - 1px);line-height:1.5}
+.hcisysq-publikasi-empty{margin:6px 0 0;color:var(--muted);font-weight:500;font-size:var(--font-body)}
 .hcisysq-meta-list{display:grid;gap:6px;font-size:var(--font-body)}
 .hcisysq-meta-list div{display:flex;flex-direction:column;gap:2px}
 .hcisysq-meta-list dt{text-transform:uppercase;letter-spacing:.05em;color:#475569;font-size:10px;font-weight:600}

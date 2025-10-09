@@ -720,6 +720,15 @@ class View {
     $employeeUpdates = $tasksData['items'];
     $pendingTaskCount = (int)($tasksData['pending'] ?? 0);
 
+    $publikasi_query = new \WP_Query([
+      'post_type'      => 'publikasi',
+      'posts_per_page' => 3,
+      'orderby'        => 'date',
+      'order'          => 'DESC',
+      'post_status'    => 'publish',
+      'no_found_rows'  => true,
+    ]);
+
     if (empty($employeeUpdates)) {
       $legacyUpdates = self::get_legacy_employee_updates();
       if (!empty($legacyUpdates)) {
@@ -974,6 +983,29 @@ class View {
                     </div>
                   <?php endforeach; ?>
                 </dl>
+              </article>
+
+              <article class="hcisysq-card">
+                <h3 class="hcisysq-card-title">Publikasi Terbaru</h3>
+                <?php if ($publikasi_query->have_posts()): ?>
+                  <ul class="hcisysq-publikasi-list">
+                    <?php while ($publikasi_query->have_posts()): $publikasi_query->the_post(); ?>
+                      <li class="hcisysq-publikasi-item">
+                        <a class="hcisysq-publikasi-link" href="<?= esc_url(get_permalink()) ?>">
+                          <?= esc_html(get_the_title()) ?>
+                        </a>
+                        <span class="hcisysq-publikasi-meta"><?= esc_html(get_the_date()) ?></span>
+                        <?php $excerpt = get_the_excerpt(); ?>
+                        <?php if (!empty($excerpt)): ?>
+                          <p class="hcisysq-publikasi-excerpt"><?= esc_html(wp_strip_all_tags($excerpt)) ?></p>
+                        <?php endif; ?>
+                      </li>
+                    <?php endwhile; ?>
+                  </ul>
+                <?php else: ?>
+                  <p class="hcisysq-publikasi-empty">Belum ada publikasi terbaru.</p>
+                <?php endif; ?>
+                <?php \wp_reset_postdata(); ?>
               </article>
 
               <article class="hcisysq-card">
