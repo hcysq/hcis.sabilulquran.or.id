@@ -466,7 +466,7 @@ class View {
                         </div>
                       </div>
                       <div class="hcisysq-form-row">
-                        <label for="hcisysq-task-employees" class="hcisysq-form-label">Pegawai</label>
+                        <label for="hcisysq-task-employees" class="hcisysq-form-label">Pegawai <span class="req">*</span></label>
                         <div class="hcisysq-form-field">
                           <div class="hcisysq-multiselect" data-role="employee-dropdown">
                             <button type="button" class="hcisysq-multiselect__toggle" id="hcisysq-task-employees" data-role="toggle" aria-haspopup="true" aria-expanded="false" aria-controls="hcisysq-task-employees-panel">
@@ -485,6 +485,7 @@ class View {
                               <div class="hcisysq-multiselect__options" data-role="options"></div>
                             </div>
                           </div>
+                          <p class="hcisysq-form-error" data-role="employee-error" hidden>Minimal pilih satu pegawai.</p>
                           <p class="form-helper">Daftar pegawai mengikuti unit yang dipilih.</p>
                         </div>
                       </div>
