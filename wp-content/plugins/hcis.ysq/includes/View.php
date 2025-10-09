@@ -149,6 +149,7 @@ class View {
       'settings'      => $publicSettings,
       'home'          => $homeSettings,
       'tasks'         => $tasksBootstrap,
+      'employees'     => ['loaded' => false],
     ];
     wp_add_inline_script('hcisysq-admin', 'window.hcisysqAdmin = ' . wp_json_encode($inline) . ';', 'before');
 
@@ -532,14 +533,24 @@ class View {
           </section>
 
           <section class="hcisysq-admin-view" data-view="pegawai">
-            <article class="hcisysq-card hcisysq-card--empty">
-              <h3 class="hcisysq-card-title">Data Pegawai</h3>
-              <div class="hcisysq-coming-soon">
-                <span class="hcisysq-coming-soon__tag">Coming Soon</span>
-                <div class="hcisysq-progress" aria-hidden="true">
-                  <span class="hcisysq-progress__bar"></span>
+            <article class="hcisysq-card hcisysq-card--elevated hcisysq-employee-card">
+              <div class="hcisysq-card-header">
+                <h3 class="hcisysq-card-title">Data Pegawai</h3>
+                <p class="hcisysq-card-subtitle">Kelola profil pegawai, perbarui informasi penting, dan lakukan pencarian cepat.</p>
+              </div>
+
+              <div class="hcisysq-employee-toolbar">
+                <div class="hcisysq-employee-search-group">
+                  <label class="screen-reader-text" for="hcisysq-employee-search">Cari pegawai</label>
+                  <input type="search" id="hcisysq-employee-search" class="hcisysq-input hcisysq-employee-search" placeholder="Cari nama, NIP, unit, atau jabatan&hellip;" data-role="employee-search" autocomplete="off">
                 </div>
-                <p class="hcisysq-coming-soon__desc">Work in Progress. Modul Data Pegawai sedang disiapkan.</p>
+                <div class="hcisysq-employee-summary" data-role="employee-summary"></div>
+              </div>
+
+              <p class="hcisysq-employee-message" data-role="employee-message" aria-live="polite" hidden></p>
+
+              <div class="hcisysq-employee-table-wrap" data-role="employee-table">
+                <div class="hcisysq-employee-placeholder" data-role="employee-placeholder">Memuat data pegawai&hellip;</div>
               </div>
             </article>
           </section>
@@ -611,19 +622,67 @@ class View {
     }
 
     $me = $identity['user'];
-    $resolve = function(array $keys) use ($me){
+
+    $profileData = null;
+    $nipCandidates = [];
+    foreach (['nip', 'username', 'user_login'] as $candidateKey) {
+      if (!isset($me->$candidateKey)) {
+        continue;
+      }
+      $candidateValue = trim((string) $me->$candidateKey);
+      if ($candidateValue !== '') {
+        $nipCandidates[] = $candidateValue;
+      }
+    }
+    $nipCandidates = array_values(array_unique($nipCandidates));
+    foreach ($nipCandidates as $candidate) {
+      $profileRow = Profiles::get_by_nip($candidate);
+      if ($profileRow) {
+        $profileData = $profileRow;
+        break;
+      }
+    }
+
+    $resolve = function(array $keys) use ($me, $profileData){
       foreach ($keys as $key) {
-        if (!isset($me->$key)) continue;
+        if ($profileData && isset($profileData->$key)) {
+          $value = $profileData->$key;
+          if (is_scalar($value)) {
+            $value = trim((string) $value);
+          } else {
+            $value = '';
+          }
+          if ($value !== '') {
+            return $value;
+          }
+        }
+      }
+      foreach ($keys as $key) {
+        if (!isset($me->$key)) {
+          continue;
+        }
         $value = $me->$key;
         if (is_scalar($value)) {
-          $value = trim((string)$value);
+          $value = trim((string) $value);
         } else {
           $value = '';
         }
-        if ($value !== '') return $value;
+        if ($value !== '') {
+          return $value;
+        }
       }
       return '';
     };
+
+    $displayName = $resolve(['nama']);
+    if ($displayName === '' && isset($me->nama)) {
+      $displayName = trim((string) $me->nama);
+    }
+    $displayNip = $resolve(['nip']);
+    if ($displayNip === '' && isset($me->nip)) {
+      $displayNip = trim((string) $me->nip);
+    }
+    $displayNik = $resolve(['nik','no_ktp','ktp','nik_ktp','no_ktp_kk']);
     $unit    = $resolve(['unit','unit_kerja','unitkerja','unitkerja_nama']);
     $jabatan = $resolve(['jabatan','posisi','position']);
     $hp      = $resolve(['no_hp','hp','telepon','phone']);
@@ -631,7 +690,6 @@ class View {
     $tempat  = $resolve(['tempat_lahir','tempatlahir','birth_place']);
     $tanggal = $resolve(['tanggal_lahir','tgl_lahir','birth_date']);
     $tmt     = $resolve(['tmt','tmt_mulai','tanggal_mulai']);
-    $nik     = $resolve(['nik','no_ktp','ktp','nik_ktp','no_ktp_kk']);
 
     $tmtFormatted = '';
     if ($tmt) {
@@ -684,8 +742,8 @@ class View {
     $alamatFull = $alamatParts ? implode(', ', $alamatParts) : '';
 
     $profilRingkasRows = [
-      ['label' => 'Nama', 'value' => isset($me->nama) ? trim((string)$me->nama) : ''],
-      ['label' => 'NIK',  'value' => $nik],
+      ['label' => 'Nama', 'value' => $displayName],
+      ['label' => 'NIK',  'value' => $displayNik],
       ['label' => 'Tempat & Tanggal Lahir', 'value' => trim($tempat . ($tempat && $tanggal ? ', ' : '') . $tanggal)],
       ['label' => 'Alamat', 'value' => $alamatFull],
       ['label' => 'HP', 'value' => $hp],
@@ -693,21 +751,28 @@ class View {
     ];
 
     $kepegawaianRows = [
-      ['label' => 'NIP',        'value' => isset($me->nip) ? trim((string)$me->nip) : ''],
+      ['label' => 'NIP',        'value' => $displayNip],
       ['label' => 'Jabatan',    'value' => $jabatan !== '' ? $jabatan : ($me->jabatan ?? '')],
       ['label' => 'Unit Kerja', 'value' => $unit   !== '' ? $unit   : ($me->unit   ?? '')],
       ['label' => 'TMT',        'value' => $tmtFormatted],
       ['label' => 'Masa Kerja', 'value' => $masaKerja],
     ];
 
+    $displayNameHeader = $displayName !== '' ? $displayName : (isset($me->nama) ? trim((string) $me->nama) : '');
+    $displayNipHeader = $displayNip !== '' ? $displayNip : (isset($me->nip) ? trim((string) $me->nip) : '');
+    $displayNameDisplay = $displayNameHeader !== '' ? $displayNameHeader : __('Pegawai', 'hcisysq');
+    $displayNipDisplay = $displayNipHeader !== '' ? $displayNipHeader : '-';
+
     wp_enqueue_style('hcisysq-dashboard');
     wp_enqueue_script('hcisysq-dashboard');
 
     $formSlug = defined('HCISYSQ_FORM_SLUG') ? trim((string)HCISYSQ_FORM_SLUG, '/') : 'pelatihan';
+    $nipForLink = $displayNip !== '' ? $displayNip : (string)($me->nip ?? '');
+    $nameForLink = $displayName !== '' ? $displayName : (string)($me->nama ?? '');
     $trainingLink = add_query_arg(
       [
-        'nip'  => (string)($me->nip ?? ''),
-        'nama' => (string)($me->nama ?? ''),
+        'nip'  => $nipForLink,
+        'nama' => $nameForLink,
       ],
       home_url('/' . ($formSlug !== '' ? $formSlug . '/' : ''))
     );
@@ -716,7 +781,7 @@ class View {
       'training_link' => $trainingLink,
     ]);
 
-    $tasksData = Tasks::get_employee_tasks($me->nip ?? '');
+    $tasksData = Tasks::get_employee_tasks($nipForLink);
     $employeeUpdates = $tasksData['items'];
     $pendingTaskCount = (int)($tasksData['pending'] ?? 0);
 
@@ -950,8 +1015,8 @@ class View {
           </div>
           <div class="hcisysq-user">
             <div class="hcisysq-user-meta">
-              <span class="hcisysq-user-name"><?= esc_html($me->nama) ?></span>
-              <span class="hcisysq-user-role">NIP: <?= esc_html($me->nip ?? '-') ?></span>
+              <span class="hcisysq-user-name"><?= esc_html($displayNameDisplay) ?></span>
+              <span class="hcisysq-user-role">NIP: <?= esc_html($displayNipDisplay) ?></span>
             </div>
             <button type="button" class="btn-light" id="hcisysq-logout">Keluar</button>
           </div>
