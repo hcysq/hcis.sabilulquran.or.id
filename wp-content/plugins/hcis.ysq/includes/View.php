@@ -893,16 +893,13 @@ class View {
             'link_url'    => $linkUrl,
             'link_label'  => $linkLabel,
             'status'      => 'info',
+            'history_url' => '',
           ];
         }
       }
     }
 
     $comingSoonModules = [
-      'profil' => [
-        'title' => 'Profil',
-        'description' => 'Work in Progress. Modul profil pegawai sedang disiapkan.'
-      ],
       'slip-gaji' => [
         'title' => 'Slip Gaji',
         'description' => 'Work in Progress. Slip gaji digital akan segera tersedia.'
@@ -1162,6 +1159,32 @@ class View {
 
           </section>
 
+          <section id="profil" class="hcisysq-dashboard-section" data-section="profil" tabindex="-1">
+            <section class="hcisysq-card-grid hcisysq-card-grid--1">
+              <article class="hcisysq-card">
+                <h3 class="hcisysq-card-title">Data Diri</h3>
+                <dl class="hcisysq-meta-list">
+                  <div><dt>Nama Lengkap</dt><dd><?= esc_html($displayName) ?></dd></div>
+                  <div><dt>NIK</dt><dd><?= esc_html($displayNik) ?></dd></div>
+                  <div><dt>Tempat &amp; Tanggal Lahir</dt><dd><?= esc_html(trim($tempat . ($tempat && $tanggal ? ', ' : '') . $tanggal)) ?></dd></div>
+                  <div><dt>Alamat</dt><dd><?= esc_html($alamatFull) ?></dd></div>
+                  <div><dt>No. HP</dt><dd><?= esc_html($hp) ?></dd></div>
+                  <div><dt>Email</dt><dd><?= esc_html($email) ?></dd></div>
+                </dl>
+              </article>
+              <article class="hcisysq-card">
+                <h3 class="hcisysq-card-title">Data Kepegawaian</h3>
+                <dl class="hcisysq-meta-list">
+                  <div><dt>NIP</dt><dd><?= esc_html($displayNip) ?></dd></div>
+                  <div><dt>Jabatan</dt><dd><?= esc_html($jabatan !== '' ? $jabatan : ($me->jabatan ?? '')) ?></dd></div>
+                  <div><dt>Unit Kerja</dt><dd><?= esc_html($unit !== '' ? $unit : ($me->unit ?? '')) ?></dd></div>
+                  <div><dt>Tanggal Mulai Tugas (TMT)</dt><dd><?= esc_html($tmtFormatted) ?></dd></div>
+                  <div><dt>Masa Kerja</dt><dd><?= esc_html($masaKerja) ?></dd></div>
+                </dl>
+              </article>
+            </section>
+          </section>
+
           <section id="tugas-komunikasi" class="hcisysq-dashboard-section" data-section="tugas-komunikasi" tabindex="-1">
             <section class="hcisysq-card-grid hcisysq-card-grid--1">
               <article class="hcisysq-card">
@@ -1238,12 +1261,26 @@ class View {
                           $description = isset($update['description']) ? $update['description'] : '';
                           $linkUrl = isset($update['link_url']) ? $update['link_url'] : '';
                           $linkLabel = isset($update['link_label']) ? $update['link_label'] : '';
+                          $historyUrl = isset($update['history_url']) ? trim((string) $update['history_url']) : '';
+                          $rowAttrs = '';
+                          if ($historyUrl !== '') {
+                            $rowAttrs = sprintf(
+                              " onclick=\"window.open('%s', '_blank');\" style=\"cursor: pointer;\"",
+                              esc_js($historyUrl)
+                            );
+                          }
                           ?>
-                          <tr>
+                          <tr<?= $rowAttrs ?> data-history-url="<?= $historyUrl !== '' ? esc_url($historyUrl) : '' ?>">
                             <td><?= esc_html($index + 1) ?></td>
                             <td>
                               <div class="hcisysq-task-name">
-                                <span class="hcisysq-task-name__title"><?= esc_html($update['task'] ?? '') ?></span>
+                                <?php if ($historyUrl !== ''): ?>
+                                  <a class="hcisysq-task-name__title" href="<?= esc_url($historyUrl) ?>" target="_blank" rel="noopener">
+                                    <?= esc_html($update['task'] ?? '') ?>
+                                  </a>
+                                <?php else: ?>
+                                  <span class="hcisysq-task-name__title"><?= esc_html($update['task'] ?? '') ?></span>
+                                <?php endif; ?>
                                 <span class="hcisysq-status-chip <?= esc_attr($statusClass) ?>"><?= esc_html($statusLabel) ?></span>
                                 <?php if ($completedNote !== ''): ?>
                                   <div class="hcisysq-status-meta"><?= esc_html($completedNote) ?></div>
@@ -1379,6 +1416,7 @@ class View {
         'link_url'    => $linkUrl,
         'link_label'  => $linkLabel,
         'status'      => 'info',
+        'history_url' => '',
       ];
     }
 

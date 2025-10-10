@@ -190,7 +190,7 @@
         const id = link.dataset.section;
         if (!id) return;
         event.preventDefault();
-        activate(id, { updateHash: true, scroll: true });
+        activate(id, { updateHash: true, scroll: false });
       });
     });
 
