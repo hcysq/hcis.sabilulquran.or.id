@@ -394,9 +394,9 @@ class Tasks {
 
   private static function build_history_url(array $task){
     $date = $task['date'] ?? substr($task['created_at'] ?? '', 0, 10);
-    $sequence = (int)($task['sequence'] ?? 1);
-    if (!$date || !$sequence) {
-      return home_url('/');
+    $sequence = (int)($task['sequence'] ?? 0);
+    if (!$date || $sequence < 1) {
+      return '';
     }
     return home_url(sprintf('/tugas/%s/%d/', rawurlencode($date), $sequence));
   }
@@ -477,6 +477,7 @@ class Tasks {
         'status'      => $status,
         'completed_at'=> $assignment['completed_at'] ?? '',
         'task_id'     => $task['id'],
+        'history_url' => self::build_history_url($task),
       ];
     }
 
@@ -518,17 +519,38 @@ class Tasks {
     }
 
     $admin = Auth::current_admin();
-    if (!$admin && !current_user_can('manage_options')) {
-      wp_safe_redirect(home_url('/' . trim(HCISYSQ_LOGIN_SLUG, '/') . '/'));
-      exit;
+    $hasManageCapability = current_user_can('manage_options');
+    $readonly = false;
+    $viewerNip = '';
+
+    if (!$admin && !$hasManageCapability) {
+      $identity = Auth::current_identity();
+      if (!$identity || ($identity['type'] ?? '') !== 'user') {
+        wp_safe_redirect(home_url('/' . trim(HCISYSQ_LOGIN_SLUG, '/') . '/'));
+        exit;
+      }
+
+      $user = $identity['user'];
+      if (is_object($user) && isset($user->nip)) {
+        $viewerNip = trim((string) $user->nip);
+      }
+
+      if ($viewerNip === '' || !isset($task['assignments'][$viewerNip])) {
+        wp_die(__('Anda tidak memiliki akses ke tugas ini.', 'hcisysq'), '', ['response' => 403]);
+      }
+
+      $readonly = true;
     }
 
-    $context = self::build_history_context($task);
+    $context = self::build_history_context($task, [
+      'readonly' => $readonly,
+      'viewer_nip' => $viewerNip,
+    ]);
     set_query_var('hcisysq_task_context', $context);
     return HCISYSQ_DIR . 'templates/task-history.php';
   }
 
-  public static function build_history_context(array $task){
+  public static function build_history_context(array $task, array $options = []){
     $employees = self::get_employee_directory();
     $employeeMap = [];
     foreach ($employees as $item) {
@@ -573,7 +595,7 @@ class Tasks {
       }
     }
 
-    return [
+    $context = [
       'task' => $task,
       'assignments' => $assignmentRows,
       'history_url' => self::build_history_url($task),
@@ -582,6 +604,15 @@ class Tasks {
       'total_assignments' => count($assignmentRows),
       'completed_assignments' => $completedAssignments,
     ];
+
+    if (isset($options['readonly'])) {
+      $context['readonly'] = (bool) $options['readonly'];
+    }
+    if (isset($options['viewer_nip'])) {
+      $context['viewer_nip'] = (string) $options['viewer_nip'];
+    }
+
+    return $context;
   }
 
   public static function handle_history_actions(){
