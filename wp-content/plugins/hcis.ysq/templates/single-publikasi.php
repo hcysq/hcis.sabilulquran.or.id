@@ -20,7 +20,7 @@ get_header();
         <header class="ysq-publikasi-single-header">
           <h1 class="ysq-publikasi-title"><?php echo esc_html(get_the_title()); ?></h1>
           <div class="ysq-publikasi-single-meta">
-            <?php echo esc_html(\HCISYSQ\Publikasi::format_meta(get_post(), true)); ?>
+            <?php echo esc_html(\HCISYSQ\Publikasi_Post_Type::format_meta(get_post(), true)); ?>
           </div>
         </header>
         <div class="ysq-publikasi-content">

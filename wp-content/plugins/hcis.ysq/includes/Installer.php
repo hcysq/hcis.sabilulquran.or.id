@@ -74,7 +74,7 @@ class Installer {
 
     self::add_roles_and_capabilities();
 
-    Publikasi::on_activation();
+    Publikasi_Post_Type::on_activation();
     Tasks::on_activation();
   }
 

@@ -132,13 +132,13 @@ class Legacy_Admin_Bridge {
       return;
     }
 
-    if (isset($_POST['ysq_save_announcement'])) {
-      self::handle_announcement_save();
+    if (isset($_POST['ysq_save_publication'])) {
+      self::handle_publication_save();
       return;
     }
 
-    if (isset($_POST['ysq_delete_announcement'])) {
-      self::handle_announcement_delete();
+    if (isset($_POST['ysq_delete_publication'])) {
+      self::handle_publication_delete();
       return;
     }
 
@@ -178,77 +178,77 @@ class Legacy_Admin_Bridge {
     self::redirect();
   }
 
-  private static function handle_announcement_save() {
-    $nonce = isset($_POST['ysq_save_announcement_nonce'])
-      ? sanitize_text_field(wp_unslash($_POST['ysq_save_announcement_nonce']))
+  private static function handle_publication_save() {
+    $nonce = isset($_POST['ysq_save_publication_nonce'])
+      ? sanitize_text_field(wp_unslash($_POST['ysq_save_publication_nonce']))
       : '';
 
-    if (!$nonce || !wp_verify_nonce($nonce, 'ysq_save_announcement')) {
-      self::add_notice('error', __('Sesi tidak valid saat menyimpan pengumuman.', 'ysq'));
+    if (!$nonce || !wp_verify_nonce($nonce, 'ysq_save_publication')) {
+      self::add_notice('error', __('Sesi tidak valid saat menyimpan publikasi.', 'ysq'));
       self::redirect();
     }
 
-    $announcement_id = isset($_POST['ysq_announcement_id']) ? absint($_POST['ysq_announcement_id']) : 0;
-    $title = isset($_POST['ysq_announcement_title'])
-      ? sanitize_text_field(wp_unslash($_POST['ysq_announcement_title']))
+    $publication_id = isset($_POST['ysq_publication_id']) ? absint($_POST['ysq_publication_id']) : 0;
+    $title = isset($_POST['ysq_publication_title'])
+      ? sanitize_text_field(wp_unslash($_POST['ysq_publication_title']))
       : '';
-    $content = isset($_POST['ysq_announcement_content'])
-      ? wp_kses_post(wp_unslash($_POST['ysq_announcement_content']))
+    $content = isset($_POST['ysq_publication_content'])
+      ? wp_kses_post(wp_unslash($_POST['ysq_publication_content']))
       : '';
 
     if ($title === '') {
-      self::add_notice('error', __('Judul pengumuman wajib diisi.', 'ysq'));
+      self::add_notice('error', __('Judul publikasi wajib diisi.', 'ysq'));
       self::redirect();
     }
 
-    if ($announcement_id > 0) {
-      $result = Announcements::update($announcement_id, [
+    if ($publication_id > 0) {
+      $result = Publikasi::update($publication_id, [
         'title' => $title,
         'body'  => $content,
       ]);
 
       if ($result) {
-        self::add_notice('success', __('Pengumuman berhasil diperbarui.', 'ysq'));
+        self::add_notice('success', __('Publikasi berhasil diperbarui.', 'ysq'));
         $referer = wp_get_referer();
         $target  = $referer ? remove_query_arg('ysq_edit', $referer) : '';
         self::redirect($target);
       } else {
-        self::add_notice('error', __('Pengumuman tidak dapat diperbarui. Silakan coba lagi.', 'ysq'));
+        self::add_notice('error', __('Publikasi tidak dapat diperbarui. Silakan coba lagi.', 'ysq'));
         self::redirect();
       }
     } else {
-      $result = Announcements::create([
+      $result = Publikasi::create([
         'title' => $title,
         'body'  => $content,
       ]);
 
       if ($result) {
-        self::add_notice('success', __('Pengumuman baru berhasil ditambahkan.', 'ysq'));
+        self::add_notice('success', __('Publikasi baru berhasil ditambahkan.', 'ysq'));
       } else {
-        self::add_notice('error', __('Pengumuman baru gagal disimpan.', 'ysq'));
+        self::add_notice('error', __('Publikasi baru gagal disimpan.', 'ysq'));
       }
       self::redirect();
     }
   }
 
-  private static function handle_announcement_delete() {
-    $announcement_id = isset($_POST['ysq_delete_announcement'])
-      ? absint($_POST['ysq_delete_announcement'])
+  private static function handle_publication_delete() {
+    $publication_id = isset($_POST['ysq_delete_publication'])
+      ? absint($_POST['ysq_delete_publication'])
       : 0;
-    $nonce = isset($_POST['ysq_delete_announcement_nonce'])
-      ? sanitize_text_field(wp_unslash($_POST['ysq_delete_announcement_nonce']))
+    $nonce = isset($_POST['ysq_delete_publication_nonce'])
+      ? sanitize_text_field(wp_unslash($_POST['ysq_delete_publication_nonce']))
       : '';
 
-    if (!$announcement_id || !$nonce || !wp_verify_nonce($nonce, 'ysq_delete_announcement_' . $announcement_id)) {
-      self::add_notice('error', __('Sesi tidak valid saat menghapus pengumuman.', 'ysq'));
+    if (!$publication_id || !$nonce || !wp_verify_nonce($nonce, 'ysq_delete_publication_' . $publication_id)) {
+      self::add_notice('error', __('Sesi tidak valid saat menghapus publikasi.', 'ysq'));
       self::redirect();
     }
 
-    $deleted = Announcements::delete($announcement_id);
+    $deleted = Publikasi::delete($publication_id);
     if ($deleted) {
-      self::add_notice('success', __('Pengumuman berhasil dihapus.', 'ysq'));
+      self::add_notice('success', __('Publikasi berhasil dihapus.', 'ysq'));
     } else {
-      self::add_notice('error', __('Pengumuman tidak dapat dihapus.', 'ysq'));
+      self::add_notice('error', __('Publikasi tidak dapat dihapus.', 'ysq'));
     }
 
     self::redirect();

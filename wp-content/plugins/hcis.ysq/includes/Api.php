@@ -53,8 +53,8 @@ class Api {
     return $admin;
   }
 
-  private static function format_admin_announcements(){
-    $items = Announcements::all();
+  private static function format_admin_publications(){
+    $items = Publikasi::all();
     return array_map(function($item){
       return [
         'id'           => $item['id'] ?? '',
@@ -459,7 +459,7 @@ class Api {
     ]);
   }
 
-  public static function admin_create_announcement(){
+  public static function admin_create_publication(){
     self::check_nonce();
     self::require_admin();
 
@@ -474,24 +474,24 @@ class Api {
     [$label, $url] = self::normalize_link($_POST);
 
     if ($title === '' || $plainBody === '') {
-      wp_send_json(['ok' => false, 'msg' => 'Judul dan isi pengumuman wajib diisi.']);
+      wp_send_json(['ok' => false, 'msg' => 'Judul dan isi publikasi wajib diisi.']);
     }
 
     $category = sanitize_text_field($_POST['category'] ?? '');
 
-    $thumbnail_ids = self::upload_files('announcement_thumbnail', true);
+    $thumbnail_ids = self::upload_files('publication_thumbnail', true);
     if (is_wp_error($thumbnail_ids)) {
       wp_send_json(['ok' => false, 'msg' => $thumbnail_ids->get_error_message()]);
     }
     $thumbnail_id = !empty($thumbnail_ids) ? (int) $thumbnail_ids[0] : 0;
 
-    $new_attachments = self::upload_files('announcement_attachments', false);
+    $new_attachments = self::upload_files('publication_attachments', false);
     if (is_wp_error($new_attachments)) {
       wp_send_json(['ok' => false, 'msg' => $new_attachments->get_error_message()]);
     }
     $attachments = array_values(array_unique(array_merge(self::parse_id_list($_POST['existing_attachments'] ?? []), $new_attachments)));
 
-    $created = Announcements::create([
+    $created = Publikasi::create([
       'title'         => $title,
       'body'          => $body,
       'link_label'    => $label,
@@ -503,23 +503,23 @@ class Api {
     ]);
 
     if (!$created) {
-      wp_send_json(['ok' => false, 'msg' => 'Gagal membuat pengumuman.']);
+      wp_send_json(['ok' => false, 'msg' => 'Gagal membuat publikasi.']);
     }
 
     wp_send_json([
       'ok' => true,
-      'msg' => 'Pengumuman baru berhasil dibuat.',
-      'announcements' => self::format_admin_announcements(),
+      'msg' => 'Publikasi baru berhasil dibuat.',
+      'publications' => self::format_admin_publications(),
     ]);
   }
 
-  public static function admin_update_announcement(){
+  public static function admin_update_publication(){
     self::check_nonce();
     self::require_admin();
 
     $id = sanitize_text_field($_POST['id'] ?? '');
     if ($id === '') {
-      wp_send_json(['ok' => false, 'msg' => 'ID pengumuman tidak valid.']);
+      wp_send_json(['ok' => false, 'msg' => 'ID publikasi tidak valid.']);
     }
 
     $title = sanitize_text_field($_POST['title'] ?? '');
@@ -536,7 +536,7 @@ class Api {
 
     $existing_thumbnail = absint($_POST['thumbnail_existing'] ?? 0);
     $thumbnail_action = sanitize_text_field($_POST['thumbnail_action'] ?? 'keep');
-    $thumbnail_ids = self::upload_files('announcement_thumbnail', true);
+    $thumbnail_ids = self::upload_files('publication_thumbnail', true);
     if (is_wp_error($thumbnail_ids)) {
       wp_send_json(['ok' => false, 'msg' => $thumbnail_ids->get_error_message()]);
     }
@@ -547,7 +547,7 @@ class Api {
     }
 
     $keep_attachments = self::parse_id_list($_POST['existing_attachments'] ?? []);
-    $new_attachments = self::upload_files('announcement_attachments', false);
+    $new_attachments = self::upload_files('publication_attachments', false);
     if (is_wp_error($new_attachments)) {
       wp_send_json(['ok' => false, 'msg' => $new_attachments->get_error_message()]);
     }
@@ -564,56 +564,56 @@ class Api {
       'attachments'   => $attachments,
     ];
     if ($plainBody === '') {
-      wp_send_json(['ok' => false, 'msg' => 'Isi pengumuman tidak boleh kosong.']);
+      wp_send_json(['ok' => false, 'msg' => 'Isi publikasi tidak boleh kosong.']);
     }
     if ($status !== '') {
       $payload['status'] = $status;
     }
 
-    $updated = Announcements::update($id, $payload);
+    $updated = Publikasi::update($id, $payload);
     if (!$updated) {
-      wp_send_json(['ok' => false, 'msg' => 'Pengumuman tidak ditemukan.']);
+      wp_send_json(['ok' => false, 'msg' => 'Publikasi tidak ditemukan.']);
     }
 
     wp_send_json([
       'ok' => true,
-      'msg' => 'Pengumuman berhasil diperbarui.',
-      'announcements' => self::format_admin_announcements(),
+      'msg' => 'Publikasi berhasil diperbarui.',
+      'publications' => self::format_admin_publications(),
     ]);
   }
 
-  public static function admin_delete_announcement(){
+  public static function admin_delete_publication(){
     self::check_nonce();
     self::require_admin();
 
     $id = sanitize_text_field($_POST['id'] ?? '');
-    if ($id === '' || !Announcements::delete($id)) {
-      wp_send_json(['ok' => false, 'msg' => 'Gagal menghapus pengumuman.']);
+    if ($id === '' || !Publikasi::delete($id)) {
+      wp_send_json(['ok' => false, 'msg' => 'Gagal menghapus publikasi.']);
     }
 
     wp_send_json([
       'ok' => true,
-      'msg' => 'Pengumuman dihapus.',
-      'announcements' => self::format_admin_announcements(),
+      'msg' => 'Publikasi dihapus.',
+      'publications' => self::format_admin_publications(),
     ]);
   }
 
-  public static function admin_set_announcement_status(){
+  public static function admin_set_publication_status(){
     self::check_nonce();
     self::require_admin();
 
     $id = sanitize_text_field($_POST['id'] ?? '');
     $status = sanitize_text_field($_POST['status'] ?? '');
 
-    $updated = Announcements::set_status($id, $status);
+    $updated = Publikasi::set_status($id, $status);
     if (!$updated) {
-      wp_send_json(['ok' => false, 'msg' => 'Gagal memperbarui status pengumuman.']);
+      wp_send_json(['ok' => false, 'msg' => 'Gagal memperbarui status publikasi.']);
     }
 
     wp_send_json([
       'ok' => true,
-      'msg' => 'Status pengumuman diperbarui.',
-      'announcements' => self::format_admin_announcements(),
+      'msg' => 'Status publikasi diperbarui.',
+      'publications' => self::format_admin_publications(),
     ]);
   }
 
