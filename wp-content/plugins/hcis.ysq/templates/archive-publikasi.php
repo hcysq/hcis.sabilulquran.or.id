@@ -24,7 +24,7 @@ get_header();
           </div>
           <div class="ysq-publikasi-body">
             <div class="ysq-publikasi-meta">
-              <?php echo esc_html(\HCISYSQ\Publikasi::format_meta(get_post(), false)); ?>
+              <?php echo esc_html(\HCISYSQ\Publikasi_Post_Type::format_meta(get_post(), false)); ?>
             </div>
             <h2 class="ysq-publikasi-title">
               <a href="<?php echo esc_url($permalink); ?>"><?php echo esc_html(get_the_title()); ?></a>

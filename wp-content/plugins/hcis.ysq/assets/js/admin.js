@@ -4,11 +4,11 @@
   if (!shared || !bootstrap) return;
 
   const tasksBootstrap = bootstrap.tasks || {};
-  const announcementsBootstrap = Array.isArray(bootstrap.announcements) ? bootstrap.announcements : [];
+  const publicationsBootstrap = Array.isArray(bootstrap.publications) ? bootstrap.publications : [];
   const homeBootstrap = bootstrap.home || {};
 
-  const announcementsState = {
-    items: announcementsBootstrap.slice(),
+  const publicationsState = {
+    items: publicationsBootstrap.slice(),
     editingId: '',
   };
 
@@ -939,6 +939,12 @@
     message: null,
     summary: null,
     searchInput: null,
+    unitFilter: null,
+    positionFilter: null,
+    pageSizeSelect: null,
+    pageInfo: null,
+    prevButton: null,
+    nextButton: null,
     table: null,
     tbody: null,
     loading: false,
@@ -948,6 +954,10 @@
     filtered: [],
     index: new Map(),
     searchTerm: '',
+    filters: { unit: '', position: '' },
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
   };
 
   function normalizeProfileRecord(raw) {
@@ -1048,12 +1058,94 @@
     }
     const total = employeeModule.all.length;
     const filtered = employeeModule.filtered.length;
-    const term = employeeModule.searchTerm.trim();
-    if (!term) {
-      employeeModule.summary.textContent = `${total} pegawai`;
-    } else {
-      employeeModule.summary.textContent = `${filtered} dari ${total} pegawai`;
+    if (!filtered) {
+      employeeModule.summary.textContent = `0 dari ${total} pegawai`;
+      return;
     }
+    const start = (employeeModule.page - 1) * employeeModule.pageSize + 1;
+    const end = Math.min(filtered, start + employeeModule.pageSize - 1);
+    const hasFilters = Boolean(employeeModule.filters.unit || employeeModule.filters.position || employeeModule.searchTerm.trim());
+    if (!hasFilters) {
+      employeeModule.summary.textContent = `${start}-${end} dari ${total} pegawai`;
+    } else {
+      employeeModule.summary.textContent = `${start}-${end} dari ${filtered} pegawai (total ${total})`;
+    }
+  }
+
+  function updatePaginationControls() {
+    if (!employeeModule.pageInfo) return;
+    const total = employeeModule.filtered.length;
+    const pageSize = employeeModule.pageSize || 10;
+    const totalPages = total > 0 ? Math.ceil(total / pageSize) : 1;
+    employeeModule.totalPages = totalPages;
+    if (employeeModule.page > totalPages) {
+      employeeModule.page = totalPages;
+    }
+    const page = Math.max(1, Math.min(employeeModule.page, totalPages));
+    const start = total ? (page - 1) * pageSize + 1 : 0;
+    const end = total ? Math.min(total, start + pageSize - 1) : 0;
+    employeeModule.pageInfo.textContent = total ? `Halaman ${page} dari ${totalPages}` : 'Tidak ada data';
+    if (employeeModule.prevButton) {
+      employeeModule.prevButton.disabled = page <= 1 || total === 0;
+    }
+    if (employeeModule.nextButton) {
+      employeeModule.nextButton.disabled = page >= totalPages || total === 0;
+    }
+  }
+
+  function setEmployeePage(page) {
+    const totalPages = Math.max(1, Math.ceil((employeeModule.filtered.length || 0) / (employeeModule.pageSize || 10)));
+    const clamped = Math.max(1, Math.min(page, totalPages));
+    if (clamped === employeeModule.page) {
+      updatePaginationControls();
+      return;
+    }
+    employeeModule.page = clamped;
+    renderEmployeeRows();
+  }
+
+  function updateFilterSelect(select, values, selectedValue) {
+    if (!select) return;
+    const defaultLabel = select.dataset.defaultLabel || (select.options[0] ? select.options[0].textContent : 'Semua');
+    const fragment = document.createDocumentFragment();
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = defaultLabel;
+    fragment.appendChild(defaultOption);
+    values.forEach((value) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      fragment.appendChild(option);
+    });
+    select.innerHTML = '';
+    select.appendChild(fragment);
+    select.value = selectedValue || '';
+  }
+
+  function populateEmployeeFilterOptions() {
+    const units = new Map();
+    const positions = new Map();
+    employeeModule.all.forEach((profile) => {
+      const unit = (profile.unit || '').trim();
+      if (unit) {
+        const key = unit.toLowerCase();
+        if (!units.has(key)) {
+          units.set(key, unit);
+        }
+      }
+      const position = (profile.jabatan || '').trim();
+      if (position) {
+        const key = position.toLowerCase();
+        if (!positions.has(key)) {
+          positions.set(key, position);
+        }
+      }
+    });
+    const sortedUnits = Array.from(units.values()).sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
+    const sortedPositions = Array.from(positions.values()).sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
+    updateFilterSelect(employeeModule.unitFilter, sortedUnits, employeeModule.filters.unit);
+    updateFilterSelect(employeeModule.positionFilter, sortedPositions, employeeModule.filters.position);
   }
 
   function buildEmployeeRow(profile, index) {
@@ -1110,24 +1202,53 @@
       emptyRow.appendChild(emptyCell);
       employeeModule.tbody.appendChild(emptyRow);
       updateEmployeeSummary();
+      updatePaginationControls();
       return;
     }
 
-    list.forEach((profile, index) => {
-      employeeModule.tbody.appendChild(buildEmployeeRow(profile, index));
+    const pageSize = Math.max(1, parseInt(employeeModule.pageSize, 10) || 10);
+    const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+    if (employeeModule.page > totalPages) {
+      employeeModule.page = totalPages;
+    }
+    if (employeeModule.page < 1) {
+      employeeModule.page = 1;
+    }
+
+    const startIndex = (employeeModule.page - 1) * pageSize;
+    const endIndex = Math.min(list.length, startIndex + pageSize);
+    const slice = list.slice(startIndex, endIndex);
+
+    slice.forEach((profile, index) => {
+      employeeModule.tbody.appendChild(buildEmployeeRow(profile, startIndex + index));
     });
 
     updateEmployeeSummary();
+    updatePaginationControls();
   }
 
   function recalcEmployeeFiltered() {
+    const unitFilter = (employeeModule.filters.unit || '').trim().toLowerCase();
+    const positionFilter = (employeeModule.filters.position || '').trim().toLowerCase();
     const term = employeeModule.searchTerm.trim().toLowerCase();
-    if (!term) {
-      employeeModule.filtered = employeeModule.all.slice();
-      return;
-    }
     const tokens = term.split(/\s+/).filter(Boolean);
+
     employeeModule.filtered = employeeModule.all.filter((profile) => {
+      if (unitFilter) {
+        const unitValue = (profile.unit || '').trim().toLowerCase();
+        if (unitValue !== unitFilter) {
+          return false;
+        }
+      }
+      if (positionFilter) {
+        const positionValue = (profile.jabatan || '').trim().toLowerCase();
+        if (positionValue !== positionFilter) {
+          return false;
+        }
+      }
+      if (!tokens.length) {
+        return true;
+      }
       const haystack = [
         profile.nip,
         profile.nama,
@@ -1144,6 +1265,18 @@
         .toLowerCase();
       return tokens.every((token) => haystack.includes(token));
     });
+
+    const pageSize = Math.max(1, parseInt(employeeModule.pageSize, 10) || 10);
+    const totalPages = employeeModule.filtered.length
+      ? Math.max(1, Math.ceil(employeeModule.filtered.length / pageSize))
+      : 1;
+    employeeModule.totalPages = totalPages;
+    if (employeeModule.page > totalPages) {
+      employeeModule.page = totalPages;
+    }
+    if (employeeModule.page < 1) {
+      employeeModule.page = 1;
+    }
   }
 
   function focusEmployeeRow(nip) {
@@ -1275,6 +1408,7 @@
           if (!replaced) {
             employeeModule.all.push(updatedProfile);
           }
+          populateEmployeeFilterOptions();
           recalcEmployeeFiltered();
           renderEmployeeRows();
           setEmployeeMessage(successMessage, 'ok');
@@ -1339,6 +1473,8 @@
         employeeModule.all = normalized;
         employeeModule.index = new Map(normalized.map((item) => [item.nip, item]));
         employeeModule.loaded = true;
+        employeeModule.page = 1;
+        populateEmployeeFilterOptions();
         recalcEmployeeFiltered();
         renderEmployeeRows();
         if (!normalized.length) {
@@ -1370,6 +1506,13 @@
     employeeModule.message = employeeModule.container.querySelector('[data-role="employee-message"]');
     employeeModule.summary = employeeModule.container.querySelector('[data-role="employee-summary"]');
     employeeModule.searchInput = employeeModule.container.querySelector('[data-role="employee-search"]');
+    employeeModule.unitFilter = employeeModule.container.querySelector('[data-role="employee-filter-unit"]');
+    employeeModule.positionFilter = employeeModule.container.querySelector('[data-role="employee-filter-position"]');
+    employeeModule.pageSizeSelect = employeeModule.container.querySelector('[data-role="employee-page-size"]');
+    employeeModule.pageInfo = employeeModule.container.querySelector('[data-role="employee-page-info"]');
+    const pagination = employeeModule.container.querySelector('[data-role="employee-pagination"]');
+    employeeModule.prevButton = pagination ? pagination.querySelector('[data-role="employee-prev"]') : null;
+    employeeModule.nextButton = pagination ? pagination.querySelector('[data-role="employee-next"]') : null;
 
     if (employeeModule.message) {
       employeeModule.message.hidden = true;
@@ -1383,11 +1526,61 @@
       employeeModule.searchInput.addEventListener('input', (event) => {
         const value = typeof event.target.value === 'string' ? event.target.value : '';
         employeeModule.searchTerm = value;
+        employeeModule.page = 1;
         recalcEmployeeFiltered();
         renderEmployeeRows();
         if (value.trim()) {
           setEmployeeMessage('', null);
         }
+      });
+    }
+
+    if (employeeModule.unitFilter) {
+      employeeModule.unitFilter.addEventListener('change', (event) => {
+        const value = typeof event.target.value === 'string' ? event.target.value : '';
+        employeeModule.filters.unit = value;
+        employeeModule.page = 1;
+        recalcEmployeeFiltered();
+        renderEmployeeRows();
+      });
+    }
+
+    if (employeeModule.positionFilter) {
+      employeeModule.positionFilter.addEventListener('change', (event) => {
+        const value = typeof event.target.value === 'string' ? event.target.value : '';
+        employeeModule.filters.position = value;
+        employeeModule.page = 1;
+        recalcEmployeeFiltered();
+        renderEmployeeRows();
+      });
+    }
+
+    if (employeeModule.pageSizeSelect) {
+      const initialSize = parseInt(employeeModule.pageSizeSelect.value, 10);
+      if (!Number.isNaN(initialSize) && initialSize > 0) {
+        employeeModule.pageSize = initialSize;
+      }
+      employeeModule.pageSizeSelect.addEventListener('change', (event) => {
+        const value = parseInt(event.target.value, 10);
+        if (Number.isNaN(value) || value <= 0) {
+          return;
+        }
+        employeeModule.pageSize = value;
+        employeeModule.page = 1;
+        recalcEmployeeFiltered();
+        renderEmployeeRows();
+      });
+    }
+
+    if (employeeModule.prevButton) {
+      employeeModule.prevButton.addEventListener('click', () => {
+        setEmployeePage(employeeModule.page - 1);
+      });
+    }
+
+    if (employeeModule.nextButton) {
+      employeeModule.nextButton.addEventListener('click', () => {
+        setEmployeePage(employeeModule.page + 1);
       });
     }
 
@@ -1444,10 +1637,6 @@
         });
 
         currentView = nextView;
-      }
-
-      if (scroll && changed) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
 
       document.dispatchEvent(new CustomEvent('hcisysq:admin-view-activated', {
@@ -1690,33 +1879,44 @@
     updatePreview();
   }
 
-  function bootAnnouncementsModule() {
-    const form = document.getElementById('hcisysq-announcement-form');
-    const list = document.querySelector('[data-announcement-list]');
+  function bootPublicationsModule() {
+    const form = document.getElementById('hcisysq-publication-form');
+    const tabs = document.querySelector('[data-publication-tabs]');
+    const list = document.querySelector('[data-publication-list]');
     if (!form && !list) {
       return;
+    }
+
+    const tabButtons = tabs ? Array.from(tabs.querySelectorAll('[data-tab]')) : [];
+    const panels = tabs ? Array.from(tabs.querySelectorAll('[data-tab-panel]')) : [];
+    let activeTabName = 'create';
+    if (tabButtons.length) {
+      const initialTab = tabButtons.find((button) => button.classList.contains('is-active'));
+      if (initialTab && initialTab.dataset.tab) {
+        activeTabName = initialTab.dataset.tab;
+      }
     }
 
     const escapeHtml = typeof shared.escapeHtmlText === 'function'
       ? shared.escapeHtmlText
       : ((value) => (value === null || value === undefined ? '' : String(value)));
 
-    const message = form ? form.querySelector('[data-role="announcement-message"]') : null;
-    const submitButton = form ? form.querySelector('[data-role="announcement-submit"]') : null;
-    const cancelButton = form ? form.querySelector('[data-role="announcement-cancel"]') : null;
-    const idField = form ? form.querySelector('input[name="announcement_id"]') : null;
+    const message = form ? form.querySelector('[data-role="publication-message"]') : null;
+    const submitButton = form ? form.querySelector('[data-role="publication-submit"]') : null;
+    const cancelButton = form ? form.querySelector('[data-role="publication-cancel"]') : null;
+    const idField = form ? form.querySelector('input[name="publication_id"]') : null;
     const thumbnailExistingField = form ? form.querySelector('input[name="thumbnail_existing"]') : null;
     const thumbnailActionField = form ? form.querySelector('input[name="thumbnail_action"]') : null;
     const existingAttachmentsField = form ? form.querySelector('input[name="existing_attachments"]') : null;
-    const categoryField = form ? form.querySelector('#hcisysq-ann-category') : null;
-    const titleField = form ? form.querySelector('#hcisysq-ann-title') : null;
-    const bodyField = form ? form.querySelector('#hcisysq-ann-body') : null;
-    const linkLabelField = form ? form.querySelector('#hcisysq-ann-link-label') : null;
-    const linkTypeField = form ? form.querySelector('#hcisysq-ann-link-type') : null;
-    const linkUrlField = form ? form.querySelector('#hcisysq-ann-link-url') : null;
+    const categoryField = form ? form.querySelector('#hcisysq-publication-category') : null;
+    const titleField = form ? form.querySelector('#hcisysq-publication-title') : null;
+    const bodyField = form ? form.querySelector('#hcisysq-publication-body') : null;
+    const linkLabelField = form ? form.querySelector('#hcisysq-publication-link-label') : null;
+    const linkTypeField = form ? form.querySelector('#hcisysq-publication-link-type') : null;
+    const linkUrlField = form ? form.querySelector('#hcisysq-publication-link-url') : null;
     const thumbnailPreview = form ? form.querySelector('[data-role="thumbnail-preview"]') : null;
     const thumbnailRemoveButton = form ? form.querySelector('[data-action="remove-thumbnail"]') : null;
-    const attachmentsInput = form ? form.querySelector('#hcisysq-ann-attachments') : null;
+    const attachmentsInput = form ? form.querySelector('#hcisysq-publication-attachments') : null;
     const attachmentsList = form ? form.querySelector('[data-role="attachment-list"]') : null;
 
     let currentAttachments = [];
@@ -1786,64 +1986,64 @@
       if (!url) return;
       const img = document.createElement('img');
       img.src = url;
-      img.alt = 'Thumbnail pengumuman';
+      img.alt = 'Thumbnail publikasi';
       thumbnailPreview.appendChild(img);
     };
 
-    const renderAnnouncementsList = () => {
+    const renderPublicationsList = () => {
       if (!list) return;
-      if (!announcementsState.items.length) {
-        list.innerHTML = '<p class="hcisysq-empty">Belum ada pengumuman.</p>';
+      if (!publicationsState.items.length) {
+        list.innerHTML = '<p class="hcisysq-empty">Belum ada publikasi.</p>';
         return;
       }
 
-      const html = announcementsState.items.map((item) => {
+      const html = publicationsState.items.map((item) => {
         const updated = formatDate(item.updated_at);
         const categoryLabel = item.category && item.category.label
-          ? `<span class="hcisysq-announcement-category">Kategori: ${escapeHtml(item.category.label)}</span>`
+          ? `<span class="hcisysq-publication-category">Kategori: ${escapeHtml(item.category.label)}</span>`
           : '';
         const isTraining = item.link_url === '__TRAINING_FORM__';
         const linkLabel = item.link_label ? escapeHtml(item.link_label) : '';
         let linkHtml = '';
         if (item.link_url) {
           if (isTraining) {
-            linkHtml = `<p class="hcisysq-announcement-link"><span>${linkLabel || 'Form Pelatihan Terbaru'}</span><span class="hcisysq-announcement-note">(tersedia dinamis di dashboard pegawai)</span></p>`;
+            const label = linkLabel || 'Form Pelatihan Terbaru';
+            linkHtml = `<p class="hcisysq-publication-link"><span>${label}</span><span class="hcisysq-publication-note">(tersedia dinamis di dashboard pegawai)</span></p>`;
           } else {
             const href = escapeHtml(item.link_url);
             const label = linkLabel || 'Buka tautan';
-            linkHtml = `<p class="hcisysq-announcement-link"><a href="${href}" target="_blank" rel="noopener">${escapeHtml(label)}</a></p>`;
+            linkHtml = `<p class="hcisysq-publication-link"><a href="${href}" target="_blank" rel="noopener">${escapeHtml(label)}</a></p>`;
           }
         } else if (linkLabel) {
-          linkHtml = `<p class="hcisysq-announcement-link">${linkLabel}</p>`;
+          linkHtml = `<p class="hcisysq-publication-link">${linkLabel}</p>`;
         }
 
         const attachments = Array.isArray(item.attachments) && item.attachments.length
-          ? `<ul class="hcisysq-announcement-files">${item.attachments.map((attachment) => `<li><a href="${escapeHtml(attachment.url || '#')}" target="_blank" rel="noopener">${escapeHtml(attachment.title || attachment.filename || 'Lampiran')}</a></li>`).join('')}</ul>`
+          ? `<ul class="hcisysq-publication-files">${item.attachments.map((attachment) => `<li><a href="${escapeHtml(attachment.url || '#')}" target="_blank" rel="noopener">${escapeHtml(attachment.title || attachment.filename || 'Lampiran')}</a></li>`).join('')}</ul>`
           : '';
 
         const nextStatus = item.status === 'archived' ? 'published' : 'archived';
         const toggleLabel = item.status === 'archived' ? 'Publikasikan' : 'Arsipkan';
-
-        const editingClass = announcementsState.editingId === item.id ? ' is-editing' : '';
+        const editingClass = publicationsState.editingId === item.id ? ' is-editing' : '';
 
         return `
-          <div class="hcisysq-announcement-item${editingClass}" data-id="${escapeHtml(item.id)}">
-            <div class="hcisysq-announcement-header">
+          <div class="hcisysq-publication-item${editingClass}" data-id="${escapeHtml(item.id)}">
+            <div class="hcisysq-publication-header">
               <div>
                 <h4>${escapeHtml(item.title || '')}</h4>
-                <div class="hcisysq-announcement-meta">
+                <div class="hcisysq-publication-meta">
                   ${statusBadge(item.status)}
                   ${updated ? `<span>Diperbarui ${escapeHtml(updated)}</span>` : ''}
                   ${categoryLabel}
                 </div>
               </div>
-              <div class="hcisysq-announcement-actions">
+              <div class="hcisysq-publication-actions">
                 <button type="button" class="btn-link" data-action="edit">Edit</button>
                 <button type="button" class="btn-link" data-action="toggle" data-status="${nextStatus}">${toggleLabel}</button>
                 <button type="button" class="btn-link btn-danger" data-action="delete">Hapus</button>
               </div>
             </div>
-            <div class="hcisysq-announcement-body">${item.body || ''}</div>
+            <div class="hcisysq-publication-body">${item.body || ''}</div>
             ${attachments}
             ${linkHtml}
           </div>
@@ -1853,10 +2053,39 @@
       list.innerHTML = html;
     };
 
+    const activateTab = (name) => {
+      if (!tabs) return;
+      activeTabName = name;
+      tabButtons.forEach((button) => {
+        const isActive = button.dataset.tab === name;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      panels.forEach((panel) => {
+        const isActive = panel.dataset.tabPanel === name;
+        panel.classList.toggle('is-active', isActive);
+        panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+      });
+      if (name === 'history') {
+        renderPublicationsList();
+      }
+    };
+
+    if (tabs && tabButtons.length) {
+      tabs.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-tab]');
+        if (!button) return;
+        event.preventDefault();
+        const targetTab = button.dataset.tab || 'create';
+        activateTab(targetTab);
+      });
+      activateTab(activeTabName || 'create');
+    }
+
     const resetForm = ({ preserveMessage = false } = {}) => {
       if (!form) return;
       form.reset();
-      announcementsState.editingId = '';
+      publicationsState.editingId = '';
       currentAttachments = [];
       if (idField) idField.value = '';
       if (thumbnailExistingField) thumbnailExistingField.value = '0';
@@ -1874,12 +2103,13 @@
       if (!preserveMessage) {
         clearMessage();
       }
-      renderAnnouncementsList();
+      renderPublicationsList();
     };
 
     const populateForm = (item) => {
       if (!form || !item) return;
-      announcementsState.editingId = item.id || '';
+      activateTab('create');
+      publicationsState.editingId = item.id || '';
       currentAttachments = Array.isArray(item.attachments) ? item.attachments.slice() : [];
 
       if (idField) idField.value = item.id || '';
@@ -1934,11 +2164,10 @@
       }
       renderAttachmentList(currentAttachments, []);
 
-      if (submitButton) submitButton.textContent = 'Perbarui Pengumuman';
+      if (submitButton) submitButton.textContent = 'Perbarui Publikasi';
       if (cancelButton) cancelButton.hidden = false;
       clearMessage();
-      renderAnnouncementsList();
-      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      renderPublicationsList();
     };
 
     if (form) {
@@ -1946,14 +2175,14 @@
         event.preventDefault();
         if (!submitButton) return;
 
-        const editing = announcementsState.editingId !== '';
-        const action = editing ? 'hcisysq_admin_update_announcement' : 'hcisysq_admin_create_announcement';
+        const editing = publicationsState.editingId !== '';
+        const action = editing ? 'hcisysq_admin_update_publication' : 'hcisysq_admin_create_publication';
 
         const formData = new FormData(form);
         if (editing) {
-          formData.set('id', announcementsState.editingId);
+          formData.set('id', publicationsState.editingId);
         }
-        formData.delete('announcement_id');
+        formData.delete('publication_id');
 
         submitButton.disabled = true;
         submitButton.textContent = editing ? 'Memperbarui…' : 'Menyimpan…';
@@ -1962,24 +2191,27 @@
         shared.ajax(action, formData, true)
           .then((response) => {
             if (!response || response.ok !== true) {
-              const msg = response && response.msg ? response.msg : 'Gagal menyimpan pengumuman.';
+              const msg = response && response.msg ? response.msg : 'Gagal menyimpan publikasi.';
               setMessage(msg, 'error');
               return;
             }
-            if (Array.isArray(response.announcements)) {
-              announcementsState.items = response.announcements;
+            if (Array.isArray(response.publications)) {
+              publicationsState.items = response.publications;
             }
-            const successMsg = response.msg || 'Pengumuman tersimpan.';
+            const successMsg = response.msg || 'Publikasi tersimpan.';
             resetForm({ preserveMessage: true });
             setMessage(successMsg, 'ok');
+            if (tabs && activeTabName === 'history') {
+              renderPublicationsList();
+            }
           })
           .catch((error) => {
-            console.error('Gagal menyimpan pengumuman:', error);
+            console.error('Gagal menyimpan publikasi:', error);
             setMessage('Terjadi kesalahan saat menyimpan.', 'error');
           })
           .finally(() => {
             submitButton.disabled = false;
-            submitButton.textContent = editing ? 'Perbarui Pengumuman' : 'Publikasikan';
+            submitButton.textContent = editing ? 'Perbarui Publikasi' : 'Publikasikan';
           });
       });
 
@@ -2004,7 +2236,7 @@
       if (thumbnailRemoveButton) {
         thumbnailRemoveButton.addEventListener('click', (event) => {
           event.preventDefault();
-          if (thumbnailPreview) thumbnailPreview.innerHTML = '';
+          renderThumbnailPreview('');
           if (thumbnailExistingField) thumbnailExistingField.value = '0';
           if (thumbnailActionField) thumbnailActionField.value = 'remove';
           thumbnailRemoveButton.hidden = true;
@@ -2030,7 +2262,7 @@
 
         const action = button.dataset.action;
         if (action === 'edit') {
-          const item = announcementsState.items.find((entry) => entry.id === id);
+          const item = publicationsState.items.find((entry) => entry.id === id);
           if (item) {
             populateForm(item);
           }
@@ -2042,21 +2274,21 @@
           button.disabled = true;
           const original = button.textContent;
           button.textContent = 'Memproses…';
-          shared.ajax('hcisysq_admin_set_announcement_status', { id, status })
+          shared.ajax('hcisysq_admin_set_publication_status', { id, status })
             .then((response) => {
               if (!response || response.ok !== true) {
                 const msg = response && response.msg ? response.msg : 'Gagal memperbarui status.';
                 setMessage(msg, 'error');
                 return;
               }
-              if (Array.isArray(response.announcements)) {
-                announcementsState.items = response.announcements;
+              if (Array.isArray(response.publications)) {
+                publicationsState.items = response.publications;
               }
-              setMessage(response.msg || 'Status diperbarui.', 'ok');
-              renderAnnouncementsList();
+              setMessage(response.msg || 'Status publikasi diperbarui.', 'ok');
+              renderPublicationsList();
             })
             .catch((error) => {
-              console.error('Gagal memperbarui status pengumuman:', error);
+              console.error('Gagal memperbarui status publikasi:', error);
               setMessage('Terjadi kesalahan saat memperbarui status.', 'error');
             })
             .finally(() => {
@@ -2067,33 +2299,33 @@
         }
 
         if (action === 'delete') {
-          if (!window.confirm('Hapus pengumuman ini? Tindakan ini tidak dapat dibatalkan.')) {
+          if (!window.confirm('Hapus publikasi ini? Tindakan ini tidak dapat dibatalkan.')) {
             return;
           }
           button.disabled = true;
           const original = button.textContent;
           button.textContent = 'Menghapus…';
-          shared.ajax('hcisysq_admin_delete_announcement', { id })
+          shared.ajax('hcisysq_admin_delete_publication', { id })
             .then((response) => {
               if (!response || response.ok !== true) {
-                const msg = response && response.msg ? response.msg : 'Gagal menghapus pengumuman.';
+                const msg = response && response.msg ? response.msg : 'Gagal menghapus publikasi.';
                 setMessage(msg, 'error');
                 return;
               }
-              if (Array.isArray(response.announcements)) {
-                announcementsState.items = response.announcements;
+              if (Array.isArray(response.publications)) {
+                publicationsState.items = response.publications;
               }
-              const successMsg = response.msg || 'Pengumuman dihapus.';
-              if (announcementsState.editingId === id) {
+              const successMsg = response.msg || 'Publikasi dihapus.';
+              if (publicationsState.editingId === id) {
                 resetForm({ preserveMessage: true });
               } else {
-                renderAnnouncementsList();
+                renderPublicationsList();
               }
               setMessage(successMsg, 'ok');
             })
             .catch((error) => {
-              console.error('Gagal menghapus pengumuman:', error);
-              setMessage('Terjadi kesalahan saat menghapus pengumuman.', 'error');
+              console.error('Gagal menghapus publikasi:', error);
+              setMessage('Terjadi kesalahan saat menghapus publikasi.', 'error');
             })
             .finally(() => {
               button.disabled = false;
@@ -2103,7 +2335,7 @@
       });
     }
 
-    renderAnnouncementsList();
+    renderPublicationsList();
   }
 
   function bootTaskModule() {
@@ -2161,7 +2393,7 @@
     bootAdminNavigation();
     bootLogoutButtons();
     bootHomeModule();
-    bootAnnouncementsModule();
+    bootPublicationsModule();
     bootEmployeesModule();
     bootTaskModule();
   }

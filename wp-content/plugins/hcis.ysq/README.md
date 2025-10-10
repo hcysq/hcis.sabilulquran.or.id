@@ -11,7 +11,7 @@ Plugin HRIS (Human Resource Information System) untuk sistem kepegawaian dengan 
 
 2. **Dashboard Pegawai**
    - Profil ringkas pegawai
-   - Status data & pengumuman
+   - Status data & publikasi
    - Menu navigasi lengkap
 
 3. **Form Pelatihan**

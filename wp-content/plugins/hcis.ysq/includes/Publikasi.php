@@ -1,368 +1,525 @@
 <?php
-namespace HCISYSQ {
-
-use WP_Query;
+namespace HCISYSQ;
 
 if (!defined('ABSPATH')) exit;
 
 class Publikasi {
-  private const STYLE_HANDLE = 'hcisysq-publikasi';
+  const OPTION = 'hcisysq_publikasi';
+  const POST_TYPE = 'ysq_announcement';
+  const TAXONOMY = 'ysq_publication_category';
+  const META_LINK_LABEL = '_hcisysq_link_label';
+  const META_LINK_URL = '_hcisysq_link_url';
+  const META_ARCHIVED_AT = '_hcisysq_archived_at';
+  const META_ATTACHMENTS = '_hcisysq_attachments';
 
-  public static function init() {
-    add_action('init', [__CLASS__, 'register_post_type']);
-    add_action('init', [__CLASS__, 'register_rewrites']);
-    add_filter('post_type_link', [__CLASS__, 'filter_post_type_link'], 10, 2);
-    add_filter('query_vars', [__CLASS__, 'register_query_vars']);
-    add_filter('request', [__CLASS__, 'resolve_request']);
-    add_action('transition_post_status', [__CLASS__, 'assign_sequence'], 10, 3);
-    add_action('wp', [__CLASS__, 'maybe_increment_views']);
-    add_action('wp_enqueue_scripts', [__CLASS__, 'maybe_enqueue_assets']);
-    add_filter('template_include', [__CLASS__, 'template_loader']);
-    add_shortcode('ysq_publikasi_terbaru', [__CLASS__, 'shortcode_latest']);
+  const CATEGORY_TERMS = [
+    'berita'           => 'Berita',
+    'publikasi'       => 'Publikasi',
+    'dokumen-panduan'  => 'Dokumen & Panduan',
+    'wawasan'          => 'Wawasan',
+  ];
+
+  public static function init(){
+    add_action('init', [__CLASS__, 'register_post_type'], 0);
+    add_action('init', [__CLASS__, 'register_taxonomy'], 1);
+    add_action('init', [__CLASS__, 'maybe_migrate'], 5);
+    add_action('init', [__CLASS__, 'ensure_seed'], 11);
+    add_action('init', [__CLASS__, 'ensure_terms'], 12);
   }
 
-  public static function on_activation() {
-    self::register_post_type();
-    self::register_rewrites();
-    flush_rewrite_rules();
-  }
-
-  public static function register_post_type() {
-    $labels = [
-      'name'               => __('Publikasi', 'hcisysq'),
-      'singular_name'      => __('Publikasi', 'hcisysq'),
-      'add_new'            => __('Tambah Publikasi', 'hcisysq'),
-      'add_new_item'       => __('Tambah Publikasi Baru', 'hcisysq'),
-      'edit_item'          => __('Edit Publikasi', 'hcisysq'),
-      'new_item'           => __('Publikasi Baru', 'hcisysq'),
-      'view_item'          => __('Lihat Publikasi', 'hcisysq'),
-      'view_items'         => __('Publikasi', 'hcisysq'),
-      'search_items'       => __('Cari Publikasi', 'hcisysq'),
-      'not_found'          => __('Publikasi tidak ditemukan', 'hcisysq'),
-      'not_found_in_trash' => __('Publikasi tidak ditemukan di tong sampah', 'hcisysq'),
-      'all_items'          => __('Semua Publikasi', 'hcisysq'),
-      'archives'           => __('Arsip Publikasi', 'hcisysq'),
-    ];
-
-    $args = [
-      'label'               => __('Publikasi', 'hcisysq'),
-      'labels'              => $labels,
-      'public'              => true,
-      'has_archive'         => true,
-      'show_in_rest'        => true,
-      'supports'            => ['title', 'editor', 'thumbnail', 'excerpt', 'author', 'revisions'],
-      'taxonomies'          => ['category'],
-      'rewrite'             => ['slug' => 'publikasi', 'with_front' => false],
-      'menu_position'       => 20,
-      'menu_icon'           => 'dashicons-media-document',
-    ];
-
-    register_post_type('publikasi', $args);
-  }
-
-  public static function register_rewrites() {
-    add_rewrite_tag('%ysq_publikasi_cat%', '(.+?)');
-    add_rewrite_tag('%ysq_publikasi_date%', '([0-9]{2}-[0-9]{2}-[0-9]{2})');
-    add_rewrite_tag('%ysq_publikasi_seq%', '([0-9]+)');
-
-    add_rewrite_rule(
-      '^publikasi/(.+?)/([0-9]{2}-[0-9]{2}-[0-9]{2})/([0-9]+)/?$',
-      'index.php?post_type=publikasi&ysq_publikasi_cat=$matches[1]&ysq_publikasi_date=$matches[2]&ysq_publikasi_seq=$matches[3]',
-      'top'
-    );
-
-    add_rewrite_rule('^publikasi/page/([0-9]+)/?$', 'index.php?post_type=publikasi&paged=$matches[1]', 'top');
-    add_rewrite_rule('^publikasi/?$', 'index.php?post_type=publikasi', 'top');
-  }
-
-  public static function register_query_vars($vars) {
-    $vars[] = 'ysq_publikasi_cat';
-    $vars[] = 'ysq_publikasi_date';
-    $vars[] = 'ysq_publikasi_seq';
-    return $vars;
-  }
-
-  public static function filter_post_type_link($permalink, $post) {
-    if ($post->post_type !== 'publikasi') {
-      return $permalink;
-    }
-
-    $category = self::get_primary_category_slug($post->ID);
-    $date     = get_post_time('d-m-y', false, $post);
-    $seq      = get_post_meta($post->ID, '_ysq_seq', true);
-
-    if (!$category) {
-      $category = 'uncategorized';
-    }
-
-    $sequence = $seq ? (int) $seq : 0;
-    $structure = sprintf('publikasi/%s/%s/%d', $category, $date, $sequence);
-    return home_url('/' . $structure . '/');
-  }
-
-  public static function resolve_request($vars) {
-    if (isset($vars['post_type']) && $vars['post_type'] === 'publikasi' && !empty($vars['ysq_publikasi_seq']) && !empty($vars['ysq_publikasi_date'])) {
-      $seq  = absint($vars['ysq_publikasi_seq']);
-      $date = sanitize_text_field($vars['ysq_publikasi_date']);
-      $cat  = isset($vars['ysq_publikasi_cat']) ? sanitize_text_field($vars['ysq_publikasi_cat']) : '';
-      $cat_slug = '';
-
-      if ($cat !== '') {
-        $parts = array_filter(array_map('sanitize_title', explode('/', $cat)));
-        if (!empty($parts)) {
-          $cat_slug = end($parts);
-        }
-      }
-
-      $dt = \DateTime::createFromFormat('d-m-y', $date);
-      if ($dt) {
-        $query_args = [
-          'post_type'      => 'publikasi',
-          'post_status'    => 'publish',
-          'posts_per_page' => 1,
-          'meta_query'     => [
-            [
-              'key'     => '_ysq_seq',
-              'value'   => $seq,
-              'compare' => '=',
-              'type'    => 'NUMERIC',
-            ],
-          ],
-          'date_query'     => [
-            [
-              'year'  => (int) $dt->format('Y'),
-              'month' => (int) $dt->format('n'),
-              'day'   => (int) $dt->format('j'),
-            ],
-          ],
-          'fields'         => 'ids',
-        ];
-
-        if ($cat_slug) {
-          $query_args['tax_query'] = [
-            [
-              'taxonomy' => 'category',
-              'field'    => 'slug',
-              'terms'    => $cat_slug,
-            ],
-          ];
-        }
-
-        $query = new WP_Query($query_args);
-        if (!empty($query->posts)) {
-          $post_id           = (int) $query->posts[0];
-          $vars['p']         = $post_id;
-          $vars['name']      = get_post_field('post_name', $post_id);
-          $vars['page']      = '';
-          $vars['post_type'] = 'publikasi';
-        }
-        wp_reset_postdata();
-      }
-    }
-
-    return $vars;
-  }
-
-  public static function assign_sequence($new_status, $old_status, $post) {
-    if ($post->post_type !== 'publikasi') {
-      return;
-    }
-    if ($new_status !== 'publish' || $old_status === 'publish') {
-      return;
-    }
-
-    $existing = get_post_meta($post->ID, '_ysq_seq', true);
-    if ($existing) {
-      return;
-    }
-
-    $timestamp = get_post_time('U', false, $post);
-    $year      = (int) wp_date('Y', $timestamp);
-    $month     = (int) wp_date('n', $timestamp);
-    $day       = (int) wp_date('j', $timestamp);
-
-    $query = new WP_Query([
-      'post_type'      => 'publikasi',
-      'post_status'    => 'publish',
-      'fields'         => 'ids',
-      'posts_per_page' => -1,
-      'post__not_in'   => [$post->ID],
-      'date_query'     => [
-        [
-          'year'      => $year,
-          'month'     => $month,
-          'day'       => $day,
-          'inclusive' => true,
-        ],
+  public static function register_post_type(){
+    register_post_type(self::POST_TYPE, [
+      'labels' => [
+        'name' => __('Publikasi', 'hcisysq'),
+        'singular_name' => __('Publikasi', 'hcisysq'),
       ],
-      'meta_query'     => [
-        [
-          'key'     => '_ysq_seq',
-          'compare' => 'EXISTS',
-        ],
+      'public' => false,
+      'show_ui' => false,
+      'show_in_nav_menus' => false,
+      'exclude_from_search' => true,
+      'show_in_rest' => false,
+      'rewrite' => false,
+      'query_var' => false,
+      'supports' => ['title', 'editor', 'thumbnail'],
+    ]);
+  }
+
+  public static function register_taxonomy(){
+    register_taxonomy(self::TAXONOMY, self::POST_TYPE, [
+      'hierarchical'      => false,
+      'public'            => false,
+      'show_ui'           => false,
+      'show_admin_column' => false,
+      'show_in_nav_menus' => false,
+      'show_in_rest'      => false,
+      'query_var'         => false,
+      'rewrite'           => false,
+      'labels'            => [
+        'name'          => __('Kategori Publikasi', 'hcisysq'),
+        'singular_name' => __('Kategori Publikasi', 'hcisysq'),
       ],
     ]);
-
-    $count = is_array($query->posts) ? count($query->posts) : 0;
-    wp_reset_postdata();
-
-    $sequence = $count + 1;
-    update_post_meta($post->ID, '_ysq_seq', $sequence);
   }
 
-  public static function maybe_increment_views() {
-    if (is_admin() || !is_singular('publikasi')) {
-      return;
-    }
+  public static function maybe_migrate(){
+    $items = get_option(self::OPTION, null);
+    if ($items === null || $items === false) return;
 
-    $post_id = get_queried_object_id();
-    if (!$post_id) {
-      return;
-    }
+    if (is_array($items) && !empty($items)) {
+      foreach ($items as $item) {
+        if (!is_array($item)) continue;
 
-    $views = (int) get_post_meta($post_id, '_ysq_views', true);
-    $views++;
-    update_post_meta($post_id, '_ysq_views', $views);
-  }
-
-  public static function maybe_enqueue_assets() {
-    if (is_post_type_archive('publikasi') || is_singular('publikasi')) {
-      self::enqueue_style();
-    }
-  }
-
-  public static function enqueue_style() {
-    wp_enqueue_style(
-      self::STYLE_HANDLE,
-      HCISYSQ_URL . 'assets/ysq-publikasi.css',
-      [],
-      defined('HCISYSQ_VER') ? HCISYSQ_VER : false
-    );
-  }
-
-  public static function shortcode_latest($atts) {
-    if (!is_user_logged_in()) {
-      return '';
-    }
-
-    $atts = shortcode_atts([
-      'posts' => 10,
-    ], $atts, 'ysq_publikasi_terbaru');
-
-    $limit = (int) $atts['posts'];
-    if ($limit <= 0) {
-      $limit = 10;
-    }
-
-    self::enqueue_style();
-
-    $query = new WP_Query([
-      'post_type'      => 'publikasi',
-      'post_status'    => 'publish',
-      'posts_per_page' => $limit,
-      'orderby'        => 'date',
-      'order'          => 'DESC',
-    ]);
-
-    if (!$query->have_posts()) {
-      wp_reset_postdata();
-      return '';
-    }
-
-    ob_start();
-    echo '<div class="ysq-publikasi-list">';
-    while ($query->have_posts()) {
-      $query->the_post();
-      $post_id    = get_the_ID();
-      $permalink  = get_permalink($post_id);
-      $title      = get_the_title();
-      $meta       = esc_html(self::format_meta(get_post(), false));
-
-      echo '<article class="ysq-publikasi-item">';
-      echo '<div class="ysq-publikasi-thumb">';
-      if (has_post_thumbnail()) {
-        the_post_thumbnail('medium_large', [
-          'loading' => 'lazy',
-          'alt'     => esc_attr($title),
+        self::create([
+          'title'       => $item['title'] ?? '',
+          'body'        => $item['body'] ?? '',
+          'link_label'  => $item['link_label'] ?? '',
+          'link_url'    => $item['link_url'] ?? '',
+          'status'      => $item['status'] ?? 'published',
+          'created_at'  => $item['created_at'] ?? '',
+          'updated_at'  => $item['updated_at'] ?? '',
+          'archived_at' => $item['archived_at'] ?? null,
+          'category'    => 'publikasi',
         ]);
       }
-      echo '</div>';
-      echo '<div class="ysq-publikasi-body">';
-      echo '<div class="ysq-publikasi-meta">' . $meta . '</div>';
-      echo '<h3 class="ysq-publikasi-title"><a href="' . esc_url($permalink) . '">' . esc_html($title) . '</a></h3>';
-      echo '</div>';
-      echo '</article>';
     }
-    echo '</div>';
 
-    wp_reset_postdata();
-
-    return ob_get_clean();
+    delete_option(self::OPTION);
   }
 
-  public static function template_loader($template) {
-    if (is_post_type_archive('publikasi')) {
-      $theme_template = locate_template('archive-publikasi.php');
-      if ($theme_template) {
-        return $theme_template;
+  public static function ensure_seed(){
+    $environment = function_exists('wp_get_environment_type') ? wp_get_environment_type() : 'production';
+    $default_should_seed = in_array($environment, ['local', 'development'], true);
+    $should_seed = apply_filters('hcisysq_should_seed_publications', $default_should_seed);
+
+    if (!$should_seed) return;
+
+    $existing = get_posts([
+      'post_type'      => self::POST_TYPE,
+      'posts_per_page' => 1,
+      'post_status'    => ['publish', 'draft'],
+      'fields'         => 'ids',
+    ]);
+
+    if (!empty($existing)) return;
+
+    $now = current_time('mysql');
+    $defaults = [
+      [
+        'title'       => 'Pembaruan Data Pegawai',
+        'body'        => 'Isi form pelatihan terbaru.',
+        'link_label'  => 'Isi form pelatihan terbaru',
+        'link_url'    => '__TRAINING_FORM__',
+        'status'      => 'published',
+        'created_at'  => $now,
+        'updated_at'  => $now,
+        'archived_at' => null,
+        'category'    => 'publikasi',
+      ],
+      [
+        'title'       => 'SPMB 2026/2027',
+        'body'        => 'Pendaftaran telah dibuka.',
+        'link_label'  => 'Pendaftaran telah dibuka',
+        'link_url'    => 'https://ppdb.sabilulquran.or.id',
+        'status'      => 'published',
+        'created_at'  => $now,
+        'updated_at'  => $now,
+        'archived_at' => null,
+        'category'    => 'berita',
+      ],
+      [
+        'title'       => "Ikuti Sabilul Qur'an di Instagram",
+        'body'        => '@sabilulquran.',
+        'link_label'  => '@sabilulquran',
+        'link_url'    => 'https://instagram.com/sabilulquran',
+        'status'      => 'published',
+        'created_at'  => $now,
+        'updated_at'  => $now,
+        'archived_at' => null,
+        'category'    => 'wawasan',
+      ],
+    ];
+
+    foreach ($defaults as $default) {
+      self::create($default);
+    }
+  }
+
+  public static function ensure_terms(){
+    $existingPublikasi = get_term_by('slug', 'publikasi', self::TAXONOMY);
+    if (!$existingPublikasi) {
+      $legacy = get_term_by('slug', 'pengumuman', self::TAXONOMY);
+      if ($legacy && !is_wp_error($legacy)) {
+        wp_update_term((int) $legacy->term_id, self::TAXONOMY, [
+          'name' => 'Publikasi',
+          'slug' => 'publikasi',
+        ]);
       }
-      self::enqueue_style();
-      return HCISYSQ_DIR . 'templates/archive-publikasi.php';
     }
 
-    if (is_singular('publikasi')) {
-      $theme_template = locate_template('single-publikasi.php');
-      if ($theme_template) {
-        return $theme_template;
+    foreach (self::CATEGORY_TERMS as $slug => $label) {
+      if (!term_exists($slug, self::TAXONOMY)) {
+        wp_insert_term($label, self::TAXONOMY, ['slug' => $slug]);
       }
-      self::enqueue_style();
-      return HCISYSQ_DIR . 'templates/single-publikasi.php';
     }
-
-    return $template;
   }
 
-  public static function format_meta($post, $include_views = true) {
-    $timestamp    = get_post_time('U', false, $post);
-    $date         = wp_date('l, d F Y H:i', $timestamp) . ' WIB';
-    $author       = get_the_author_meta('display_name', $post->post_author);
-    $meta         = $date . ' • ' . $author;
+  public static function all(){
+    $posts = get_posts([
+      'post_type'      => self::POST_TYPE,
+      'posts_per_page' => -1,
+      'post_status'    => ['publish', 'draft'],
+      'orderby'        => 'date',
+      'order'          => 'ASC',
+    ]);
 
-    if ($include_views) {
-      $views_count   = ysq_get_views($post->ID);
-      $views_display = number_format_i18n($views_count);
-      $meta         .= ' • ' . sprintf(_n('%s kali dilihat', '%s kali dilihat', $views_count, 'hcisysq'), $views_display);
-    }
-
-    return $meta;
+    return array_map([__CLASS__, 'format_post'], $posts);
   }
 
-  private static function get_primary_category_slug($post_id) {
-    $terms = get_the_terms($post_id, 'category');
-    if (!$terms || is_wp_error($terms)) {
-      return '';
+  public static function create(array $data){
+    $title = sanitize_text_field($data['title'] ?? '');
+    $body  = RichText::sanitize($data['body'] ?? '');
+    $link_label = sanitize_text_field($data['link_label'] ?? '');
+    $link_url = self::sanitize_link_url($data['link_url'] ?? '');
+    $status = self::normalize_status($data['status'] ?? 'published');
+    $category = self::sanitize_category($data['category'] ?? '');
+    $thumbnail_id = isset($data['thumbnail_id']) ? absint($data['thumbnail_id']) : 0;
+    $attachments = self::sanitize_attachment_ids($data['attachments'] ?? []);
+
+    $created_at = self::sanitize_datetime($data['created_at'] ?? '') ?: current_time('mysql');
+    $updated_at = self::sanitize_datetime($data['updated_at'] ?? '') ?: $created_at;
+    $archived_at = self::sanitize_datetime($data['archived_at'] ?? null);
+
+    $postarr = [
+      'post_title'        => $title,
+      'post_content'      => $body,
+      'post_type'         => self::POST_TYPE,
+      'post_status'       => self::status_to_post_status($status),
+      'post_date'         => $created_at,
+      'post_date_gmt'     => get_gmt_from_date($created_at),
+      'post_modified'     => $updated_at,
+      'post_modified_gmt' => get_gmt_from_date($updated_at),
+      'meta_input'        => [
+        self::META_LINK_LABEL => $link_label,
+        self::META_LINK_URL   => $link_url,
+      ],
+    ];
+
+    if ($archived_at) {
+      $postarr['meta_input'][self::META_ARCHIVED_AT] = $archived_at;
     }
 
-    usort($terms, function ($a, $b) {
-      return (int) $a->term_id - (int) $b->term_id;
+    $post_id = wp_insert_post($postarr, true);
+    if (is_wp_error($post_id) || !$post_id) {
+      return null;
+    }
+
+    if ($thumbnail_id) {
+      set_post_thumbnail($post_id, $thumbnail_id);
+    }
+
+    self::assign_category($post_id, $category);
+    self::store_attachments($post_id, $attachments);
+
+    if ($status === 'archived' && !$archived_at) {
+      update_post_meta($post_id, self::META_ARCHIVED_AT, current_time('mysql'));
+    }
+
+    if ($status === 'published') {
+      delete_post_meta($post_id, self::META_ARCHIVED_AT);
+    }
+
+    return self::find($post_id);
+  }
+
+  public static function update($id, array $data){
+    $post_id = absint($id);
+    if (!$post_id) return null;
+
+    $post = get_post($post_id);
+    if (!$post || $post->post_type !== self::POST_TYPE) {
+      return null;
+    }
+
+    $title = array_key_exists('title', $data) ? sanitize_text_field($data['title']) : $post->post_title;
+    $body  = array_key_exists('body', $data) ? RichText::sanitize($data['body']) : $post->post_content;
+    $status = array_key_exists('status', $data)
+      ? self::normalize_status($data['status'])
+      : self::status_from_post_status($post->post_status);
+    $category = array_key_exists('category', $data)
+      ? self::sanitize_category($data['category'])
+      : self::get_primary_category_slug($post_id);
+    $thumbnail_id = array_key_exists('thumbnail_id', $data) ? absint($data['thumbnail_id']) : null;
+    $attachments = array_key_exists('attachments', $data)
+      ? self::sanitize_attachment_ids($data['attachments'])
+      : self::get_attachment_ids($post_id);
+
+    $postarr = [
+      'ID'           => $post_id,
+      'post_title'   => $title,
+      'post_content' => $body,
+      'post_status'  => self::status_to_post_status($status),
+    ];
+
+    $result = wp_update_post($postarr, true);
+    if (is_wp_error($result) || !$result) {
+      return null;
+    }
+
+    if ($thumbnail_id !== null) {
+      if ($thumbnail_id > 0) {
+        set_post_thumbnail($post_id, $thumbnail_id);
+      } else {
+        delete_post_thumbnail($post_id);
+      }
+    }
+
+    self::assign_category($post_id, $category);
+    self::store_attachments($post_id, $attachments);
+
+    if (array_key_exists('link_label', $data)) {
+      update_post_meta($post_id, self::META_LINK_LABEL, sanitize_text_field($data['link_label']));
+    }
+
+    if (array_key_exists('link_url', $data)) {
+      update_post_meta($post_id, self::META_LINK_URL, self::sanitize_link_url($data['link_url']));
+    }
+
+    $archived_at = null;
+    if (array_key_exists('archived_at', $data)) {
+      $archived_at = self::sanitize_datetime($data['archived_at']);
+    } else {
+      $archived_at = self::sanitize_datetime(get_post_meta($post_id, self::META_ARCHIVED_AT, true));
+    }
+
+    if ($status === 'archived') {
+      if (!$archived_at) {
+        $archived_at = current_time('mysql');
+      }
+      update_post_meta($post_id, self::META_ARCHIVED_AT, $archived_at);
+    } else {
+      delete_post_meta($post_id, self::META_ARCHIVED_AT);
+    }
+
+    return self::find($post_id);
+  }
+
+  public static function delete($id){
+    $post_id = absint($id);
+    if (!$post_id) return false;
+
+    $result = wp_delete_post($post_id, true);
+    return (bool)$result;
+  }
+
+  public static function set_status($id, $status){
+    if (!in_array($status, ['published', 'archived'], true)) return null;
+    return self::update($id, ['status' => $status]);
+  }
+
+  public static function published_for_user(array $context = []){
+    $items = array_filter(self::all(), function($item){
+      return ($item['status'] ?? 'published') === 'published';
     });
 
-    $term = $terms[0];
-    return $term ? $term->slug : '';
-  }
-}
+    $training_link = $context['training_link'] ?? '';
+    $out = [];
+    foreach ($items as $item) {
+      $link_url = $item['link_url'] ?? '';
+      if ($link_url === '__TRAINING_FORM__' && $training_link) {
+        $link_url = $training_link;
+      } elseif ($link_url === '__TRAINING_FORM__') {
+        $link_url = '';
+      }
 
-if (!function_exists(__NAMESPACE__ . '\\ysq_get_views')) {
-  function ysq_get_views($post_id) {
-    return (int) get_post_meta($post_id, '_ysq_views', true);
-  }
-}
-}
-
-namespace {
-  if (!function_exists('ysq_get_views')) {
-    function ysq_get_views($post_id) {
-      return \HCISYSQ\ysq_get_views($post_id);
+      $out[] = [
+        'id'           => $item['id'],
+        'title'        => $item['title'],
+        'body'         => $item['body'],
+        'link_label'   => $item['link_label'],
+        'link_url'     => $link_url,
+        'category'     => $item['category'] ?? null,
+        'attachments'  => $item['attachments'] ?? [],
+        'thumbnail'    => $item['thumbnail'] ?? null,
+        'created_at'   => $item['created_at'] ?? '',
+      ];
     }
+
+    return $out;
+  }
+
+  private static function sanitize_link_url($url){
+    if ($url === '__TRAINING_FORM__') {
+      return '__TRAINING_FORM__';
+    }
+
+    $sanitized = esc_url_raw($url);
+    if ($sanitized === esc_url_raw('__TRAINING_FORM__')) {
+      return '__TRAINING_FORM__';
+    }
+
+    return $sanitized;
+  }
+
+  private static function sanitize_datetime($value){
+    if ($value === null || $value === '') {
+      return null;
+    }
+
+    return sanitize_text_field($value);
+  }
+
+  private static function normalize_status($status){
+    return in_array($status, ['published', 'archived'], true) ? $status : 'published';
+  }
+
+  private static function sanitize_category($slug){
+    $slug = sanitize_title($slug);
+    if ($slug === 'pengumuman') {
+      $slug = 'publikasi';
+    }
+    if (!$slug || !array_key_exists($slug, self::CATEGORY_TERMS)) {
+      return 'publikasi';
+    }
+
+    return $slug;
+  }
+
+  private static function assign_category($post_id, $slug){
+    $slug = self::sanitize_category($slug);
+    if (!$slug) {
+      return;
+    }
+
+    wp_set_post_terms($post_id, [$slug], self::TAXONOMY, false);
+  }
+
+  private static function sanitize_attachment_ids($input){
+    if (is_string($input)) {
+      $decoded = json_decode($input, true);
+      if (is_array($decoded)) {
+        $input = $decoded;
+      }
+    }
+
+    if (!is_array($input)) {
+      return [];
+    }
+
+    $ids = array_map('absint', $input);
+    $ids = array_filter($ids, function($id){
+      return $id > 0 && get_post($id);
+    });
+
+    return array_values(array_unique($ids));
+  }
+
+  private static function store_attachments($post_id, array $ids){
+    if (empty($ids)) {
+      delete_post_meta($post_id, self::META_ATTACHMENTS);
+      return;
+    }
+
+    update_post_meta($post_id, self::META_ATTACHMENTS, $ids);
+  }
+
+  private static function get_attachment_ids($post_id){
+    $value = get_post_meta($post_id, self::META_ATTACHMENTS, true);
+
+    if (is_string($value)) {
+      $decoded = json_decode($value, true);
+      if (is_array($decoded)) {
+        $value = $decoded;
+      }
+    }
+
+    if (!is_array($value)) {
+      $value = [];
+    }
+
+    return self::sanitize_attachment_ids($value);
+  }
+
+  private static function prepare_attachment($attachment_id){
+    $attachment = get_post($attachment_id);
+    if (!$attachment) {
+      return null;
+    }
+
+    $url = wp_get_attachment_url($attachment_id);
+    if (!$url) {
+      return null;
+    }
+
+    $file_path = get_attached_file($attachment_id);
+
+    return [
+      'id'       => (int) $attachment_id,
+      'url'      => $url,
+      'title'    => get_the_title($attachment_id),
+      'filename' => $file_path ? basename($file_path) : basename(wp_parse_url($url, PHP_URL_PATH)),
+    ];
+  }
+
+  private static function get_primary_category_slug($post_id){
+    $terms = wp_get_post_terms($post_id, self::TAXONOMY, ['fields' => 'slugs']);
+    if (is_wp_error($terms) || empty($terms)) {
+      return 'publikasi';
+    }
+
+    $slug = sanitize_title($terms[0]);
+    return $slug ?: 'publikasi';
+  }
+
+  private static function get_category_data($post_id){
+    $slug = self::get_primary_category_slug($post_id);
+    $label = self::CATEGORY_TERMS[$slug] ?? ucfirst(str_replace('-', ' ', $slug));
+
+    return [
+      'slug'  => $slug,
+      'label' => $label,
+    ];
+  }
+
+  private static function status_to_post_status($status){
+    return $status === 'archived' ? 'draft' : 'publish';
+  }
+
+  private static function status_from_post_status($post_status){
+    return $post_status === 'publish' ? 'published' : 'archived';
+  }
+
+  private static function find($post_id){
+    $post = get_post($post_id);
+    if (!$post || $post->post_type !== self::POST_TYPE) {
+      return null;
+    }
+
+    return self::format_post($post);
+  }
+
+  private static function format_post($post){
+    $link_label = get_post_meta($post->ID, self::META_LINK_LABEL, true);
+    $link_url = get_post_meta($post->ID, self::META_LINK_URL, true);
+    $archived_at = get_post_meta($post->ID, self::META_ARCHIVED_AT, true);
+    $thumbnail_id = get_post_thumbnail_id($post->ID);
+    $attachments = array_filter(array_map([__CLASS__, 'prepare_attachment'], self::get_attachment_ids($post->ID)));
+
+    return [
+      'id'          => strval($post->ID),
+      'title'       => $post->post_title,
+      'body'        => RichText::sanitize($post->post_content),
+      'link_label'  => is_string($link_label) ? $link_label : '',
+      'link_url'    => is_string($link_url) ? $link_url : '',
+      'status'      => self::status_from_post_status($post->post_status),
+      'created_at'  => $post->post_date,
+      'updated_at'  => $post->post_modified,
+      'archived_at' => $archived_at ? sanitize_text_field($archived_at) : null,
+      'category'    => self::get_category_data($post->ID),
+      'thumbnail'   => $thumbnail_id ? [
+        'id'  => (int) $thumbnail_id,
+        'url' => wp_get_attachment_url($thumbnail_id),
+      ] : null,
+      'attachments' => $attachments,
+    ];
   }
 }
