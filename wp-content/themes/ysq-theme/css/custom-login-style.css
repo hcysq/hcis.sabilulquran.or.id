@@ -15,6 +15,26 @@
 .auth-form .btn-primary{width:100%;margin-top:6px}
 .link-forgot{margin-top:2px;background:none;border:none;color:var(--brand-2);font-weight:700;font-size:10px;cursor:pointer;text-align:center;letter-spacing:.02em;text-transform:uppercase}
 
+body.login{min-height:100vh;margin:0;display:flex;align-items:center;justify-content:center;padding:36px 16px;background:#f5f7fb url('../assets/bg.jpg') repeat;background-size:400px 400px;font-family:system-ui,"Segoe UI",Roboto,sans-serif;color:#0f172a;--brand-2:#0ea5e9;--ring:rgba(23,88,135,.12)}
+body.login #login{width:100%;max-width:360px;margin:0;padding:0}
+body.login #login h1{margin-bottom:18px;text-align:center}
+body.login #login h1 a{background-image:url('../assets/logo.png');background-size:contain;background-repeat:no-repeat;width:110px;height:110px;margin:0 auto;text-indent:-9999px;display:block}
+body.login #loginform{margin-top:0;padding:18px 18px 20px;border-radius:12px;background:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.4);backdrop-filter:blur(10px);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+body.login #loginform label{display:block;font-weight:700;color:#0f172a;font-size:11px;letter-spacing:.01em;text-transform:uppercase;text-shadow:0 1px 2px rgba(255,255,255,.5);margin-bottom:6px}
+body.login #loginform .input,body.login #loginform input[type=password]{width:100%;padding:9px 11px;border:1px solid rgba(15,23,42,.3);border-radius:10px;font-size:11px;background:rgba(255,255,255,.75);color:#0f172a;backdrop-filter:blur(16px);box-shadow:none}
+body.login #loginform .input::placeholder,body.login #loginform input[type=password]::placeholder{color:rgba(15,23,42,.4)}
+body.login #loginform .input:focus,body.login #loginform input[type=password]:focus{border-color:rgba(14,165,233,.8);box-shadow:0 0 0 2px var(--ring);outline:none;background:rgba(255,255,255,.9)}
+body.login #loginform p{margin-bottom:12px}
+body.login #loginform p.submit{margin-top:16px}
+body.login #loginform .forgetmenot{display:flex;align-items:center;gap:6px;font-size:10px;color:#0f172a;text-shadow:0 1px 2px rgba(255,255,255,.5)}
+body.login #loginform .forgetmenot input{margin:0}
+body.login #loginform .button-primary{width:100%;margin:0;background:linear-gradient(135deg,rgba(23,88,135,.7),rgba(14,165,233,.55));color:#fff;border:none;border-radius:10px;padding:9px 14px;font-weight:700;font-size:11px;cursor:pointer;transition:filter .2s ease,transform .2s ease;box-shadow:0 10px 24px rgba(16,46,76,.24)}
+body.login #loginform .button-primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
+body.login #nav,body.login #backtoblog{text-align:center;margin-top:16px}
+body.login #nav a,body.login #backtoblog a{color:var(--brand-2);font-weight:700;font-size:10px;letter-spacing:.02em;text-transform:uppercase;text-decoration:none;text-shadow:0 1px 2px rgba(255,255,255,.5)}
+body.login #nav a:hover,body.login #backtoblog a:hover{opacity:.9}
+body.login.login-action-lostpassword #loginform{padding-bottom:24px}
+
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:12px;z-index:50}
 .modal{position:relative;background:rgba(255,255,255,.95);border-radius:14px;max-width:360px;width:100%;padding:16px 16px 18px;border:1px solid rgba(15,23,42,.2);color:#0f172a;backdrop-filter:blur(16px)}
 .modal h3{margin:0 0 6px;font-size:var(--font-heading);font-weight:700}
@@ -28,4 +48,8 @@
 @media (max-width: 480px){
   .auth-card{max-width:280px;padding:12px 14px}
   .auth-header h2{font-size:14px}
+  body.login{padding:28px 12px}
+  body.login #login{max-width:320px}
+  body.login #login h1 a{width:96px;height:96px}
+  body.login #loginform{padding:16px 16px 18px}
 }
