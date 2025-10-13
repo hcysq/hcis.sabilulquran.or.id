@@ -377,7 +377,6 @@ function ysq_customize_register($wp_customize) {
         $wp_customize->add_setting($content_setting, array(
             'default'           => $defaults['content'],
             'transport'         => 'refresh',
-            'sanitize_callback' => 'wp_kses_post',
         ));
 
         $wp_customize->add_control($content_setting, array(

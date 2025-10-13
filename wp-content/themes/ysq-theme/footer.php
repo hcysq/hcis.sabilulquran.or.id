@@ -62,14 +62,14 @@
             <?php endforeach; ?>
 
             <?php foreach ($footer_columns as $column) : ?>
-                <div class="ysq-footer__content"><?php echo wp_kses_post($column['content']); ?></div>
+                <div class="ysq-footer__content"><?php echo $column['content']; ?></div>
             <?php endforeach; ?>
         </div>
     </div>
 
     <div class="footer-bottom">
         <div class="container">
-            <p class="footer-copy"><?php echo wp_kses_post($footer_bottom_copy); ?></p>
+            <p class="footer-copy"><?php echo $footer_bottom_copy; ?></p>
         </div>
     </div>
 </footer>
