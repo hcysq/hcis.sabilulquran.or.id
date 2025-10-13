@@ -107,12 +107,17 @@ class Users {
       $nama  = self::col($row,$map,'nama');
       if (!$nip || !$nama) continue;
 
+      $no_hp_raw = self::col($row,$map,'no hp');
+      $no_hp = Auth::norm_phone($no_hp_raw);
+
       $password_raw = self::col($row,$map,'password');
-      $no_hp = self::col($row,$map,'no hp');
+      if ($password_raw === '') {
+        $password_raw = $no_hp;
+      }
 
       // Jika password ada dan tidak terlihat hash, hash dulu
       $password_stored = '';
-      if ($password_raw) {
+      if ($password_raw !== '') {
         $looksHashed = (strpos($password_raw, '$2y$') === 0 || strpos($password_raw, '$argon2') === 0);
         $password_stored = $looksHashed ? $password_raw : password_hash($password_raw, PASSWORD_BCRYPT);
       }

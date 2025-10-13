@@ -96,11 +96,17 @@ class Auth {
     return null;
   }
 
-  // normalisasi no HP: keep digits only, leading 0 -> 62
+  // normalisasi no HP: keep digits only, leading 0/8 -> 62
   public static function norm_phone($s){
     $s = preg_replace('/\D+/', '', strval($s));
     if ($s === '') return '';
-    if ($s[0] === '0') $s = '62' . substr($s, 1);
+
+    if (strpos($s, '08') === 0) {
+      $s = '62' . substr($s, 1);
+    } elseif ($s[0] === '8') {
+      $s = '62' . $s;
+    }
+
     return $s;
   }
 
