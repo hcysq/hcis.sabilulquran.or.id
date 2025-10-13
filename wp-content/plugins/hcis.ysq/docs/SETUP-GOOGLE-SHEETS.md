@@ -80,11 +80,11 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vTlR2VUOcQfXRjZN4fNC-o4CvPTgd-Zl
 | NAMA | Nama lengkap | ✓ |
 | JABATAN | Jabatan | - |
 | UNIT | Unit kerja | - |
-| NO HP | Nomor HP format 62xxx | - |
-| PASSWORD | Password (jika kosong = NO HP) | - |
+| NO HP | Nomor HP (format bebas, sistem akan mengubah ke 62xxxx) | - |
+| PASSWORD | Password (jika kosong = NO HP yang sudah diformat) | - |
 
 ### Catatan Penting:
-- Jika kolom PASSWORD kosong, sistem akan menggunakan NO HP sebagai password default
+- Jika kolom PASSWORD kosong, sistem akan menggunakan NO HP yang sudah dinormalisasi sebagai password default sebelum di-hash
 - Jika PASSWORD diisi dengan plain text, sistem akan meng-hash otomatis saat import
 - Password yang sudah di-hash tidak akan di-hash ulang
 
