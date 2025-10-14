@@ -84,6 +84,12 @@ require_once HCISYSQ_DIR . 'includes/ProfileWizard.php';
 register_activation_hook(__FILE__, ['HCISYSQ\\Installer', 'activate']);
 register_deactivation_hook(__FILE__, ['HCISYSQ\\Installer', 'deactivate']);
 
+add_action('plugins_loaded', function(){
+  if (get_option('hcisysq_schema_version') !== \HCISYSQ\Installer::SCHEMA_VERSION) {
+    \HCISYSQ\Installer::activate();
+  }
+});
+
 /* =======================================================
  *  Init modules
  * ======================================================= */
