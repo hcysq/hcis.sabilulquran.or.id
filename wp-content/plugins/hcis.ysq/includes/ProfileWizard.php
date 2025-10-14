@@ -56,13 +56,14 @@ class ProfileWizard {
   }
 
   protected static function handle_submission() {
+    $errors = [];
     if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field($_POST['_wpnonce']), 'ysq_profile_wizard')) {
-      wp_die(__('Permintaan tidak valid.', 'hcis-ysq'));
+      $errors[] = __('Permintaan tidak valid.', 'hcis-ysq');
     }
 
     $user_id = get_current_user_id();
     if (!$user_id) {
-      wp_die(__('Pengguna tidak ditemukan.', 'hcis-ysq'));
+      $errors[] = __('Pengguna tidak ditemukan.', 'hcis-ysq');
     }
 
     global $wpdb;
@@ -94,23 +95,97 @@ class ProfileWizard {
     ];
 
     if ($employee_data['full_name'] === '' || $employee_data['employee_id_number'] === '') {
-      wp_die(__('Nama lengkap dan NIP wajib diisi.', 'hcis-ysq'));
+      $errors[] = __('Nama lengkap dan NIP wajib diisi.', 'hcis-ysq');
     }
+
+    $family_entries = self::sanitize_repeater_input(wp_unslash($_POST['family'] ?? []), [
+      'name' => 'sanitize_text_field',
+      'relationship' => 'sanitize_text_field',
+      'birth_date' => 'sanitize_text_field',
+    ]);
+    $education_entries = self::sanitize_repeater_input(wp_unslash($_POST['education'] ?? []), [
+      'level' => 'sanitize_text_field',
+      'institution_name' => 'sanitize_text_field',
+      'major' => 'sanitize_text_field',
+      'end_year' => 'sanitize_text_field',
+    ]);
+    $work_entries = self::sanitize_repeater_input(wp_unslash($_POST['work_history'] ?? []), [
+      'company_name' => 'sanitize_text_field',
+      'position' => 'sanitize_text_field',
+      'start_date' => 'sanitize_text_field',
+      'end_date' => 'sanitize_text_field',
+      'reference_contact' => 'sanitize_text_field',
+    ]);
+    $training_entries = self::sanitize_repeater_input(wp_unslash($_POST['training_history'] ?? []), [
+      'course_name' => 'sanitize_text_field',
+      'organizer' => 'sanitize_text_field',
+      'training_date' => 'sanitize_text_field',
+      'venue' => 'sanitize_text_field',
+      'cost' => function($value) { return sanitize_text_field($value); },
+      'funding_source' => 'sanitize_text_field',
+      'payment_method' => 'sanitize_text_field',
+      'payment_proof_file' => 'esc_url_raw',
+      'status' => 'sanitize_text_field',
+      'certificate_file' => 'esc_url_raw',
+    ]);
+    $employment_entries = self::sanitize_repeater_input(wp_unslash($_POST['employment_history'] ?? []), [
+      'unit_name' => 'sanitize_text_field',
+      'position_name' => 'sanitize_text_field',
+      'employment_status' => 'sanitize_text_field',
+      'start_date' => 'sanitize_text_field',
+      'end_date' => 'sanitize_text_field',
+    ]);
+    $quran_entry_raw = wp_unslash($_POST['quran_memorization'] ?? []);
+    $quran_entry = [
+      'juz_memorized' => sanitize_text_field($quran_entry_raw['juz_memorized'] ?? ''),
+      'last_tested_date' => sanitize_text_field($quran_entry_raw['last_tested_date'] ?? ''),
+      'examiner_name' => sanitize_text_field($quran_entry_raw['examiner_name'] ?? ''),
+      'notes' => sanitize_textarea_field($quran_entry_raw['notes'] ?? ''),
+    ];
+    $islamic_entries = self::sanitize_repeater_input(wp_unslash($_POST['islamic_studies'] ?? []), [
+      'study_topic_or_book' => 'sanitize_text_field',
+      'teacher_name' => 'sanitize_text_field',
+      'organizer' => 'sanitize_text_field',
+      'study_type' => 'sanitize_text_field',
+      'start_date' => 'sanitize_text_field',
+      'end_date' => 'sanitize_text_field',
+    ]);
+
+    $post_data = [
+      'employee' => $employee_data,
+      'family' => $family_entries,
+      'education' => $education_entries,
+      'work_history' => $work_entries,
+      'training_history' => $training_entries,
+      'employment_history' => $employment_entries,
+      'quran_memorization' => $quran_entry,
+      'islamic_studies' => $islamic_entries,
+    ];
+
+    if (!empty($errors)) {
+      self::store_errors_and_redirect($user_id, $errors, $post_data);
+    }
+
     if ($employee_data['join_date'] === '') {
       $employee_data['join_date'] = current_time('Y-m-d');
+      $post_data['employee']['join_date'] = $employee_data['join_date'];
     }
 
     if (!$employee) {
       $employee_data['wp_user_id'] = $user_id;
-      $wpdb->insert($employees_table, $employee_data);
-      $employee_id = (int) $wpdb->insert_id;
+      $inserted = $wpdb->insert($employees_table, $employee_data);
+      $employee_id = $inserted !== false ? (int) $wpdb->insert_id : 0;
     } else {
       $employee_id = (int) $employee->id;
-      $wpdb->update($employees_table, $employee_data, ['id' => $employee_id]);
+      $updated = $wpdb->update($employees_table, $employee_data, ['id' => $employee_id]);
+      if ($updated === false) {
+        $employee_id = 0;
+      }
     }
 
     if (!$employee_id) {
-      wp_die(__('Gagal menyimpan data pegawai.', 'hcis-ysq'));
+      $errors[] = __('Gagal menyimpan data pegawai.', 'hcis-ysq');
+      self::store_errors_and_redirect($user_id, $errors, $post_data);
     }
 
     self::sync_family_members($employee_id, wp_unslash($_POST['family'] ?? []));
@@ -127,23 +202,53 @@ class ProfileWizard {
     exit;
   }
 
-  protected static function normalize_repeater(array $entries, array $fields) {
-    $normalized = [];
+  protected static function sanitize_repeater_input(array $entries, array $fields) {
+    $sanitized = [];
     foreach ($entries as $entry) {
       $clean = [];
-      $isEmpty = true;
       foreach ($fields as $key => $callback) {
         $value = isset($entry[$key]) ? call_user_func($callback, $entry[$key]) : '';
+        $clean[$key] = $value;
+      }
+      $sanitized[] = $clean;
+    }
+    return $sanitized;
+  }
+
+  protected static function normalize_repeater(array $entries, array $fields) {
+    $sanitized = self::sanitize_repeater_input($entries, $fields);
+    $normalized = [];
+    foreach ($sanitized as $clean) {
+      $isEmpty = true;
+      foreach ($clean as $value) {
         if ($value !== '') {
           $isEmpty = false;
+          break;
         }
-        $clean[$key] = $value;
       }
       if (!$isEmpty) {
         $normalized[] = $clean;
       }
     }
     return $normalized;
+  }
+
+  protected static function store_errors_and_redirect($user_id, array $errors, array $post_data) {
+    if ($user_id) {
+      set_transient(self::get_errors_transient_key($user_id), $errors, MINUTE_IN_SECONDS * 10);
+      set_transient(self::get_data_transient_key($user_id), $post_data, MINUTE_IN_SECONDS * 10);
+    }
+
+    wp_safe_redirect(home_url('/' . self::SLUG . '/'));
+    exit;
+  }
+
+  protected static function get_errors_transient_key($user_id) {
+    return 'ysq_profile_wizard_errors_' . $user_id;
+  }
+
+  protected static function get_data_transient_key($user_id) {
+    return 'ysq_profile_wizard_old_input_' . $user_id;
   }
 
   protected static function sync_family_members($employee_id, array $entries) {

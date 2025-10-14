@@ -10,6 +10,52 @@
 
 if (!defined('ABSPATH')) exit;
 
+$wizard_errors = [];
+$wizard_old_input = [];
+
+if (!empty($user_id)) {
+  $errors_key = 'ysq_profile_wizard_errors_' . $user_id;
+  $data_key = 'ysq_profile_wizard_old_input_' . $user_id;
+
+  $wizard_errors = get_transient($errors_key);
+  $wizard_old_input = get_transient($data_key);
+
+  delete_transient($errors_key);
+  delete_transient($data_key);
+
+  if (!is_array($wizard_errors)) {
+    $wizard_errors = [];
+  }
+  if (!is_array($wizard_old_input)) {
+    $wizard_old_input = [];
+  }
+}
+
+if (!empty($wizard_old_input['employee']) && is_array($wizard_old_input['employee'])) {
+  $employee_data = array_merge($employee_data, $wizard_old_input['employee']);
+}
+if (isset($wizard_old_input['family']) && is_array($wizard_old_input['family'])) {
+  $family = $wizard_old_input['family'];
+}
+if (isset($wizard_old_input['education']) && is_array($wizard_old_input['education'])) {
+  $education = $wizard_old_input['education'];
+}
+if (isset($wizard_old_input['work_history']) && is_array($wizard_old_input['work_history'])) {
+  $work_history = $wizard_old_input['work_history'];
+}
+if (isset($wizard_old_input['training_history']) && is_array($wizard_old_input['training_history'])) {
+  $training_history = $wizard_old_input['training_history'];
+}
+if (isset($wizard_old_input['employment_history']) && is_array($wizard_old_input['employment_history'])) {
+  $employment_history = $wizard_old_input['employment_history'];
+}
+if (!empty($wizard_old_input['quran_memorization']) && is_array($wizard_old_input['quran_memorization'])) {
+  $quran = $wizard_old_input['quran_memorization'];
+}
+if (isset($wizard_old_input['islamic_studies']) && is_array($wizard_old_input['islamic_studies'])) {
+  $islamic = $wizard_old_input['islamic_studies'];
+}
+
 $family_items = !empty($family) ? $family : [['name' => '', 'relationship' => '', 'birth_date' => '']];
 $education_items = !empty($education) ? $education : [['level' => '', 'institution_name' => '', 'major' => '', 'end_year' => '']];
 $work_items = !empty($work_history) ? $work_history : [['company_name' => '', 'position' => '', 'start_date' => '', 'end_date' => '', 'reference_contact' => '']];
@@ -29,6 +75,15 @@ $quran_entry = !empty($quran) ? $quran : ['juz_memorized' => '', 'last_tested_da
   <main class="ysq-profile-wizard">
     <h1><?php esc_html_e('Lengkapi Profil Pegawai', 'hcis-ysq'); ?></h1>
     <p><?php esc_html_e('Mohon lengkapi seluruh data berikut agar profil Anda valid.', 'hcis-ysq'); ?></p>
+    <?php if (!empty($wizard_errors)) : ?>
+      <div class="notice notice-error ysq-profile-errors" role="alert">
+        <ul>
+          <?php foreach ($wizard_errors as $error_message) : ?>
+            <li><?php echo esc_html($error_message); ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
     <?php if (!empty($force_password_change)) : ?>
       <div class="notice notice-warning">
         <p><?php esc_html_e('Untuk keamanan, silakan segera mengganti password Anda di profil WordPress setelah melengkapi data berikut.', 'hcis-ysq'); ?></p>
