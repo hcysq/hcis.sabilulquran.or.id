@@ -8,78 +8,134 @@ class Installer {
     global $wpdb;
     $charset = $wpdb->get_charset_collate();
 
-    $t_users = $wpdb->prefix.'hcisysq_users';
-    $t_tr    = $wpdb->prefix.'hcisysq_trainings';
-    $t_pf    = $wpdb->prefix.'hcisysq_profiles';
+    $tables = [
+      'ysq_employees' => "CREATE TABLE {$wpdb->prefix}ysq_employees (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        wp_user_id BIGINT UNSIGNED UNIQUE,
+        title_prefix VARCHAR(50),
+        full_name VARCHAR(255) NOT NULL,
+        title_suffix VARCHAR(100),
+        employee_id_number VARCHAR(50) UNIQUE,
+        ktp_number VARCHAR(30) UNIQUE,
+        email VARCHAR(255) UNIQUE,
+        phone_number VARCHAR(20),
+        birth_place VARCHAR(100),
+        birth_date DATE,
+        gender ENUM('Laki-laki','Perempuan'),
+        marital_status VARCHAR(50),
+        address TEXT,
+        join_date DATE NOT NULL,
+        status ENUM('Aktif','Tidak Aktif') NOT NULL DEFAULT 'Aktif',
+        emergency_contact_name VARCHAR(255),
+        emergency_contact_phone VARCHAR(20),
+        profile_picture_url VARCHAR(255),
+        bank_name VARCHAR(100),
+        bank_account_number VARCHAR(50),
+        npwp_number VARCHAR(25),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY wp_user_id (wp_user_id)
+      ) $charset;",
+      'ysq_units' => "CREATE TABLE {$wpdb->prefix}ysq_units (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) UNIQUE NOT NULL
+      ) $charset;",
+      'ysq_positions' => "CREATE TABLE {$wpdb->prefix}ysq_positions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) UNIQUE NOT NULL
+      ) $charset;",
+      'ysq_employment_history' => "CREATE TABLE {$wpdb->prefix}ysq_employment_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_id INT NOT NULL,
+        unit_id INT NOT NULL,
+        position_id INT NOT NULL,
+        employment_status VARCHAR(100),
+        start_date DATE NOT NULL,
+        end_date DATE,
+        KEY employee_id (employee_id),
+        KEY unit_id (unit_id),
+        KEY position_id (position_id)
+      ) $charset;",
+      'ysq_family_members' => "CREATE TABLE {$wpdb->prefix}ysq_family_members (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_id INT NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        relationship VARCHAR(50) NOT NULL,
+        birth_date DATE,
+        KEY employee_id (employee_id)
+      ) $charset;",
+      'ysq_education_history' => "CREATE TABLE {$wpdb->prefix}ysq_education_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_id INT NOT NULL,
+        level VARCHAR(50) NOT NULL,
+        institution_name VARCHAR(255) NOT NULL,
+        major VARCHAR(255),
+        end_year CHAR(4),
+        KEY employee_id (employee_id)
+      ) $charset;",
+      'ysq_work_history' => "CREATE TABLE {$wpdb->prefix}ysq_work_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_id INT NOT NULL,
+        company_name VARCHAR(255) NOT NULL,
+        position VARCHAR(255) NOT NULL,
+        start_date DATE,
+        end_date DATE,
+        reference_contact VARCHAR(255),
+        KEY employee_id (employee_id)
+      ) $charset;",
+      'ysq_quran_memorization' => "CREATE TABLE {$wpdb->prefix}ysq_quran_memorization (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_id INT NOT NULL,
+        juz_memorized DECIMAL(4,2) NOT NULL,
+        last_tested_date DATE,
+        examiner_name VARCHAR(255),
+        notes TEXT,
+        KEY employee_id (employee_id)
+      ) $charset;",
+      'ysq_training_history' => "CREATE TABLE {$wpdb->prefix}ysq_training_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_id INT NOT NULL,
+        course_name VARCHAR(255) NOT NULL,
+        organizer VARCHAR(255),
+        training_date DATE,
+        venue VARCHAR(255),
+        cost DECIMAL(15,2),
+        funding_source VARCHAR(100),
+        payment_method VARCHAR(100),
+        payment_proof_file VARCHAR(255),
+        status ENUM('Diajukan','Disetujui','Ditolak','Selesai','Dibatalkan') NOT NULL,
+        certificate_file VARCHAR(255),
+        KEY employee_id (employee_id)
+      ) $charset;",
+      'ysq_islamic_studies_history' => "CREATE TABLE {$wpdb->prefix}ysq_islamic_studies_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_id INT NOT NULL,
+        study_topic_or_book VARCHAR(255) NOT NULL,
+        teacher_name VARCHAR(255),
+        organizer VARCHAR(255),
+        study_type VARCHAR(100),
+        start_date DATE,
+        end_date DATE,
+        KEY employee_id (employee_id)
+      ) $charset;",
+    ];
 
-    // Tabel users (untuk autentikasi)
-    $sql1 = "CREATE TABLE IF NOT EXISTS $t_users (
-      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      nip VARCHAR(32) NOT NULL UNIQUE,
-      nama VARCHAR(191) NOT NULL,
-      jabatan VARCHAR(191) DEFAULT '',
-      unit VARCHAR(191) DEFAULT '',
-      no_hp VARCHAR(32) DEFAULT '',
-      password VARCHAR(255) DEFAULT '',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) $charset;";
-
-    // Tabel trainings (rekam data pelatihan)
-    $sql2 = "CREATE TABLE IF NOT EXISTS $t_tr (
-      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      user_id BIGINT UNSIGNED NOT NULL,
-      nama_pelatihan VARCHAR(255) NOT NULL,
-      tahun INT NOT NULL,
-      pembiayaan VARCHAR(32) NOT NULL,
-      kategori VARCHAR(32) NOT NULL,
-      file_url TEXT DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      INDEX (user_id),
-      CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES $t_users(id) ON DELETE CASCADE
-    ) $charset;";
-
-    // Tabel profiles (mirror dari CSV profil pegawai)
-    $sql3 = "CREATE TABLE IF NOT EXISTS $t_pf (
-      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      nip VARCHAR(32) NOT NULL UNIQUE,
-      nama VARCHAR(191) NOT NULL,
-      unit VARCHAR(191) DEFAULT '',
-      jabatan VARCHAR(191) DEFAULT '',
-      tempat_lahir VARCHAR(191) DEFAULT '',
-      tanggal_lahir VARCHAR(32) DEFAULT '',
-      alamat_ktp TEXT,
-      desa VARCHAR(191) DEFAULT '',
-      kecamatan VARCHAR(191) DEFAULT '',
-      kota VARCHAR(191) DEFAULT '',
-      kode_pos VARCHAR(16) DEFAULT '',
-      email VARCHAR(191) DEFAULT '',
-      hp VARCHAR(64) DEFAULT '',
-      tmt VARCHAR(64) DEFAULT '',
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) $charset;";
-
-    require_once(ABSPATH.'wp-admin/includes/upgrade.php');
-    dbDelta($sql1);
-    dbDelta($sql2);
-    dbDelta($sql3);
-
-    // Jadwalkan import harian (kalau belum)
-    if (!wp_next_scheduled('hcisysq_profiles_cron')) {
-      wp_schedule_event(time() + 600, 'daily', 'hcisysq_profiles_cron');
-    }
-    if (!wp_next_scheduled('hcisysq_users_cron')) {
-      wp_schedule_event(time() + 600, 'daily', 'hcisysq_users_cron');
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    foreach ($tables as $sql) {
+      dbDelta($sql);
     }
 
     self::add_roles_and_capabilities();
 
     Publikasi_Post_Type::on_activation();
     Tasks::on_activation();
+
+    flush_rewrite_rules();
   }
 
   public static function deactivate(){
     self::remove_roles_and_capabilities();
+    flush_rewrite_rules();
   }
 
   protected static function add_roles_and_capabilities(){

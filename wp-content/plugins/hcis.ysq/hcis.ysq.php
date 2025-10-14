@@ -74,6 +74,9 @@ require_once HCISYSQ_DIR . 'includes/Shortcodes.php';
 require_once HCISYSQ_DIR . 'includes/Forgot.php';
 require_once HCISYSQ_DIR . 'includes/Hcis_Gas_Token.php';
 require_once HCISYSQ_DIR . 'includes/Legacy_Admin_Bridge.php';
+require_once HCISYSQ_DIR . 'includes/Migration.php';
+require_once HCISYSQ_DIR . 'includes/NipAuthentication.php';
+require_once HCISYSQ_DIR . 'includes/ProfileWizard.php';
 
 /* =======================================================
  *  Activation / Deactivation hooks
@@ -92,6 +95,9 @@ HCISYSQ\Publikasi_Post_Type::init();
 HCISYSQ\Hcis_Gas_Token::init();
 HCISYSQ\Tasks::init();
 HCISYSQ\Legacy_Admin_Bridge::init();
+HCISYSQ\Migration::init();
+HCISYSQ\NipAuthentication::init();
+HCISYSQ\ProfileWizard::init();
 
 /* =======================================================
  *  AJAX endpoints
@@ -173,31 +179,6 @@ add_action('template_redirect', function () {
   }
 });
 
-/* =======================================================
- *  Login redirect & wp-admin guard overrides
- * ======================================================= */
-
-/**
- * Mengarahkan pengguna ke halaman yang benar setelah login berdasarkan peran mereka.
- *
- * @param string   $redirect_to           URL default untuk pengalihan.
- * @param string   $requested_redirect_to URL yang diminta pengguna (jika ada).
- * @param WP_User  $user                  Objek pengguna yang sedang login.
- * @return string  URL pengalihan yang sudah dimodifikasi.
- */
-function hcisysq_custom_login_redirect($redirect_to, $requested_redirect_to, $user) {
-  // Periksa apakah pengguna memiliki peran 'hcis_admin'
-  if ($user && !is_wp_error($user) && isset($user->roles) && is_array($user->roles)) {
-    if (in_array('hcis_admin', $user->roles, true)) {
-      // Arahkan ke halaman /dashboard di frontend
-      return home_url('/dashboard');
-    }
-  }
-
-  // Kembalikan ke tujuan default untuk pengguna lain
-  return $redirect_to;
-}
-add_filter('login_redirect', 'hcisysq_custom_login_redirect', 10, 3);
 
 
 /**

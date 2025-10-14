@@ -24,6 +24,14 @@ class Admin {
       'dashicons-groups',
       25
     );
+
+    add_management_page(
+      __('HCIS Data Migration', 'hcis-ysq'),
+      __('HCIS Data Migration', 'hcis-ysq'),
+      'manage_options',
+      Migration::PAGE_SLUG,
+      ['HCISYSQ\\Migration', 'render_admin_page']
+    );
   }
 
   /**
