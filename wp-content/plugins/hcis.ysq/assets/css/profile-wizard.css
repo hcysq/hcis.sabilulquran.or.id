@@ -1,0 +1,87 @@
+.ysq-profile-wizard-page {
+  background: #f6f7f7;
+}
+
+.ysq-profile-wizard {
+  max-width: 960px;
+  margin: 40px auto;
+  padding: 0 20px 40px;
+}
+
+.ysq-profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ysq-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.ysq-profile-wizard .notice {
+  background: #fff8e5;
+  border-left: 4px solid #dba617;
+  padding: 12px 16px;
+  border-radius: 6px;
+}
+
+.ysq-card h2 {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.ysq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px 20px;
+}
+
+.ysq-grid-full {
+  grid-column: 1 / -1;
+}
+
+.ysq-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.ysq-grid input,
+.ysq-grid textarea,
+.ysq-grid select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ccd0d4;
+  border-radius: 4px;
+  font-weight: 400;
+}
+
+.ysq-repeater {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ysq-repeater-item {
+  border: 1px solid #dcdcde;
+  border-radius: 6px;
+  padding: 16px;
+  background: #f9fafb;
+}
+
+.ysq-repeater-remove {
+  color: #b32d2e;
+  margin-top: 12px;
+}
+
+.ysq-repeater-add {
+  align-self: flex-start;
+}
+
+.ysq-submit {
+  text-align: right;
+}
