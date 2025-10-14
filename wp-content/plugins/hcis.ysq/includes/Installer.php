@@ -4,9 +4,12 @@ namespace HCISYSQ;
 if (!defined('ABSPATH')) exit;
 
 class Installer {
+  const SCHEMA_VERSION = '2';
+
   public static function activate(){
     global $wpdb;
     $charset = $wpdb->get_charset_collate();
+    $engine = 'ENGINE=InnoDB';
 
     $tables = [
       'ysq_employees' => "CREATE TABLE {$wpdb->prefix}ysq_employees (
@@ -35,15 +38,15 @@ class Installer {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         KEY wp_user_id (wp_user_id)
-      ) $charset;",
+      ) $engine $charset;",
       'ysq_units' => "CREATE TABLE {$wpdb->prefix}ysq_units (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL
-      ) $charset;",
+      ) $engine $charset;",
       'ysq_positions' => "CREATE TABLE {$wpdb->prefix}ysq_positions (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL
-      ) $charset;",
+      ) $engine $charset;",
       'ysq_employment_history' => "CREATE TABLE {$wpdb->prefix}ysq_employment_history (
         id INT AUTO_INCREMENT PRIMARY KEY,
         employee_id INT NOT NULL,
@@ -54,16 +57,20 @@ class Installer {
         end_date DATE,
         KEY employee_id (employee_id),
         KEY unit_id (unit_id),
-        KEY position_id (position_id)
-      ) $charset;",
+        KEY position_id (position_id),
+        CONSTRAINT `fk_ysq_employment_history_employee` FOREIGN KEY (`employee_id`) REFERENCES `{$wpdb->prefix}ysq_employees` (`id`) ON DELETE CASCADE,
+        CONSTRAINT `fk_ysq_employment_history_unit` FOREIGN KEY (`unit_id`) REFERENCES `{$wpdb->prefix}ysq_units` (`id`) ON DELETE CASCADE,
+        CONSTRAINT `fk_ysq_employment_history_position` FOREIGN KEY (`position_id`) REFERENCES `{$wpdb->prefix}ysq_positions` (`id`) ON DELETE CASCADE
+      ) $engine $charset;",
       'ysq_family_members' => "CREATE TABLE {$wpdb->prefix}ysq_family_members (
         id INT AUTO_INCREMENT PRIMARY KEY,
         employee_id INT NOT NULL,
         name VARCHAR(255) NOT NULL,
         relationship VARCHAR(50) NOT NULL,
         birth_date DATE,
-        KEY employee_id (employee_id)
-      ) $charset;",
+        KEY employee_id (employee_id),
+        CONSTRAINT `fk_ysq_family_members_employee` FOREIGN KEY (`employee_id`) REFERENCES `{$wpdb->prefix}ysq_employees` (`id`) ON DELETE CASCADE
+      ) $engine $charset;",
       'ysq_education_history' => "CREATE TABLE {$wpdb->prefix}ysq_education_history (
         id INT AUTO_INCREMENT PRIMARY KEY,
         employee_id INT NOT NULL,
@@ -71,8 +78,9 @@ class Installer {
         institution_name VARCHAR(255) NOT NULL,
         major VARCHAR(255),
         end_year CHAR(4),
-        KEY employee_id (employee_id)
-      ) $charset;",
+        KEY employee_id (employee_id),
+        CONSTRAINT `fk_ysq_education_history_employee` FOREIGN KEY (`employee_id`) REFERENCES `{$wpdb->prefix}ysq_employees` (`id`) ON DELETE CASCADE
+      ) $engine $charset;",
       'ysq_work_history' => "CREATE TABLE {$wpdb->prefix}ysq_work_history (
         id INT AUTO_INCREMENT PRIMARY KEY,
         employee_id INT NOT NULL,
@@ -81,8 +89,9 @@ class Installer {
         start_date DATE,
         end_date DATE,
         reference_contact VARCHAR(255),
-        KEY employee_id (employee_id)
-      ) $charset;",
+        KEY employee_id (employee_id),
+        CONSTRAINT `fk_ysq_work_history_employee` FOREIGN KEY (`employee_id`) REFERENCES `{$wpdb->prefix}ysq_employees` (`id`) ON DELETE CASCADE
+      ) $engine $charset;",
       'ysq_quran_memorization' => "CREATE TABLE {$wpdb->prefix}ysq_quran_memorization (
         id INT AUTO_INCREMENT PRIMARY KEY,
         employee_id INT NOT NULL,
@@ -90,8 +99,9 @@ class Installer {
         last_tested_date DATE,
         examiner_name VARCHAR(255),
         notes TEXT,
-        KEY employee_id (employee_id)
-      ) $charset;",
+        KEY employee_id (employee_id),
+        CONSTRAINT `fk_ysq_quran_memorization_employee` FOREIGN KEY (`employee_id`) REFERENCES `{$wpdb->prefix}ysq_employees` (`id`) ON DELETE CASCADE
+      ) $engine $charset;",
       'ysq_training_history' => "CREATE TABLE {$wpdb->prefix}ysq_training_history (
         id INT AUTO_INCREMENT PRIMARY KEY,
         employee_id INT NOT NULL,
@@ -105,8 +115,9 @@ class Installer {
         payment_proof_file VARCHAR(255),
         status ENUM('Diajukan','Disetujui','Ditolak','Selesai','Dibatalkan') NOT NULL,
         certificate_file VARCHAR(255),
-        KEY employee_id (employee_id)
-      ) $charset;",
+        KEY employee_id (employee_id),
+        CONSTRAINT `fk_ysq_training_history_employee` FOREIGN KEY (`employee_id`) REFERENCES `{$wpdb->prefix}ysq_employees` (`id`) ON DELETE CASCADE
+      ) $engine $charset;",
       'ysq_islamic_studies_history' => "CREATE TABLE {$wpdb->prefix}ysq_islamic_studies_history (
         id INT AUTO_INCREMENT PRIMARY KEY,
         employee_id INT NOT NULL,
@@ -116,14 +127,17 @@ class Installer {
         study_type VARCHAR(100),
         start_date DATE,
         end_date DATE,
-        KEY employee_id (employee_id)
-      ) $charset;",
+        KEY employee_id (employee_id),
+        CONSTRAINT `fk_ysq_islamic_studies_history_employee` FOREIGN KEY (`employee_id`) REFERENCES `{$wpdb->prefix}ysq_employees` (`id`) ON DELETE CASCADE
+      ) $engine $charset;",
     ];
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     foreach ($tables as $sql) {
       dbDelta($sql);
     }
+
+    update_option('hcisysq_schema_version', self::SCHEMA_VERSION);
 
     self::add_roles_and_capabilities();
 
