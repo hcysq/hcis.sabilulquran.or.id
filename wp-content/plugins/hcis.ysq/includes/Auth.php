@@ -217,29 +217,25 @@ class Auth {
     $passOk = false;
 
     if (!empty($u->password)) {
-      $hash = $u->password;
+      $hash = strval($u->password);
       $looksHashed = (strpos($hash, '$2y$') === 0 || strpos($hash, '$argon2') === 0);
 
       if ($looksHashed && password_verify($plain_pass, $hash)) {
         $passOk = true;
-      } elseif (!$looksHashed && hash_equals(strval($hash), $plain_pass)) {
-        $passOk = true;
       }
     }
 
     if (!$passOk) {
-      $dbPhone  = self::norm_phone($u->no_hp ?? '');
+      $dbPhone = self::norm_phone($u->no_hp ?? '');
       $inputPhone = self::norm_phone($plain_pass);
 
       if ($dbPhone !== '' && $inputPhone !== '' && hash_equals($dbPhone, $inputPhone)) {
         $passOk = true;
-      } elseif (hash_equals(trim(strval($u->no_hp ?? '')), $plain_pass)) {
-        $passOk = true;
       }
     }
 
     if (!$passOk) {
-      return ['ok'=>false, 'msg'=>'Password salah. Gunakan nomor HP sebagai password.'];
+      return ['ok'=>false, 'msg'=>'Password salah.'];
     }
 
     self::store_session([
