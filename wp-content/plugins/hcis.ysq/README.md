@@ -154,12 +154,28 @@ Plugin menggunakan WP-Cron untuk sinkronisasi otomatis:
 
 Untuk fitur "Lupa Password", plugin mengirim pesan ke Admin HCM via WhatsApp menggunakan StarSender API.
 
-**Konfigurasi** (di `hcisysq.php`):
-```php
-define('HCISYSQ_SS_URL', 'https://starsender.online/api/sendText');
-define('HCISYSQ_SS_KEY', 'YOUR_API_KEY');
-define('HCISYSQ_SS_HC',  '6285175201627'); // nomor admin HCM
+### Konfigurasi kredensial WhatsApp
+
+Anda dapat menyediakan nomor admin dan token API melalui salah satu cara berikut:
+
+1. **Halaman Admin WordPress** — buka **Portal HCIS → WhatsApp & SSO Settings** dan isi field "Admin WhatsApp" serta "WhatsApp API Token". Nilai ini disimpan sebagai opsi WordPress.
+2. **`wp-config.php`** — definisikan konstanta berikut sebelum `/* That's all, stop editing! */`:
+   ```php
+   define('HCISYSQ_SS_HC', '62xxxxxxxxxxx');
+   define('HCISYSQ_SS_KEY', 'your-starsender-token');
+   ```
+   Konstanta akan meng-override nilai dari opsi WordPress.
+3. **Variabel lingkungan** — set `HCISYSQ_ADMIN_WA` atau `HCISYSQ_SS_HC` untuk nomor admin, dan `HCISYSQ_WA_TOKEN` atau `HCISYSQ_SS_KEY` untuk token API.
+
+### Migrasi kredensial lama
+
+Jika sebelumnya Anda menyimpan nilai di dalam plugin (`hcis.ysq.php`), jalankan perintah WP-CLI berikut setelah memperbarui plugin:
+
 ```
+wp hcisysq migrate-secrets
+```
+
+Gunakan `--force` apabila ingin menimpa opsi yang sudah terisi. Perintah ini akan menyalin nilai konstanta lama ke opsi WordPress sehingga dapat dikelola dari halaman admin.
 
 ## Changelog
 

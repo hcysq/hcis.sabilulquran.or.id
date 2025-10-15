@@ -123,6 +123,10 @@ class Admin {
     $training_drive_folder = esc_attr(Trainings::get_drive_folder_id());
     $training_webapp_url = esc_url(Trainings::get_webapp_url());
     $gas_api_key = esc_attr(get_option(Hcis_Gas_Token::OPTION_API_KEY, ''));
+    $admin_wa_value = esc_attr(Config::get('admin_wa', 'option'));
+    $wa_token_value = esc_attr(Config::get('wa_token', 'option'));
+    $admin_wa_notice = Config::describe_override('admin_wa');
+    $wa_token_notice = Config::describe_override('wa_token');
     ?>
     <div class="wrap">
       <h1>HCIS.YSQ • Settings & Import</h1>
@@ -232,16 +236,26 @@ class Admin {
             <th scope="row"><label for="hcisysq_admin_wa">Admin WhatsApp (E.164)</label></th>
             <td>
               <input type="text" id="hcisysq_admin_wa" name="hcisysq_admin_wa" class="regular-text"
-                     value="<?= esc_attr(get_option('hcisysq_admin_wa', '')) ?>" placeholder="6285175201627">
-              <p class="description">Nomor WhatsApp admin HCM untuk notifikasi "Lupa Password" (format: 62xxx).</p>
+                     value="<?= $admin_wa_value ?>" placeholder="62xxxxxxxxxxx">
+              <p class="description">
+                Nomor WhatsApp admin HCM untuk notifikasi "Lupa Password" (format: 62xxx).
+                <?php if ($admin_wa_notice): ?>
+                  <br><strong>Perhatian:</strong> <?= \wp_kses_post($admin_wa_notice); ?>
+                <?php endif; ?>
+              </p>
             </td>
           </tr>
           <tr>
             <th scope="row"><label for="hcisysq_wa_token">WhatsApp API Token</label></th>
             <td>
               <input type="text" id="hcisysq_wa_token" name="hcisysq_wa_token" class="regular-text code" style="width: 600px"
-                     value="<?= esc_attr(get_option('hcisysq_wa_token', '')) ?>" placeholder="4a74d8ae-8d5d-4e95-8f14-9429409c9eda">
-              <p class="description">API Key dari Starsender untuk mengirim pesan WhatsApp.</p>
+                     value="<?= $wa_token_value ?>" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+              <p class="description">
+                API Key dari Starsender untuk mengirim pesan WhatsApp.
+                <?php if ($wa_token_notice): ?>
+                  <br><strong>Perhatian:</strong> <?= \wp_kses_post($wa_token_notice); ?>
+                <?php endif; ?>
+              </p>
             </td>
           </tr>
           <tr>

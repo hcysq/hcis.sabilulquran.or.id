@@ -51,8 +51,6 @@ if (!defined('HCISYSQ_RESET_SLUG'))     define('HCISYSQ_RESET_SLUG', 'ganti-pass
 
 // StarSender (opsional – untuk "lupa password")
 if (!defined('HCISYSQ_SS_URL')) define('HCISYSQ_SS_URL', 'https://starsender.online/api/sendText');
-if (!defined('HCISYSQ_SS_KEY')) define('HCISYSQ_SS_KEY', '4a74d8ae-8d5d-4e95-8f14-9429409c9eda'); // ganti sesuai
-if (!defined('HCISYSQ_SS_HC'))  define('HCISYSQ_SS_HC',  '6285175201627'); // ganti sesuai
 
 /* =======================================================
  * Includes Composer Autoloader
@@ -75,6 +73,7 @@ add_action('plugins_loaded', function(){
 /* =======================================================
  *  Init modules
  * ======================================================= */
+HCISYSQ\Config::init();
 HCISYSQ\Assets::init();
 HCISYSQ\Shortcodes::init();
 HCISYSQ\Publikasi::init();

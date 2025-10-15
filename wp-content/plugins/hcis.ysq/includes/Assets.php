@@ -126,18 +126,18 @@ class Assets {
 
   private static function get_settings() {
     return [
-      'admin_wa' => get_option('hcisysq_admin_wa', HCISYSQ_SS_HC ?? ''),
-      'wa_token' => get_option('hcisysq_wa_token', HCISYSQ_SS_KEY ?? ''),
+      'admin_wa' => Config::get('admin_wa', 'option'),
+      'wa_token' => Config::get('wa_token', 'option'),
       'gas_url'  => home_url('/' . trim(HCISYSQ_FORM_SLUG, '/') . '/'),
     ];
   }
 
   public static function get_admin_wa() {
-    return get_option('hcisysq_admin_wa', HCISYSQ_SS_HC ?? '');
+    return Config::get('admin_wa');
   }
 
   public static function get_wa_token() {
-    return get_option('hcisysq_wa_token', HCISYSQ_SS_KEY ?? '');
+    return Config::get('wa_token');
   }
 
   public static function get_gas_url() {
