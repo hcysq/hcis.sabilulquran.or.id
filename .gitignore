@@ -14,7 +14,6 @@ wp-config.php
 
 # Vendor & node modules
 node_modules/
-vendor/
 
 # Sistem / OS
 .DS_Store

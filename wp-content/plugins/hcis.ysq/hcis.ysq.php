@@ -55,27 +55,10 @@ if (!defined('HCISYSQ_SS_KEY')) define('HCISYSQ_SS_KEY', '4a74d8ae-8d5d-4e95-8f1
 if (!defined('HCISYSQ_SS_HC'))  define('HCISYSQ_SS_HC',  '6285175201627'); // ganti sesuai
 
 /* =======================================================
- *  Includes
+ * Includes Composer Autoloader
  * ======================================================= */
-require_once HCISYSQ_DIR . 'includes/Installer.php';
-require_once HCISYSQ_DIR . 'includes/Auth.php';
-require_once HCISYSQ_DIR . 'includes/Api.php';
-require_once HCISYSQ_DIR . 'includes/View.php';
-require_once HCISYSQ_DIR . 'includes/Profiles.php';
-require_once HCISYSQ_DIR . 'includes/Users.php';
-require_once HCISYSQ_DIR . 'includes/Trainings.php';
-require_once HCISYSQ_DIR . 'includes/RichText.php';
-require_once HCISYSQ_DIR . 'includes/Publikasi.php';
-require_once HCISYSQ_DIR . 'includes/Publikasi_Post_Type.php';
-require_once HCISYSQ_DIR . 'includes/Tasks.php';
-require_once HCISYSQ_DIR . 'includes/Admin.php';
-require_once HCISYSQ_DIR . 'includes/Assets.php';
-require_once HCISYSQ_DIR . 'includes/Shortcodes.php';
-require_once HCISYSQ_DIR . 'includes/Hcis_Gas_Token.php';
-require_once HCISYSQ_DIR . 'includes/Legacy_Admin_Bridge.php';
-require_once HCISYSQ_DIR . 'includes/Migration.php';
-require_once HCISYSQ_DIR . 'includes/NipAuthentication.php';
-require_once HCISYSQ_DIR . 'includes/ProfileWizard.php';
+
+require_once HCISYSQ_DIR . 'vendor/autoload.php';
 
 /* =======================================================
  *  Activation / Deactivation hooks
