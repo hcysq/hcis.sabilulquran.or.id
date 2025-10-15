@@ -11,6 +11,7 @@ class NipAuthentication {
     add_filter('authenticate', [__CLASS__, 'handle_nip_login'], 20, 3);
     add_filter('login_redirect', [__CLASS__, 'maybe_redirect_after_login'], 20, 3);
     add_action('wp_login', [__CLASS__, 'after_login'], 10, 2);
+    add_action('lostpassword_post', [__CLASS__, 'allow_reset_with_nip']);
   }
 
   public static function handle_nip_login($user, $username, $password) {
@@ -74,5 +75,44 @@ class NipAuthentication {
 
   public static function is_profile_complete($user_id) {
     return (bool) get_user_meta($user_id, 'profile_complete', true);
+  }
+
+  public static function allow_reset_with_nip($errors) {
+    if (!$errors instanceof WP_Error) {
+      return;
+    }
+
+    if ($errors->has_errors()) {
+      return;
+    }
+
+    if (empty($_POST['user_login'])) {
+      return;
+    }
+
+    $user_login = trim((string) $_POST['user_login']);
+    if ($user_login === '' || is_email($user_login)) {
+      return;
+    }
+
+    global $wpdb;
+    $employees_table = $wpdb->prefix . 'ysq_employees';
+    $employee = $wpdb->get_row(
+      $wpdb->prepare(
+        "SELECT wp_user_id FROM {$employees_table} WHERE employee_id_number = %s",
+        $user_login
+      )
+    );
+
+    if (!$employee || empty($employee->wp_user_id)) {
+      return;
+    }
+
+    $wp_user = get_user_by('id', (int) $employee->wp_user_id);
+    if (!$wp_user || empty($wp_user->user_email)) {
+      return;
+    }
+
+    $_POST['user_login'] = $wp_user->user_email;
   }
 }
