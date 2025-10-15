@@ -1,6 +1,8 @@
 <?php
 namespace HCISYSQ;
 
+use Shuchkin\SimpleXLSX;
+
 if (!defined('ABSPATH')) exit;
 
 class Migration {
@@ -70,20 +72,24 @@ if (!empty($logs) && is_array($logs)) {
       return $logs;
     }
 
-    if (!class_exists('\\PhpOffice\\PhpSpreadsheet\\IOFactory')) {
-      $logs[] = __('ERROR: Library PhpSpreadsheet tidak tersedia. Harap install dependensi sebelum menjalankan migrasi.', 'hcis-ysq');
+    if (!class_exists('\\Shuchkin\\SimpleXLSX')) {
+      $logs[] = __('ERROR: Library SimpleXLSX tidak tersedia. Harap install dependensi sebelum menjalankan migrasi.', 'hcis-ysq');
       return $logs;
     }
 
     try {
-      $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($spreadsheet_path);
+      $xlsx = SimpleXLSX::parse($spreadsheet_path);
     } catch (\Throwable $e) {
       $logs[] = sprintf(__('ERROR: Gagal membaca spreadsheet: %s', 'hcis-ysq'), $e->getMessage());
       return $logs;
     }
 
-    $sheet = $spreadsheet->getActiveSheet();
-    $rows = $sheet->toArray(null, true, true, true);
+    if (!$xlsx) {
+      $logs[] = sprintf(__('ERROR: Gagal membaca spreadsheet: %s', 'hcis-ysq'), SimpleXLSX::parseError());
+      return $logs;
+    }
+
+    $rows = $xlsx->rows();
     if (empty($rows)) {
       $logs[] = __('Tidak ada data pada spreadsheet.', 'hcis-ysq');
       return $logs;
