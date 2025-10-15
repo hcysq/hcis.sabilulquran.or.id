@@ -14,5 +14,7 @@
             "email": "humancapital.ysq@gmail.com"
         }
     ],
-    "require": {}
+    "require": {
+        "phpoffice/phpspreadsheet": "^1.29"
+    }
 }
