@@ -57,6 +57,7 @@ if (!defined('HCISYSQ_SS_HC'))  define('HCISYSQ_SS_HC',  '6285175201627'); // ga
 /* =======================================================
  * Includes Composer Autoloader
  * ======================================================= */
+
 require_once HCISYSQ_DIR . 'vendor/autoload.php';
 
 /* =======================================================
@@ -76,7 +77,6 @@ add_action('plugins_loaded', function(){
  * ======================================================= */
 HCISYSQ\Assets::init();
 HCISYSQ\Shortcodes::init();
-HCISYSQ\Forgot::init();
 HCISYSQ\Publikasi::init();
 HCISYSQ\Publikasi_Post_Type::init();
 HCISYSQ\Hcis_Gas_Token::init();
@@ -116,8 +116,6 @@ add_action('wp_ajax_hcisysq_admin_update_assignment', ['HCISYSQ\\Api', 'admin_up
 add_action('wp_ajax_ysq_get_employees_by_units', ['HCISYSQ\\Api', 'ysq_get_employees_by_units']);
 add_action('wp_ajax_ysq_get_all_profiles', ['HCISYSQ\\Api', 'ysq_api_get_all_profiles']);
 add_action('wp_ajax_ysq_update_profile', ['HCISYSQ\\Api', 'ysq_api_update_profile']);
-add_action('wp_ajax_hcisysq_reset_password', ['HCISYSQ\\Api', 'reset_password']);
-add_action('wp_ajax_nopriv_hcisysq_reset_password', ['HCISYSQ\\Api', 'reset_password']);
 
 /* =======================================================
  *  Cron (jika pakai import)

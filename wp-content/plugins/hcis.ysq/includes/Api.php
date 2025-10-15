@@ -34,17 +34,6 @@ class Api {
     wp_send_json($res);
   }
 
-  public static function reset_password(){
-    self::check_nonce();
-
-    $result = Forgot::handle_reset();
-    if (!is_array($result)) {
-      $result = ['ok' => false, 'msg' => 'Terjadi kesalahan.'];
-    }
-
-    wp_send_json($result);
-  }
-
   private static function require_admin(){
     $admin = Auth::current_admin();
     if (!$admin) {
