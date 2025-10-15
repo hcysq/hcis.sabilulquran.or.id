@@ -27,23 +27,9 @@ class View {
           </div>
 
           <button type="submit" class="btn-primary">Masuk</button>
-          <button type="button" id="hcisysq-forgot" class="link-forgot">Lupa password?</button>
+          <a id="hcisysq-forgot" class="link-forgot" href="<?= esc_url(wp_lostpassword_url()) ?>">Lupa password?</a>
           <div class="msg" aria-live="polite"></div>
         </form>
-      </div>
-    <!-- Modal Lupa Password -->
-    <div id="hcisysq-modal" class="modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="hcisysq-forgot-title">
-      <div class="modal">
-        <button type="button" class="modal-close" id="hcisysq-close-modal" aria-label="Tutup">×</button>
-        <h3 id="hcisysq-forgot-title">Lupa Password</h3>
-        <p>Masukkan Akun (NIP atau No HP) Anda. Kami akan mengirim tautan reset ke WhatsApp terdaftar.</p>
-        <label>Akun (NIP atau No HP)</label>
-        <input id="hcisysq-nip-forgot" type="text" placeholder="Masukkan NIP atau No HP">
-        <div class="modal-actions">
-          <button type="button" class="btn-light" id="hcisysq-cancel">Batal</button>
-          <button type="button" class="btn-primary" id="hcisysq-send">Kirim</button>
-        </div>
-        <div id="hcisysq-forgot-msg" class="modal-msg" aria-live="polite"></div>
       </div>
     </div>
     <?php
@@ -52,47 +38,23 @@ class View {
 
   public static function reset_password(){
     wp_enqueue_style('hcisysq-login');
-    wp_enqueue_script('hcisysq-reset');
 
-    $token = isset($_GET['token']) ? sanitize_text_field($_GET['token']) : '';
-    $payload = $token ? Forgot::get_token_payload($token) : null;
-    $nip = '';
-    $tokenValid = false;
-
-    if (is_array($payload) && !empty($payload['nip'])) {
-      $tokenValid = true;
-      $nip = sanitize_text_field($payload['nip']);
-    }
+    $lostUrl = wp_lostpassword_url();
 
     ob_start(); ?>
     <div class="hcisysq-auth-wrap">
       <div class="auth-card">
         <div class="auth-header">
-          <h2>Ganti Password HCIS</h2>
+          <h2>Bantuan Reset Password</h2>
         </div>
 
-        <?php if ($tokenValid): ?>
-          <form id="hcisysq-reset-form" class="auth-form" method="post" autocomplete="off" data-token="<?= esc_attr($token) ?>">
-            <?php if ($nip !== ''): ?>
-              <label>Akun (NIP)</label>
-              <input type="text" value="<?= esc_attr($nip) ?>" readonly>
-              <input type="hidden" name="nip" value="<?= esc_attr($nip) ?>">
-            <?php endif; ?>
-
-            <label for="hcisysq-new-password">Password Baru <span class="req">*</span></label>
-            <input id="hcisysq-new-password" type="password" name="password" placeholder="Minimal 6 karakter" autocomplete="new-password" required>
-
-            <label for="hcisysq-confirm-password">Konfirmasi Password <span class="req">*</span></label>
-            <input id="hcisysq-confirm-password" type="password" name="confirm" placeholder="Ulangi password baru" autocomplete="new-password" required>
-
-            <button type="submit" class="btn-primary">Simpan Password Baru</button>
-            <div class="msg" aria-live="polite"></div>
-          </form>
-        <?php else: ?>
-          <p class="msg">Token reset tidak valid atau sudah kedaluwarsa. Silakan minta tautan baru melalui halaman masuk.</p>
-        <?php endif; ?>
+        <div class="auth-body">
+          <p>Reset password sekarang menggunakan fitur bawaan WordPress. Klik tombol di bawah untuk membuka halaman resmi lupa password.</p>
+          <p>Masukkan alamat email akun WordPress Anda pada halaman tersebut dan ikuti instruksi yang dikirimkan melalui email.</p>
+        </div>
 
         <div class="auth-footer">
+          <a class="btn-primary" href="<?= esc_url($lostUrl) ?>">Buka Halaman Lupa Password</a>
           <a class="link-forgot" href="<?= esc_url(home_url('/' . trim(HCISYSQ_LOGIN_SLUG, '/') . '/')) ?>">Kembali ke halaman masuk</a>
         </div>
       </div>

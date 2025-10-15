@@ -71,7 +71,6 @@ require_once HCISYSQ_DIR . 'includes/Tasks.php';
 require_once HCISYSQ_DIR . 'includes/Admin.php';
 require_once HCISYSQ_DIR . 'includes/Assets.php';
 require_once HCISYSQ_DIR . 'includes/Shortcodes.php';
-require_once HCISYSQ_DIR . 'includes/Forgot.php';
 require_once HCISYSQ_DIR . 'includes/Hcis_Gas_Token.php';
 require_once HCISYSQ_DIR . 'includes/Legacy_Admin_Bridge.php';
 require_once HCISYSQ_DIR . 'includes/Migration.php';
@@ -95,7 +94,6 @@ add_action('plugins_loaded', function(){
  * ======================================================= */
 HCISYSQ\Assets::init();
 HCISYSQ\Shortcodes::init();
-HCISYSQ\Forgot::init();
 HCISYSQ\Publikasi::init();
 HCISYSQ\Publikasi_Post_Type::init();
 HCISYSQ\Hcis_Gas_Token::init();
@@ -135,8 +133,6 @@ add_action('wp_ajax_hcisysq_admin_update_assignment', ['HCISYSQ\\Api', 'admin_up
 add_action('wp_ajax_ysq_get_employees_by_units', ['HCISYSQ\\Api', 'ysq_get_employees_by_units']);
 add_action('wp_ajax_ysq_get_all_profiles', ['HCISYSQ\\Api', 'ysq_api_get_all_profiles']);
 add_action('wp_ajax_ysq_update_profile', ['HCISYSQ\\Api', 'ysq_api_update_profile']);
-add_action('wp_ajax_hcisysq_reset_password', ['HCISYSQ\\Api', 'reset_password']);
-add_action('wp_ajax_nopriv_hcisysq_reset_password', ['HCISYSQ\\Api', 'reset_password']);
 
 /* =======================================================
  *  Cron (jika pakai import)

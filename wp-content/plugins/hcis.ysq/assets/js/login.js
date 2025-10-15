@@ -41,57 +41,6 @@
         });
     });
 
-    const forgotBtn = document.getElementById('hcisysq-forgot');
-    const backdrop = document.getElementById('hcisysq-modal');
-    const cancelBtn = document.getElementById('hcisysq-cancel');
-    const closeBtn = document.getElementById('hcisysq-close-modal');
-    const sendBtn = document.getElementById('hcisysq-send');
-    const npInput = document.getElementById('hcisysq-nip-forgot');
-    const fMsg = document.getElementById('hcisysq-forgot-msg');
-
-    if (forgotBtn && backdrop) {
-      const closeModal = () => {
-        backdrop.style.display = 'none';
-        if (fMsg) {
-          fMsg.className = 'modal-msg';
-          fMsg.textContent = '';
-        }
-      };
-
-      forgotBtn.onclick = () => {
-        backdrop.style.display = 'flex';
-        if (npInput) npInput.value = (form.nip.value || '').trim();
-        if (fMsg) {
-          fMsg.className = 'modal-msg';
-          fMsg.textContent = '';
-        }
-      };
-
-      if (cancelBtn) cancelBtn.onclick = closeModal;
-      if (closeBtn) closeBtn.onclick = closeModal;
-      if (sendBtn) {
-        sendBtn.onclick = () => {
-          const nip = (npInput.value || '').trim();
-          if (!nip) {
-            fMsg.textContent = 'Akun wajib diisi.';
-            return;
-          }
-          fMsg.textContent = 'Mengirim permintaan…';
-
-          shared.ajax('hcisysq_forgot', { nip })
-            .then((res) => {
-              if (res && res.ok) {
-                fMsg.className = 'modal-msg ok';
-                fMsg.textContent = res.msg || 'Tautan reset dikirim ke WhatsApp terdaftar.';
-                setTimeout(closeModal, 1500);
-              } else {
-                fMsg.className = 'modal-msg';
-                fMsg.textContent = (res && res.msg) ? res.msg : 'Gagal mengirim permintaan. Coba lagi.';
-              }
-            });
-        };
-      }
-    }
   }
 
   document.addEventListener('DOMContentLoaded', bootLogin);

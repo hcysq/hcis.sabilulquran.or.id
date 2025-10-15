@@ -18,7 +18,6 @@ class Assets {
 
     wp_register_script('hcisysq-shared', HCISYSQ_URL . 'assets/js/shared.js', ['jquery'], HCISYSQ_VER, true);
     wp_register_script('hcisysq-login', HCISYSQ_URL . 'assets/js/login.js', ['hcisysq-shared'], HCISYSQ_VER, true);
-    wp_register_script('hcisysq-reset', HCISYSQ_URL . 'assets/js/reset.js', ['hcisysq-shared'], HCISYSQ_VER, true);
     wp_register_script('hcisysq-dashboard', HCISYSQ_URL . 'assets/js/dashboard.js', ['hcisysq-shared'], HCISYSQ_VER, true);
     wp_register_script('hcisysq-admin', HCISYSQ_URL . 'assets/js/admin.js', ['hcisysq-dashboard'], HCISYSQ_VER, true);
 
@@ -29,7 +28,6 @@ class Assets {
       'nonce'         => wp_create_nonce('hcisysq_nonce'),
       'loginSlug'     => HCISYSQ_LOGIN_SLUG,
       'dashboardSlug' => HCISYSQ_DASHBOARD_SLUG,
-      'resetSlug'     => HCISYSQ_RESET_SLUG,
       'gas_url'       => $settings['gas_url'],
     ]);
   }
@@ -113,10 +111,6 @@ class Assets {
 
     if ($needs_login) {
       wp_enqueue_script('hcisysq-login');
-    }
-
-    if ($needs_reset) {
-      wp_enqueue_script('hcisysq-reset');
     }
 
     if ($needs_dashboard) {
