@@ -97,17 +97,11 @@ add_action('wp_ajax_nopriv_hcisysq_submit_training', function(){
   wp_send_json(['ok'=>false,'msg'=>'Unauthorized']);
 });
 add_action('wp_ajax_hcisysq_admin_create_publication', ['HCISYSQ\\Api', 'admin_create_publication']);
-add_action('wp_ajax_nopriv_hcisysq_admin_create_publication', ['HCISYSQ\\Api', 'admin_create_publication']);
 add_action('wp_ajax_hcisysq_admin_update_publication', ['HCISYSQ\\Api', 'admin_update_publication']);
-add_action('wp_ajax_nopriv_hcisysq_admin_update_publication', ['HCISYSQ\\Api', 'admin_update_publication']);
 add_action('wp_ajax_hcisysq_admin_delete_publication', ['HCISYSQ\\Api', 'admin_delete_publication']);
-add_action('wp_ajax_nopriv_hcisysq_admin_delete_publication', ['HCISYSQ\\Api', 'admin_delete_publication']);
 add_action('wp_ajax_hcisysq_admin_set_publication_status', ['HCISYSQ\\Api', 'admin_set_publication_status']);
-add_action('wp_ajax_nopriv_hcisysq_admin_set_publication_status', ['HCISYSQ\\Api', 'admin_set_publication_status']);
 add_action('wp_ajax_hcisysq_admin_save_settings', ['HCISYSQ\\Api', 'admin_save_settings']);
-add_action('wp_ajax_nopriv_hcisysq_admin_save_settings', ['HCISYSQ\\Api', 'admin_save_settings']);
 add_action('wp_ajax_hcisysq_admin_save_home_settings', ['HCISYSQ\\Api', 'admin_save_home_settings']);
-add_action('wp_ajax_nopriv_hcisysq_admin_save_home_settings', ['HCISYSQ\\Api', 'admin_save_home_settings']);
 add_action('wp_ajax_hcisysq_admin_create_task', ['HCISYSQ\\Api', 'admin_create_task']);
 add_action('wp_ajax_hcisysq_admin_update_task', ['HCISYSQ\\Api', 'admin_update_task']);
 add_action('wp_ajax_hcisysq_admin_delete_task', ['HCISYSQ\\Api', 'admin_delete_task']);
