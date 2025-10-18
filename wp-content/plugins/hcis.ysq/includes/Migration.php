@@ -114,8 +114,20 @@ if (!empty($logs) && is_array($logs)) {
       return $default;
     };
 
+    $getFirst = function(array $row, array $labels, $default = '') use ($get) {
+      foreach ($labels as $label) {
+        $value = $get($row, $label);
+        if ($value !== '') {
+          return $value;
+        }
+      }
+      return $default;
+    };
+
     $old_profiles_table = $wpdb->prefix . 'hcis_user_profiles';
     $employees_table = $wpdb->prefix . 'ysq_employees';
+    $legacy_users_table = $wpdb->prefix . 'hcisysq_users';
+    $legacy_table_exists = ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $legacy_users_table)) === $legacy_users_table);
 
     $old_users = [];
     $old_users_table = $wpdb->prefix . 'hcis_users';
@@ -170,9 +182,10 @@ if (!empty($logs) && is_array($logs)) {
         continue;
       }
 
+      $raw_user_password = $password ?: wp_generate_password();
       $user_id = wp_insert_user([
         'user_login' => $nip,
-        'user_pass'  => $password ?: wp_generate_password(),
+        'user_pass'  => $raw_user_password,
         'user_email' => $email,
         'display_name' => $display_name,
         'role' => 'subscriber',
@@ -227,6 +240,79 @@ if (!empty($logs) && is_array($logs)) {
         }
         if (!empty($legacy_user->jabatan)) {
           $employee_data['marital_status'] = $employee_data['marital_status'] ?: $legacy_user->jabatan;
+        }
+      }
+
+      $legacy_name = $display_name;
+      if ($legacy_name === '' && $legacy_user && !empty($legacy_user->nama)) {
+        $legacy_name = $legacy_user->nama;
+      } elseif ($legacy_name === '' && $profile && !empty($profile->nama)) {
+        $legacy_name = $profile->nama;
+      }
+
+      $legacy_unit = $getFirst($row, ['UNIT', 'UNIT KERJA', 'UNIT ORGANISASI', 'UNIT PENDIDIKAN']);
+      if ($legacy_unit === '') {
+        if ($legacy_user && !empty($legacy_user->unit)) {
+          $legacy_unit = $legacy_user->unit;
+        } elseif ($profile && !empty($profile->unit)) {
+          $legacy_unit = $profile->unit;
+        } elseif ($profile && !empty($profile->instansi)) {
+          $legacy_unit = $profile->instansi;
+        }
+      }
+
+      $legacy_position = $getFirst($row, ['JABATAN', 'JABATAN STRUKTURAL', 'POSISI', 'ROLE']);
+      if ($legacy_position === '') {
+        if ($legacy_user && !empty($legacy_user->jabatan)) {
+          $legacy_position = $legacy_user->jabatan;
+        } elseif ($profile && !empty($profile->jabatan)) {
+          $legacy_position = $profile->jabatan;
+        } elseif ($profile && !empty($profile->posisi)) {
+          $legacy_position = $profile->posisi;
+        }
+      }
+
+      $legacy_phone = Auth::norm_phone($get($row, 'NO HP'));
+      if ($legacy_phone === '' && $profile && !empty($profile->hp)) {
+        $legacy_phone = Auth::norm_phone($profile->hp);
+      }
+      if ($legacy_phone === '' && $legacy_user && !empty($legacy_user->no_hp)) {
+        $legacy_phone = Auth::norm_phone($legacy_user->no_hp);
+      }
+
+      $legacy_password_raw = $password;
+      if ($legacy_password_raw === '' && $legacy_user && !empty($legacy_user->password)) {
+        $legacy_password_raw = $legacy_user->password;
+      }
+      if ($legacy_password_raw === '') {
+        $legacy_password_raw = $raw_user_password;
+      }
+
+      $legacy_password = '';
+      if ($legacy_password_raw !== '') {
+        $looksHashed = (strpos($legacy_password_raw, '$2y$') === 0 || strpos($legacy_password_raw, '$argon2') === 0);
+        $legacy_password = $looksHashed ? $legacy_password_raw : password_hash($legacy_password_raw, PASSWORD_BCRYPT);
+      }
+
+      if ($legacy_table_exists) {
+        $legacy_sync_data = [
+          'nip'      => $nip,
+          'nama'     => $legacy_name,
+          'unit'     => $legacy_unit,
+          'jabatan'  => $legacy_position,
+          'no_hp'    => $legacy_phone,
+          'password' => $legacy_password,
+          'updated_at' => current_time('mysql'),
+        ];
+
+        $legacy_formats = array_fill(0, count($legacy_sync_data), '%s');
+        $replace_result = $wpdb->replace($legacy_users_table, $legacy_sync_data, $legacy_formats);
+        if (false === $replace_result) {
+          $logs[] = sprintf(__('ERROR: Gagal memperbarui tabel hcisysq_users untuk NIP %s: %s', 'hcis-ysq'), $nip, $wpdb->last_error);
+        } elseif ($replace_result === 2) {
+          $logs[] = sprintf(__('SYNC: Data legacy untuk NIP %s diperbarui di hcisysq_users.', 'hcis-ysq'), $nip);
+        } else {
+          $logs[] = sprintf(__('SYNC: Data legacy untuk NIP %s ditambahkan ke hcisysq_users.', 'hcis-ysq'), $nip);
         }
       }
 
