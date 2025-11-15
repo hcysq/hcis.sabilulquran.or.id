@@ -25,7 +25,11 @@ class Api {
     $res = Auth::login($account, $pw);
 
     if ($res['ok']) {
-      $res['redirect'] = home_url('/' . HCISYSQ_DASHBOARD_SLUG . '/');
+      if (!empty($res['force_password_reset'])) {
+        $res['redirect'] = home_url('/' . HCISYSQ_RESET_SLUG . '/');
+      } else {
+        $res['redirect'] = home_url('/' . HCISYSQ_DASHBOARD_SLUG . '/');
+      }
       hcisysq_log("Login success: account={$account}, redirect={$res['redirect']}");
     } else {
       hcisysq_log("Login failed: account={$account}, msg={$res['msg']}");

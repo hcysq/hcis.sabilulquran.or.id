@@ -203,6 +203,48 @@ class Auth {
     ];
   }
 
+  private static function looks_like_password_hash($hash) {
+    $hash = (string) $hash;
+    return (strpos($hash, '$2y$') === 0 || strpos($hash, '$argon2') === 0);
+  }
+
+  private static function is_password_based_on_phone($hash, $phoneRaw) {
+    if (!self::looks_like_password_hash($hash)) {
+      return false;
+    }
+
+    $candidates = [];
+    $trimmed = trim((string) $phoneRaw);
+    if ($trimmed !== '') {
+      $candidates[] = $trimmed;
+    }
+
+    $digitsOnly = preg_replace('/\D+/', '', $trimmed);
+    if ($digitsOnly !== '' && !in_array($digitsOnly, $candidates, true)) {
+      $candidates[] = $digitsOnly;
+    }
+
+    $normalized = self::norm_phone($trimmed);
+    if ($normalized !== '' && !in_array($normalized, $candidates, true)) {
+      $candidates[] = $normalized;
+    }
+
+    if ($normalized !== '') {
+      $plusNormalized = '+' . ltrim($normalized, '+');
+      if (!in_array($plusNormalized, $candidates, true)) {
+        $candidates[] = $plusNormalized;
+      }
+    }
+
+    foreach ($candidates as $candidate) {
+      if (password_verify($candidate, $hash)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   public static function login($account, $plain_pass){
     $account = trim(strval($account));
     $plain_pass = trim(strval($plain_pass));
@@ -215,22 +257,20 @@ class Auth {
     if (!$u) return ['ok'=>false, 'msg'=>'Akun tidak ditemukan'];
 
     $passOk = false;
+    $needsReset = false;
 
     if (!empty($u->password)) {
       $hash = strval($u->password);
-      $looksHashed = (strpos($hash, '$2y$') === 0 || strpos($hash, '$argon2') === 0);
+      $looksHashed = self::looks_like_password_hash($hash);
 
       if ($looksHashed && password_verify($plain_pass, $hash)) {
         $passOk = true;
-      }
-    }
-
-    if (!$passOk) {
-      $dbPhone = self::norm_phone($u->no_hp ?? '');
-      $inputPhone = self::norm_phone($plain_pass);
-
-      if ($dbPhone !== '' && $inputPhone !== '' && hash_equals($dbPhone, $inputPhone)) {
+        if (self::is_password_based_on_phone($hash, $u->no_hp ?? '')) {
+          $needsReset = true;
+        }
+      } elseif (!$looksHashed && hash_equals($hash, $plain_pass)) {
         $passOk = true;
+        $needsReset = true;
       }
     }
 
@@ -238,10 +278,16 @@ class Auth {
       return ['ok'=>false, 'msg'=>'Password salah.'];
     }
 
-    self::store_session([
+    $payload = [
       'type' => 'user',
       'nip'  => $u->nip,
-    ]);
+    ];
+
+    if ($needsReset) {
+      $payload['needs_password_reset'] = true;
+    }
+
+    self::store_session($payload);
 
     return [
       'ok'   => true,
@@ -251,7 +297,8 @@ class Auth {
         'nama'    => $u->nama,
         'jabatan' => $u->jabatan,
         'unit'    => $u->unit,
-      ]
+      ],
+      'force_password_reset' => $needsReset,
     ];
   }
 
@@ -321,9 +368,27 @@ class Auth {
       if ($nip) {
         $user = self::get_user_by_nip($nip);
         if ($user) {
+          $needsReset = !empty($payload['needs_password_reset']);
+          if (!$needsReset && !empty($user->password) && !self::looks_like_password_hash($user->password)) {
+            $needsReset = true;
+          }
+
+          if (!empty($user->password) && self::looks_like_password_hash($user->password)) {
+            if (!$needsReset) {
+              $needsReset = self::is_password_based_on_phone($user->password, $user->no_hp ?? '');
+            }
+          }
+
+          if ($needsReset === false && !empty($payload['needs_password_reset'])) {
+            self::update_current_session(['needs_password_reset' => false]);
+          } elseif ($needsReset === true && empty($payload['needs_password_reset'])) {
+            self::update_current_session(['needs_password_reset' => true]);
+          }
+
           return [
             'type' => 'user',
             'user' => $user,
+            'needs_password_reset' => $needsReset,
           ];
         }
       }

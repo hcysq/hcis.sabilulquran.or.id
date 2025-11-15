@@ -35,8 +35,14 @@
             msg.textContent = (res && res.msg) ? res.msg : 'Login gagal.';
             return;
           }
+          const resetSlug = (window.hcisysq && hcisysq.resetSlug) ? hcisysq.resetSlug : 'ganti-password';
           const dashSlug = (window.hcisysq && hcisysq.dashboardSlug) ? hcisysq.dashboardSlug : 'dashboard';
-          const redirectUrl = res.redirect || ('/' + dashSlug.replace(/^\/+/, '') + '/');
+          let redirectUrl = res.redirect || ('/' + dashSlug.replace(/^\/+/, '') + '/');
+
+          if (res.force_password_reset) {
+            redirectUrl = '/' + resetSlug.replace(/^\/+/, '') + '/';
+          }
+
           window.location.href = redirectUrl;
         });
     });
