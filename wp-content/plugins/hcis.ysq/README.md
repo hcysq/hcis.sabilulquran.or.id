@@ -34,10 +34,7 @@ Plugin HRIS (Human Resource Information System) untuk sistem kepegawaian dengan 
 
 ### 1. Profil Pegawai (CSV)
 
-URL CSV yang sudah dikonfigurasi:
-```
-https://docs.google.com/spreadsheets/d/e/2PACX-1vTlR2VUOcQfXRjZN4fNC-o4CvPTgd-ZlReqj_pfEfYGr5A87Wh6K2zU16iexLnfIh5djkrXzmVlk1w-/pub?gid=0&single=true&output=csv
-```
+Konfigurasikan URL CSV melalui halaman **Portal HCIS → Import Data**. Pastikan sumber data berada di lokasi yang dibatasi (misalnya Google Drive dengan akses "Restricted") dan hanya dibagikan ke akun layanan yang memang digunakan oleh server WordPress.
 
 **Struktur kolom yang dibutuhkan:**
 - Nomor (NIP)
@@ -57,8 +54,7 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vTlR2VUOcQfXRjZN4fNC-o4CvPTgd-Zl
 
 ### 2. Data Users (Google Sheet)
 
-**Sheet ID:** `14Uf7pjsFVURLmL5NWXlWhYvoILrwdiW11y3sVOLrLt4`
-**Tab Name:** `User`
+Masukkan **Sheet ID** dan **Tab Name** Anda sendiri melalui halaman pengaturan plugin. Simpan dokumen dalam mode privat dan bagikan hanya kepada akun layanan yang Anda kelola.
 
 **Struktur kolom yang dibutuhkan:**
 - NIP
@@ -66,18 +62,17 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vTlR2VUOcQfXRjZN4fNC-o4CvPTgd-Zl
 - JABATAN
 - UNIT
 - NO HP
-- PASSWORD (opsional, jika kosong akan menggunakan NO HP)
+- PASSWORD (opsional – sangat dianjurkan mengisi password unik untuk setiap pengguna)
 
 **Cara konfigurasi:**
-1. Pastikan Google Sheet dapat diakses (Share → Anyone with link can view)
-2. Masukkan Sheet ID dan Tab Name di HCIS.YSQ Settings
-3. Klik "Import Sekarang" untuk sinkronisasi manual
-4. Import otomatis akan berjalan setiap hari via WP-Cron
+1. Bagikan Google Sheet hanya kepada akun layanan yang dipakai oleh server WordPress.
+2. Masukkan Sheet ID dan Tab Name di HCIS.YSQ Settings.
+3. Klik "Import Sekarang" untuk sinkronisasi manual.
+4. Import otomatis akan berjalan setiap hari via WP-Cron.
 
 ### 3. Form Pelatihan (Google Sheet)
 
-**Sheet ID:** `1Ex3WqFgW-pkEg07-IopgIMyzcsZdirIcSEz4GRQ3UFQ`
-**Tab Name:** `Data`
+Gunakan Google Sheet pribadi untuk menyimpan data pelatihan dan pastikan hanya akun layanan terpercaya yang memiliki akses baca/tulis.
 
 **Setup Google Apps Script:**
 
@@ -88,7 +83,7 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vTlR2VUOcQfXRjZN4fNC-o4CvPTgd-Zl
    - Klik **Deploy → New deployment**
    - Pilih **Web app**
    - Execute as: **Me**
-   - Who has access: **Anyone**
+   - Who has access: **Only trusted accounts**
    - Copy URL deployment
 5. Paste URL ke **HCIS.YSQ Settings → Training → Web App URL**
 
@@ -109,7 +104,7 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vTlR2VUOcQfXRjZN4fNC-o4CvPTgd-Zl
 
 ### Login
 1. User mengakses halaman `/masuk`
-2. Input NIP + Password (default: No HP format 62xxx)
+2. Input NIP + Password akun
 3. Plugin memverifikasi ke tabel `hcisysq_users`
 4. Jika berhasil, session dibuat dengan cookie `hcisysq_token` (expired 1 jam)
 5. Redirect ke `/dashboard`

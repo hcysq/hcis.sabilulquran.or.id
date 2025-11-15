@@ -137,23 +137,49 @@ add_action('template_redirect', function () {
   $identity = HCISYSQ\Auth::current_identity();
   $hasUser  = $identity && ($identity['type'] ?? null) === 'user';
   $hasAdmin = $identity && ($identity['type'] ?? null) === 'admin';
+  $needsReset = $hasUser && !empty($identity['needs_password_reset']);
+  $resetUrl = $to(HCISYSQ_RESET_SLUG);
 
   if (is_page([HCISYSQ_DASHBOARD_SLUG, HCISYSQ_FORM_SLUG])) {
     if (!$hasUser && !$hasAdmin) {
       hcisysq_log('guard: not logged, redirect to /' . HCISYSQ_LOGIN_SLUG);
       wp_safe_redirect($to(HCISYSQ_LOGIN_SLUG));
       exit;
+    } elseif ($needsReset && !is_page(HCISYSQ_RESET_SLUG)) {
+      hcisysq_log('guard: force reset, redirect to /' . HCISYSQ_RESET_SLUG);
+      wp_safe_redirect($resetUrl);
+      exit;
+    }
+  }
+  if ($hasUser && !$hasAdmin && $needsReset && !is_page(HCISYSQ_RESET_SLUG)) {
+    if (is_page(HCISYSQ_LOGIN_SLUG) || is_front_page() || is_home()) {
+      hcisysq_log('guard: force reset from login/home to /' . HCISYSQ_RESET_SLUG);
+      wp_safe_redirect($resetUrl);
+      exit;
     }
   }
   if (($hasUser || $hasAdmin) && (is_front_page() || is_home())) {
+    if ($hasUser && !$hasAdmin && $needsReset) {
+      hcisysq_log('guard: active session requires reset, redirect home to /' . HCISYSQ_RESET_SLUG);
+      wp_safe_redirect($resetUrl);
+      exit;
+    }
     hcisysq_log('guard: active session, redirect home to /' . HCISYSQ_DASHBOARD_SLUG);
     wp_safe_redirect($to(HCISYSQ_DASHBOARD_SLUG));
     exit;
   }
   if (is_page(HCISYSQ_LOGIN_SLUG) && ($hasUser || $hasAdmin)) {
-    hcisysq_log('guard: already logged, redirect to /' . HCISYSQ_DASHBOARD_SLUG);
-    wp_safe_redirect($to(HCISYSQ_DASHBOARD_SLUG));
+    if ($hasUser && !$hasAdmin && $needsReset) {
+      hcisysq_log('guard: already logged but must reset, redirect to /' . HCISYSQ_RESET_SLUG);
+      wp_safe_redirect($resetUrl);
+    } else {
+      hcisysq_log('guard: already logged, redirect to /' . HCISYSQ_DASHBOARD_SLUG);
+      wp_safe_redirect($to(HCISYSQ_DASHBOARD_SLUG));
+    }
     exit;
+  }
+  if ($needsReset && is_page(HCISYSQ_RESET_SLUG)) {
+    hcisysq_log('guard: user flagged for password reset accessing reset page');
   }
 });
 

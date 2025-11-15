@@ -22,7 +22,7 @@ class View {
 
           <label for="hcisysq-pw">Password <span class="req">*</span></label>
           <div class="pw-row">
-            <input id="hcisysq-pw" type="password" name="pw" placeholder="Gunakan No HP" autocomplete="current-password" required>
+            <input id="hcisysq-pw" type="password" name="pw" placeholder="Masukkan password Anda" autocomplete="current-password" required>
             <button type="button" id="hcisysq-eye" class="eye">lihat</button>
           </div>
 

@@ -28,6 +28,7 @@ class Assets {
       'nonce'         => wp_create_nonce('hcisysq_nonce'),
       'loginSlug'     => HCISYSQ_LOGIN_SLUG,
       'dashboardSlug' => HCISYSQ_DASHBOARD_SLUG,
+      'resetSlug'     => HCISYSQ_RESET_SLUG,
       'gas_url'       => $settings['gas_url'],
     ]);
   }
