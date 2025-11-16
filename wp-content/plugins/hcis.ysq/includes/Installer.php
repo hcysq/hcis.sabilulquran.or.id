@@ -4,7 +4,7 @@ namespace HCISYSQ;
 if (!defined('ABSPATH')) exit;
 
 class Installer {
-  const SCHEMA_VERSION = '2';
+  const SCHEMA_VERSION = '4';
 
   public static function activate(){
     global $wpdb;
@@ -12,6 +12,18 @@ class Installer {
     $engine = 'ENGINE=InnoDB';
 
     $tables = [
+      'hcisysq_sessions' => "CREATE TABLE {$wpdb->prefix}hcisysq_sessions (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        identity LONGTEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ip_address VARCHAR(45),
+        user_agent VARCHAR(255),
+        INDEX idx_token (token),
+        INDEX idx_expires (expires_at)
+      ) $engine $charset;",
       'ysq_employees' => "CREATE TABLE {$wpdb->prefix}ysq_employees (
         id INT AUTO_INCREMENT PRIMARY KEY,
         wp_user_id BIGINT UNSIGNED UNIQUE,
@@ -129,6 +141,26 @@ class Installer {
         end_date DATE,
         KEY employee_id (employee_id),
         CONSTRAINT `fk_ysq_islamic_studies_history_employee` FOREIGN KEY (`employee_id`) REFERENCES `{$wpdb->prefix}ysq_employees` (`id`) ON DELETE CASCADE
+      ) $engine $charset;",
+      'hcisysq_logs' => "CREATE TABLE {$wpdb->prefix}hcisysq_logs (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        level VARCHAR(20) NOT NULL,
+        message TEXT NOT NULL,
+        context LONGTEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        user_id BIGINT,
+        ip_address VARCHAR(45),
+        KEY idx_level_date (level, created_at)
+      ) $engine $charset;",
+      'hcisysq_password_resets' => "CREATE TABLE {$wpdb->prefix}hcisysq_password_resets (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        nip varchar(255) NOT NULL,
+        token_hash varchar(255) NOT NULL,
+        expires_at datetime NOT NULL,
+        used_at datetime DEFAULT NULL,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        PRIMARY KEY  (id),
+        KEY ix_token_hash (token_hash)
       ) $engine $charset;",
     ];
 

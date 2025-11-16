@@ -8,6 +8,32 @@ class Admin {
   const OPTION_PORTAL_SHEET_ID = 'hcis_portal_sheet_id';
   const OPTION_PORTAL_GIDS = 'hcis_portal_gids';
 
+  public static function init() {
+    add_action('admin_notices', [__CLASS__, 'check_required_settings']);
+  }
+
+  public static function check_required_settings() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
+    $api_key = get_option('hcisysq_wa_token');
+    $admin_phone = get_option('hcisysq_admin_wa');
+
+    if (empty($api_key) || empty($admin_phone)) {
+        $settings_url = admin_url('options-general.php?page=hcisysq-settings');
+        ?>
+        <div class="notice notice-warning is-dismissible">
+            <p>
+                <strong>Peringatan HCIS.YSQ:</strong> Pengaturan WhatsApp (API Key dan Nomor Admin) belum lengkap. Fitur "Lupa Password" tidak akan berfungsi dengan benar.
+                <a href="<?= esc_url($settings_url); ?>">Lengkapi pengaturan sekarang</a>.
+            </p>
+        </div>
+        <?php
+    }
+  }
+
+
   public static function add_settings_page() {
     add_submenu_page(
       'hcis-admin-portal',

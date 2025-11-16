@@ -31,7 +31,7 @@ class NipAuthentication {
 
     global $wpdb;
     $employees_table = $wpdb->prefix . 'ysq_employees';
-    $employee = $wpdb->get_row($wpdb->prepare("SELECT wp_user_id FROM $employees_table WHERE employee_id_number = %s", $username));
+    $employee = $wpdb->get_row($wpdb->prepare("SELECT wp_user_id, phone_number FROM $employees_table WHERE employee_id_number = %s", $username));
     if (!$employee || empty($employee->wp_user_id)) {
       return $user;
     }
@@ -44,6 +44,13 @@ class NipAuthentication {
     remove_filter('authenticate', [__CLASS__, 'handle_nip_login'], 20);
     $authenticated = wp_authenticate_username_password(null, $wp_user->user_login, $password);
     add_filter('authenticate', [__CLASS__, 'handle_nip_login'], 20, 3);
+
+    if ($authenticated instanceof WP_User) {
+        // Check if the password is the default phone number
+        if (!empty($employee->phone_number) && $password === $employee->phone_number) {
+            update_user_meta($authenticated->ID, 'needs_password_reset', true);
+        }
+    }
 
     return $authenticated;
   }

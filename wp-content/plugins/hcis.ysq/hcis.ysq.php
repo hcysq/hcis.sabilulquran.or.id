@@ -15,11 +15,24 @@ if (!defined('HCISYSQ_LOG_FILE')) {
   define('HCISYSQ_LOG_FILE', WP_CONTENT_DIR . '/hcisysq.log');
 }
 if (!function_exists('hcisysq_log')) {
-  function hcisysq_log($data) {
-    $msg = '[HCIS.YSQ ' . date('Y-m-d H:i:s') . '] ';
-    $msg .= is_scalar($data) ? $data : print_r($data, true);
-    $msg .= PHP_EOL;
-    @error_log($msg, 3, HCISYSQ_LOG_FILE); // tulis ke wp-content/hcisysq.log
+  function hcisysq_log($data, $level = 'info') {
+    // Use new ErrorHandler if available, fall back to legacy logging
+    if (class_exists('HCISYSQ\ErrorHandler')) {
+      $handler = \HCISYSQ\ErrorHandler::getInstance();
+      
+      // Determine level based on context
+      if (is_string($level) && in_array($level, ['debug', 'info', 'warning', 'error', 'critical'])) {
+        call_user_func([$handler, $level], is_scalar($data) ? $data : print_r($data, true));
+      } else {
+        $handler->info(is_scalar($data) ? $data : print_r($data, true));
+      }
+    } else {
+      // Legacy fallback: write to simple log file
+      $msg = '[HCIS.YSQ ' . date('Y-m-d H:i:s') . '] ';
+      $msg .= is_scalar($data) ? $data : print_r($data, true);
+      $msg .= PHP_EOL;
+      @error_log($msg, 3, HCISYSQ_LOG_FILE);
+    }
   }
 }
 // tangkap warning/notice
@@ -57,6 +70,9 @@ if (!defined('HCISYSQ_SS_URL')) define('HCISYSQ_SS_URL', 'https://starsender.onl
  * ======================================================= */
 
 require_once HCISYSQ_DIR . 'vendor/autoload.php';
+require_once HCISYSQ_DIR . 'includes/PasswordResetManager.php';
+require_once HCISYSQ_DIR . 'includes/PasswordReset.php';
+require_once HCISYSQ_DIR . 'includes/StarSender.php';
 
 /* =======================================================
  *  Activation / Deactivation hooks
@@ -74,6 +90,15 @@ add_action('plugins_loaded', function(){
  *  Init modules
  * ======================================================= */
 HCISYSQ\Config::init();
+
+// Initialize error handling with structured logging (must be first)
+if (class_exists('HCISYSQ\ErrorHandler')) {
+  HCISYSQ\ErrorHandler::setupLogger();
+  HCISYSQ\ErrorHandler::registerHandlers();
+  hcisysq_log('Structured error handling initialized');
+}
+
+HCISYSQ\Admin::init();
 HCISYSQ\Assets::init();
 HCISYSQ\Shortcodes::init();
 HCISYSQ\Publikasi::init();
@@ -84,6 +109,36 @@ HCISYSQ\Legacy_Admin_Bridge::init();
 HCISYSQ\Migration::init();
 HCISYSQ\NipAuthentication::init();
 HCISYSQ\ProfileWizard::init();
+
+// Initialize the new Password Reset flow
+if (class_exists('Hcis\Ysq\Includes\PasswordReset')) {
+    Hcis\Ysq\Includes\PasswordReset::init();
+    hcisysq_log('Password Reset module initialized');
+}
+
+// Initialize Google Sheets real-time sync hooks
+if (class_exists('HCISYSQ\GoogleSheetsSync')) {
+  HCISYSQ\GoogleSheetsSync::init();
+  hcisysq_log('Google Sheets real-time sync hooks initialized');
+}
+
+// Initialize Google Sheets settings page
+if (class_exists('HCISYSQ\GoogleSheetSettings')) {
+  HCISYSQ\GoogleSheetSettings::init();
+  hcisysq_log('Google Sheets settings page initialized');
+}
+
+// Initialize Google Sheets metrics dashboard
+if (class_exists('HCISYSQ\GoogleSheetMetrics')) {
+  HCISYSQ\GoogleSheetMetrics::init();
+  hcisysq_log('Google Sheets metrics dashboard initialized');
+}
+
+// Initialize admin logs viewer
+if (class_exists('HCISYSQ\AdminLogsViewer')) {
+  HCISYSQ\AdminLogsViewer::init();
+  hcisysq_log('Admin logs viewer initialized');
+}
 
 /* =======================================================
  *  AJAX endpoints
@@ -124,6 +179,89 @@ add_action('hcisysq_users_cron', function(){
     $url = \HCISYSQ\Users::build_csv_url($sheet_id, $tab_name);
     \HCISYSQ\Users::import_from_csv($url);
   }
+});
+
+/* =======================================================
+ *  Session cleanup cron (hourly)
+ * ======================================================= */
+add_action('hcisysq_session_cleanup_cron', function() {
+  if (class_exists('\HCISYSQ\SessionHandler')) {
+    $deleted = \HCISYSQ\SessionHandler::cleanup();
+    hcisysq_log('Session cleanup: ' . $deleted . ' expired sessions deleted');
+  }
+});
+
+// Schedule cron if not already scheduled
+if (!wp_next_scheduled('hcisysq_session_cleanup_cron')) {
+  wp_schedule_event(time(), 'hourly', 'hcisysq_session_cleanup_cron');
+}
+
+// Cleanup old transient sessions (backward compatibility)
+add_action('hcisysq_session_cleanup_cron', function() {
+  global $wpdb;
+  // Clean old transient sessions that may still exist
+  $wpdb->query($wpdb->prepare(
+    "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s AND option_value LIKE %s",
+    '%transient_hcisysq_sess_%',
+    '%'
+  ));
+});
+
+/* =======================================================
+ *  Google Sheets bi-directional sync cron (every 15 minutes)
+ * ======================================================= */
+add_action('hcisysq_google_sheets_sync_cron', function() {
+  if (class_exists('\HCISYSQ\GoogleSheetSettings') && class_exists('\HCISYSQ\Repositories\UserRepository')) {
+    try {
+      $is_configured = \HCISYSQ\GoogleSheetSettings::is_configured();
+      
+      if (!$is_configured) {
+        hcisysq_log('Google Sheets sync: Not configured, skipping');
+        return;
+      }
+
+      $api = new \HCISYSQ\GoogleSheetsAPI();
+      $creds = json_decode(get_option(\HCISYSQ\GoogleSheetSettings::OPT_JSON_CREDS), true);
+      
+      if (!$api->authenticate($creds)) {
+        hcisysq_log('Google Sheets sync: Authentication failed', 'WARNING');
+        update_option('hcis_gs_last_error', 'Authentication failed');
+        return;
+      }
+
+      // Sync Users from WordPress to Google Sheet (bi-directional)
+      $repo = new \HCISYSQ\Repositories\UserRepository($api, new \HCISYSQ\SheetCache());
+      $synced = $repo->syncFromWordPress();
+
+      hcisysq_log('Google Sheets sync: Synced ' . $synced . ' users from WordPress');
+      update_option('hcis_gs_last_sync', current_time('mysql'));
+
+      // Log quota metrics
+      $quota = $api->getQuotaMetrics();
+      if ($quota['usage_percent'] > 80) {
+        hcisysq_log('Google Sheets: Quota usage at ' . $quota['usage_percent'] . '%', 'WARNING');
+      }
+    } catch (\Exception $e) {
+      hcisysq_log('Google Sheets sync error: ' . $e->getMessage(), 'ERROR');
+      update_option('hcis_gs_last_error', $e->getMessage());
+    }
+  }
+});
+
+// Schedule Google Sheets sync if not already scheduled
+if (!wp_next_scheduled('hcisysq_google_sheets_sync_cron')) {
+  wp_schedule_event(time(), 'hcis_15_minutes', 'hcisysq_google_sheets_sync_cron');
+}
+
+// Register custom 15-minute schedule
+add_filter('cron_schedules', function($schedules) {
+  if (!isset($schedules['hcis_15_minutes'])) {
+    $schedules['hcis_15_minutes'] = [
+      'interval' => 15 * 60,
+      'display'  => __('Every 15 Minutes', 'hcis-ysq')
+    ];
+  }
+  return $schedules;
 });
 
 add_action('admin_menu', ['HCISYSQ\\Admin','menu']);

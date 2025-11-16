@@ -36,10 +36,88 @@ class View {
     return ob_get_clean();
   }
 
+  public static function lupa_password_form() {
+    wp_enqueue_style('hcisysq-login');
+    $message = get_transient('hcis_reset_message');
+    delete_transient('hcis_reset_message');
+
+    ob_start(); ?>
+    <div class="hcisysq-auth-wrap">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h2>Lupa Password</h2>
+                <p>Masukkan NIP dan NIK Anda untuk meminta link reset password. Link akan dikirimkan melalui WhatsApp.</p>
+            </div>
+
+            <form id="hcisysq-request-reset-form" class="auth-form" method="post">
+                <?php wp_nonce_field('hcis_request_reset'); ?>
+                <label for="hcisysq-nip">NIP (Nomor Induk Pegawai) <span class="req">*</span></label>
+                <input id="hcisysq-nip" type="text" name="nip" required>
+
+                <label for="hcisysq-nik">NIK (Nomor Induk Kependudukan) <span class="req">*</span></label>
+                <input id="hcisysq-nik" type="text" name="nik" required>
+
+                <button type="submit" name="submit_reset_request" class="btn-primary">Kirim Permintaan</button>
+                <a class="link-forgot" href="<?= esc_url(wp_login_url()) ?>">Kembali ke Login</a>
+                <div class="msg" aria-live="polite">
+                    <?php if ($message): ?>
+                        <p class="<?= isset($message['error']) ? 'error' : 'success' ?>">
+                            <?= esc_html($message['error'] ?? $message['success']) ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
+            </form>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
+  }
+
+  public static function reset_password_form() {
+      wp_enqueue_style('hcisysq-login');
+      $token = isset($_GET['token']) ? sanitize_text_field($_GET['token']) : '';
+      $message = get_transient('hcis_reset_message');
+      delete_transient('hcis_reset_message');
+      
+      $validation = \Hcis\Ysq\Includes\PasswordResetManager::validate_token($token);
+      if (is_wp_error($validation)) {
+          $error_message = $validation->get_error_message();
+          return '<div class="hcisysq-auth-wrap"><div class="auth-card"><p>' . esc_html($error_message) . '</p><a href="' . esc_url(site_url('/lupa-password')) . '">Minta link baru</a></div></div>';
+      }
+
+      ob_start(); ?>
+      <div class="hcisysq-auth-wrap">
+          <div class="auth-card">
+              <div class="auth-header">
+                  <h2>Reset Password</h2>
+                  <p>Masukkan password baru Anda.</p>
+              </div>
+
+              <form id="hcisysq-reset-password-form" class="auth-form" method="post">
+                  <?php wp_nonce_field('hcis_reset_password'); ?>
+                  <input type="hidden" name="token" value="<?= esc_attr($token) ?>">
+                  
+                  <label for="new_password">Password Baru <span class="req">*</span></label>
+                  <input id="new_password" type="password" name="new_password" required>
+
+                  <label for="confirm_password">Konfirmasi Password Baru <span class="req">*</span></label>
+                  <input id="confirm_password" type="password" name="confirm_password" required>
+
+                  <button type="submit" name="submit_new_password" class="btn-primary">Simpan Password Baru</button>
+                  <div class="msg" aria-live="polite">
+                    <?php if ($message && isset($message['error'])): ?>
+                        <p class="error"><?= esc_html($message['error']) ?></p>
+                    <?php endif; ?>
+                  </div>
+              </form>
+          </div>
+      </div>
+      <?php
+      return ob_get_clean();
+  }
+
   public static function reset_password(){
     wp_enqueue_style('hcisysq-login');
-
-    $lostUrl = wp_lostpassword_url();
 
     ob_start(); ?>
     <div class="hcisysq-auth-wrap">
@@ -49,12 +127,11 @@ class View {
         </div>
 
         <div class="auth-body">
-          <p>Reset password sekarang menggunakan fitur bawaan WordPress. Klik tombol di bawah untuk membuka halaman resmi lupa password.</p>
-          <p>Masukkan alamat email akun WordPress Anda pada halaman tersebut dan ikuti instruksi yang dikirimkan melalui email.</p>
+          <p>Untuk melakukan reset password, silakan klik tombol di bawah ini.</p>
         </div>
 
         <div class="auth-footer">
-          <a class="btn-primary" href="<?= esc_url($lostUrl) ?>">Buka Halaman Lupa Password</a>
+          <a class="btn-primary" href="<?= esc_url(site_url('/lupa-password')) ?>">Buka Halaman Lupa Password</a>
           <a class="link-forgot" href="<?= esc_url(home_url('/' . trim(HCISYSQ_LOGIN_SLUG, '/') . '/')) ?>">Kembali ke halaman masuk</a>
         </div>
       </div>

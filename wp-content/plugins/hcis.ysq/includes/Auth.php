@@ -53,9 +53,21 @@ class Auth {
   }
 
   private static function store_session(array $payload){
-    $token = wp_generate_uuid4();
     $payload = array_merge(['type' => 'user'], $payload);
-    set_transient('hcisysq_sess_' . $token, $payload, 12 * HOUR_IN_SECONDS);
+    
+    // Try database storage first
+    if (SessionHandler::verify_table_exists()) {
+      $token = SessionHandler::create($payload, 12 * HOUR_IN_SECONDS);
+    } else {
+      // Fallback to transient if table doesn't exist (backward compatibility)
+      $token = wp_generate_uuid4();
+      set_transient('hcisysq_sess_' . $token, $payload, 12 * HOUR_IN_SECONDS);
+      hcisysq_log('SessionHandler table not found, falling back to transient storage');
+    }
+
+    if (!$token) {
+      return false;
+    }
 
     $domain = self::determine_cookie_domain();
     $options = [
@@ -75,7 +87,14 @@ class Auth {
   public static function update_current_session(array $payload){
     $token = self::get_session_token();
     if (!$token) return false;
-    $current = self::get_session_payload();
+
+    // Try database first
+    if (SessionHandler::verify_table_exists()) {
+      return SessionHandler::update($token, $payload);
+    }
+
+    // Fallback to transient
+    $current = get_transient('hcisysq_sess_' . $token);
     if (!is_array($current)) $current = [];
     $payload = array_merge($current, $payload);
     set_transient('hcisysq_sess_' . $token, $payload, 12 * HOUR_IN_SECONDS);
@@ -85,6 +104,16 @@ class Auth {
   private static function get_session_payload(){
     $token = self::get_session_token();
     if (!$token) return null;
+
+    // Try database first
+    if (SessionHandler::verify_table_exists()) {
+      $sess = SessionHandler::read($token);
+      if ($sess !== false) {
+        return $sess;
+      }
+    }
+
+    // Fallback to transient (backward compatibility)
     $sess = get_transient('hcisysq_sess_' . $token);
     if (!$sess) return null;
 
@@ -305,7 +334,14 @@ class Auth {
   public static function logout(){
     $token = self::get_session_token();
     if ($token) {
+      // Try database first
+      if (SessionHandler::verify_table_exists()) {
+        SessionHandler::destroy($token);
+      }
+
+      // Also delete transient (backward compatibility)
       delete_transient('hcisysq_sess_' . $token);
+
       $domain = self::determine_cookie_domain();
       $options = [
         'expires'  => time() - 3600,

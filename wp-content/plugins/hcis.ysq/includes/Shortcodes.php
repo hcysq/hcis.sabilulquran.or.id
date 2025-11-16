@@ -11,18 +11,24 @@ class Shortcodes {
     add_shortcode('hcis_ysq_form', [__CLASS__, 'form']);
     add_shortcode('hcis_ysq_form_button', [__CLASS__, 'form_button']);
     add_shortcode('hcis_ysq_reset_password', [__CLASS__, 'reset_password']);
+    add_shortcode('hcis_lupa_password_form', [__CLASS__, 'lupa_password_form']);
+    add_shortcode('hcis_reset_password_form', [__CLASS__, 'reset_password_form']);
 
     add_shortcode('hcisysq_login', [__CLASS__, 'login']);
     add_shortcode('hcisysq_dashboard', [__CLASS__, 'dashboard']);
     add_shortcode('hcisysq_form', [__CLASS__, 'form']);
     add_shortcode('hcisysq_form_button', [__CLASS__, 'form_button']);
     add_shortcode('hcisysq_reset_password', [__CLASS__, 'reset_password']);
+    add_shortcode('hcisysq_lupa_password_form', [__CLASS__, 'lupa_password_form']);
+    add_shortcode('hcisysq_reset_password_form', [__CLASS__, 'reset_password_form']);
 
     add_shortcode('hrissq_login', [__CLASS__, 'login']);
     add_shortcode('hrissq_dashboard', [__CLASS__, 'dashboard']);
     add_shortcode('hrissq_form', [__CLASS__, 'form']);
     add_shortcode('hrissq_form_button', [__CLASS__, 'form_button']);
     add_shortcode('hrissq_reset_password', [__CLASS__, 'reset_password']);
+    add_shortcode('hrissq_lupa_password_form', [__CLASS__, 'lupa_password_form']);
+    add_shortcode('hrissq_reset_password_form', [__CLASS__, 'reset_password_form']);
 
     add_filter('the_content', [__CLASS__, 'fix_dot_shortcodes'], 9);
     add_filter('the_content', [__CLASS__, 'ensure_login_content'], 11);
@@ -30,6 +36,7 @@ class Shortcodes {
 
   public static function fix_dot_shortcodes($content) {
     if (empty($content)) return $content;
+
 
     $pattern = '/\[(\/?)hcis\.ysq_([a-z0-9_-]+)([^\]]*)\]/i';
     $content = preg_replace_callback($pattern, function ($matches) {
@@ -93,5 +100,13 @@ class Shortcodes {
 
   public static function reset_password($atts) {
     return View::reset_password($atts);
+  }
+
+  public static function lupa_password_form($atts) {
+    return View::lupa_password_form($atts);
+  }
+
+  public static function reset_password_form($atts) {
+    return View::reset_password_form($atts);
   }
 }

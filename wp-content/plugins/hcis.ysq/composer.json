@@ -1,21 +1,28 @@
 {
-    "name": "hcis/hcis.ysq",
-    "description": "HCIS YSQ WordPress Plugin",
-    "type": "project",
-    "license": "GPL-2.0-or-later",
-    "autoload": {
-        "psr-4": {
-            "HCISYSQ\\": "includes/"
-        }
-    },
-    "authors": [
-        {
-            "name": "samijaya",
-            "email": "humancapital.ysq@gmail.com"
-        }
-    ],
-    "require": {
-        "shuchkin/simplexlsx": "^1.0",
-        "google/apiclient": "2.0"
+  "name": "hcisysq/plugin",
+  "description": "HCIS YSQ - Sistem Login NIP, Dashboard Pegawai, Form Pelatihan dengan Google Sheets Integration",
+  "version": "1.5",
+  "type": "wordpress-plugin",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "samijaya",
+      "email": "admin@hcis.local"
     }
+  ],
+  "require": {
+    "php": "^7.4",
+    "google/apiclient": "^2.18",
+    "monolog/monolog": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "HCISYSQ\\": "includes/"
+    }
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true
+  }
 }
