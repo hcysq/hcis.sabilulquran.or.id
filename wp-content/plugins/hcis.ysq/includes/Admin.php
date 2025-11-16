@@ -4,6 +4,10 @@ namespace HCISYSQ;
 if (!defined('ABSPATH')) exit;
 
 class Admin {
+  const OPTION_PORTAL_CREDENTIALS = 'hcis_portal_credentials_json';
+  const OPTION_PORTAL_SHEET_ID = 'hcis_portal_sheet_id';
+  const OPTION_PORTAL_GIDS = 'hcis_portal_gids';
+
   public static function menu() {
     // 1. Keep the old settings page, but hook it to 'add_options_page' for consistency.
     add_options_page(
@@ -25,6 +29,15 @@ class Admin {
       25
     );
 
+    add_submenu_page(
+      'hcis-admin-portal',
+      __('Portal HCIS Settings', 'hcis-ysq'),
+      __('Settings', 'hcis-ysq'),
+      'manage_hcis_portal',
+      'hcis-admin-portal-settings',
+      [__CLASS__, 'render_portal_settings_page']
+    );
+
     add_management_page(
       __('HCIS Data Migration', 'hcis-ysq'),
       __('HCIS Data Migration', 'hcis-ysq'),
@@ -41,6 +54,93 @@ class Admin {
     if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) return;
 
     self::render_settings_interface();
+  }
+
+  /**
+   * Render the Portal HCIS settings page.
+   */
+  public static function render_portal_settings_page() {
+    if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) return;
+
+    $notice = '';
+    $default_sheet_id = '110MjkBJbBzFayIUZcA3ZhKuno8y5OcWEnn04TDVHW-Y';
+    $gid_keys = [
+      'users' => __('Users', 'hcis-ysq'),
+      'profiles' => __('Profiles', 'hcis-ysq'),
+      'payroll' => __('Payroll', 'hcis-ysq'),
+      'keluarga' => __('Keluarga', 'hcis-ysq'),
+      'dokumen' => __('Dokumen', 'hcis-ysq'),
+      'pendidikan' => __('Pendidikan', 'hcis-ysq'),
+      'pelatihan' => __('Pelatihan', 'hcis-ysq'),
+    ];
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      check_admin_referer('hcis_portal_settings');
+
+      $credentials_json = isset($_POST['hcis_portal_credentials_json'])
+        ? trim(wp_unslash($_POST['hcis_portal_credentials_json']))
+        : '';
+      $sheet_id = sanitize_text_field($_POST['hcis_portal_sheet_id'] ?? '');
+
+      $gids = [];
+      foreach ($gid_keys as $key => $label) {
+        $gids[$key] = sanitize_text_field($_POST["hcis_portal_gid_{$key}"] ?? '');
+      }
+
+      update_option(self::OPTION_PORTAL_CREDENTIALS, $credentials_json);
+      update_option(self::OPTION_PORTAL_SHEET_ID, $sheet_id);
+      update_option(self::OPTION_PORTAL_GIDS, $gids);
+
+      $notice = '<div class="notice notice-success"><p>' . esc_html__('Settings saved.', 'hcis-ysq') . '</p></div>';
+    }
+
+    $credentials_value = get_option(self::OPTION_PORTAL_CREDENTIALS, '');
+    $sheet_id_value = get_option(self::OPTION_PORTAL_SHEET_ID, $default_sheet_id);
+    $gids_value = get_option(self::OPTION_PORTAL_GIDS, []);
+    if (!is_array($gids_value)) {
+      $gids_value = [];
+    }
+
+    ?>
+    <div class="wrap">
+      <h1><?= esc_html__('Portal HCIS Settings', 'hcis-ysq'); ?></h1>
+      <?php if ($notice): ?>
+        <?= wp_kses_post($notice); ?>
+      <?php endif; ?>
+
+      <form method="post">
+        <?php wp_nonce_field('hcis_portal_settings'); ?>
+        <table class="form-table">
+          <tr>
+            <th scope="row"><label for="hcis_portal_credentials_json"><?php esc_html_e('Kredensial JSON', 'hcis-ysq'); ?></label></th>
+            <td>
+              <textarea id="hcis_portal_credentials_json" name="hcis_portal_credentials_json" class="large-text code" rows="12" placeholder="{\n  &quot;type&quot;: &quot;service_account&quot;,\n  ...\n}"><?php echo esc_textarea($credentials_value); ?></textarea>
+              <p class="description"><?php esc_html_e('Tempel seluruh isi file kredensial .json di sini.', 'hcis-ysq'); ?></p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_portal_sheet_id"><?php esc_html_e('Sheet ID', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_portal_sheet_id" name="hcis_portal_sheet_id" class="regular-text" style="width: 480px" value="<?php echo esc_attr($sheet_id_value ?: $default_sheet_id); ?>" placeholder="<?php echo esc_attr($default_sheet_id); ?>">
+              <p class="description"><?php esc_html_e('ID Google Sheet utama.', 'hcis-ysq'); ?></p>
+            </td>
+          </tr>
+          <?php foreach ($gid_keys as $key => $label): ?>
+            <tr>
+              <th scope="row"><label for="hcis_portal_gid_<?php echo esc_attr($key); ?>"><?php echo esc_html(sprintf(__('GID %s', 'hcis-ysq'), $label)); ?></label></th>
+              <td>
+                <input type="text" id="hcis_portal_gid_<?php echo esc_attr($key); ?>" name="hcis_portal_gid_<?php echo esc_attr($key); ?>" class="regular-text" style="width: 220px" value="<?php echo esc_attr($gids_value[$key] ?? ''); ?>" placeholder="0">
+                <p class="description"><?php esc_html_e('Masukkan GID tab terkait di Google Sheet.', 'hcis-ysq'); ?></p>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </table>
+        <p class="submit">
+          <button type="submit" class="button button-primary"><?php esc_html_e('Simpan', 'hcis-ysq'); ?></button>
+        </p>
+      </form>
+    </div>
+    <?php
   }
 
   public static function render(){
