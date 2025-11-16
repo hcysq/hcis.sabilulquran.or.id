@@ -25,6 +25,7 @@ class Shortcodes {
     add_shortcode('hrissq_reset_password', [__CLASS__, 'reset_password']);
 
     add_filter('the_content', [__CLASS__, 'fix_dot_shortcodes'], 9);
+    add_filter('the_content', [__CLASS__, 'ensure_login_content'], 11);
   }
 
   public static function fix_dot_shortcodes($content) {
@@ -39,6 +40,34 @@ class Shortcodes {
     }, $content);
 
     return $content;
+  }
+
+  public static function ensure_login_content($content) {
+    if (!is_page(HCISYSQ_LOGIN_SLUG)) return $content;
+
+    if (is_user_logged_in() || Auth::current_user()) return $content;
+
+    $aliases = [
+      'hcis_ysq_login',
+      'hcisysq_login',
+      'hrissq_login',
+    ];
+
+    foreach ($aliases as $alias) {
+      $pattern = '/\[(\/?)' . preg_quote($alias, '/') . '\b/';
+      if (preg_match($pattern, $content)) {
+        return $content;
+      }
+    }
+
+    foreach ($aliases as $alias) {
+      $pattern = '/\[(\/?)' . preg_quote(str_replace('_', '.', $alias), '/') . '\b/';
+      if (preg_match($pattern, $content)) {
+        return $content;
+      }
+    }
+
+    return $content . View::login();
   }
 
   public static function login($atts) {
