@@ -8,6 +8,17 @@ class Admin {
   const OPTION_PORTAL_SHEET_ID = 'hcis_portal_sheet_id';
   const OPTION_PORTAL_GIDS = 'hcis_portal_gids';
 
+  public static function add_settings_page() {
+    add_submenu_page(
+      'hcis-admin-portal',
+      __('Google Sheet Settings', 'hcis-ysq'),
+      __('HCIS Settings', 'hcis-ysq'),
+      'manage_hcis_portal',
+      'hcis-google-settings',
+      [__CLASS__, 'render_settings_page']
+    );
+  }
+
   public static function menu() {
     // 1. Keep the old settings page, but hook it to 'add_options_page' for consistency.
     add_options_page(
@@ -141,6 +152,98 @@ class Admin {
       </form>
     </div>
     <?php
+  }
+
+  public static function render_settings_page() {
+    if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) return;
+
+    $creds_value = get_option('hcis_google_json_creds', '');
+    $sheet_id_value = get_option('hcis_google_sheet_id', '');
+    $gid_users = get_option('hcis_gid_users', '');
+    $gid_profiles = get_option('hcis_gid_profiles', '');
+    $gid_payroll = get_option('hcis_gid_payroll', '');
+    $gid_keluarga = get_option('hcis_gid_keluarga', '');
+    $gid_dokumen = get_option('hcis_gid_dokumen', '');
+    $gid_pendidikan = get_option('hcis_gid_pendidikan', '');
+    $gid_pelatihan = get_option('hcis_gid_pelatihan', '');
+
+    ?>
+    <div class="wrap">
+      <h1><?php esc_html_e('Google Sheet Settings', 'hcis-ysq'); ?></h1>
+      <form method="post" action="options.php">
+        <?php settings_fields('hcis_google_settings_group'); ?>
+        <table class="form-table">
+          <tr>
+            <th scope="row"><label for="hcis_google_json_creds"><?php esc_html_e('JSON Credentials', 'hcis-ysq'); ?></label></th>
+            <td>
+              <textarea id="hcis_google_json_creds" name="hcis_google_json_creds" class="large-text code" rows="10"><?php echo esc_textarea($creds_value); ?></textarea>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_google_sheet_id"><?php esc_html_e('Sheet ID', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_google_sheet_id" name="hcis_google_sheet_id" class="regular-text" value="<?php echo esc_attr($sheet_id_value); ?>">
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_gid_users"><?php esc_html_e('GID Users', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_gid_users" name="hcis_gid_users" class="regular-text" value="<?php echo esc_attr($gid_users); ?>">
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_gid_profiles"><?php esc_html_e('GID Profiles', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_gid_profiles" name="hcis_gid_profiles" class="regular-text" value="<?php echo esc_attr($gid_profiles); ?>">
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_gid_payroll"><?php esc_html_e('GID Payroll', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_gid_payroll" name="hcis_gid_payroll" class="regular-text" value="<?php echo esc_attr($gid_payroll); ?>">
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_gid_keluarga"><?php esc_html_e('GID Keluarga', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_gid_keluarga" name="hcis_gid_keluarga" class="regular-text" value="<?php echo esc_attr($gid_keluarga); ?>">
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_gid_dokumen"><?php esc_html_e('GID Dokumen', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_gid_dokumen" name="hcis_gid_dokumen" class="regular-text" value="<?php echo esc_attr($gid_dokumen); ?>">
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_gid_pendidikan"><?php esc_html_e('GID Pendidikan', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_gid_pendidikan" name="hcis_gid_pendidikan" class="regular-text" value="<?php echo esc_attr($gid_pendidikan); ?>">
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_gid_pelatihan"><?php esc_html_e('GID Pelatihan', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_gid_pelatihan" name="hcis_gid_pelatihan" class="regular-text" value="<?php echo esc_attr($gid_pelatihan); ?>">
+            </td>
+          </tr>
+        </table>
+        <?php submit_button(); ?>
+      </form>
+    </div>
+    <?php
+  }
+
+  public static function register_settings() {
+    register_setting('hcis_google_settings_group', 'hcis_google_json_creds');
+    register_setting('hcis_google_settings_group', 'hcis_google_sheet_id');
+    register_setting('hcis_google_settings_group', 'hcis_gid_users');
+    register_setting('hcis_google_settings_group', 'hcis_gid_profiles');
+    register_setting('hcis_google_settings_group', 'hcis_gid_payroll');
+    register_setting('hcis_google_settings_group', 'hcis_gid_keluarga');
+    register_setting('hcis_google_settings_group', 'hcis_gid_dokumen');
+    register_setting('hcis_google_settings_group', 'hcis_gid_pendidikan');
+    register_setting('hcis_google_settings_group', 'hcis_gid_pelatihan');
   }
 
   public static function render(){
