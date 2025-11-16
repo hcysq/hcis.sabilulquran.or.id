@@ -127,6 +127,8 @@ add_action('hcisysq_users_cron', function(){
 });
 
 add_action('admin_menu', ['HCISYSQ\\Admin','menu']);
+add_action('admin_menu', ['HCISYSQ\\Admin','add_settings_page']);
+add_action('admin_init', ['HCISYSQ\\Admin', 'register_settings']);
 
 /* =======================================================
  *  Proteksi halaman (guard)
