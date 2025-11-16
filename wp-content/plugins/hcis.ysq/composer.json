@@ -15,6 +15,7 @@
         }
     ],
     "require": {
-        "shuchkin/simplexlsx": "^1.0"
+        "shuchkin/simplexlsx": "^1.0",
+        "google/apiclient": "2.0"
     }
 }
