@@ -3,6 +3,7 @@ namespace HCISYSQ\Tests\Unit\Logging;
 
 use HCISYSQ\ErrorHandler;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 /**
  * ErrorHandler Unit Tests
@@ -21,7 +22,7 @@ class ErrorHandlerTest extends TestCase {
     $logger = ErrorHandler::getLogger();
     
     $this->assertNotNull($logger);
-    $this->assertInstanceOf('Monolog\Logger', $logger);
+    $this->assertInstanceOf(LoggerInterface::class, $logger);
   }
 
   /**
@@ -31,7 +32,7 @@ class ErrorHandlerTest extends TestCase {
     $logger = ErrorHandler::getInstance();
     
     $this->assertNotNull($logger);
-    $this->assertInstanceOf('Monolog\Logger', $logger);
+    $this->assertInstanceOf(LoggerInterface::class, $logger);
   }
 
   /**
@@ -163,13 +164,14 @@ class ErrorHandlerTest extends TestCase {
    * Test clearOldLogs returns integer
    */
   public function test_clearOldLogs_returns_integer() {
-    // Skip if no database
-    if (!function_exists('get_wpdb')) {
+    global $wpdb;
+
+    if (!isset($wpdb)) {
       $this->markTestSkipped('WordPress database not available');
     }
 
     $result = ErrorHandler::clearOldLogs(30);
-    
+
     $this->assertIsInt($result);
     $this->assertGreaterThanOrEqual(0, $result);
   }
@@ -204,13 +206,33 @@ class ErrorHandlerTest extends TestCase {
     ErrorHandler::setupLogger();
     $logger = ErrorHandler::getLogger();
     $handlers = $logger->getHandlers();
-    
+
     // At least one handler should be configured
     $this->assertGreaterThan(0, count($handlers));
-    
+
     // Handler should have a level defined
     if (isset($handlers[0])) {
       $this->assertNotNull($handlers[0]->getLevel());
     }
+  }
+
+  public function test_normalizeLogData_redacts_sensitive_fields() {
+    $normalized = ErrorHandler::normalizeLogData('Sensitive', 'error', [
+      'password' => 'secret-value',
+      'nested' => ['token' => 'abc123'],
+      'safe' => 'visible'
+    ]);
+
+    $this->assertEquals('[REDACTED]', $normalized['context']['context']['password']);
+    $this->assertEquals('[REDACTED]', $normalized['context']['context']['nested']['token']);
+    $this->assertEquals('visible', $normalized['context']['context']['safe']);
+  }
+
+  public function test_normalizeLogData_includes_stack_trace_from_exception() {
+    $exception = new \RuntimeException('Boom');
+    $normalized = ErrorHandler::normalizeLogData('boom', 'error', [], $exception);
+
+    $this->assertNotEmpty($normalized['context']['stack_trace']);
+    $this->assertEquals('ERROR', $normalized['context']['severity']);
   }
 }

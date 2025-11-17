@@ -4,7 +4,7 @@ namespace HCISYSQ;
 if (!defined('ABSPATH')) exit;
 
 class Installer {
-  const SCHEMA_VERSION = '4';
+  const SCHEMA_VERSION = '5';
 
   public static function activate(){
     global $wpdb;
@@ -13,16 +13,15 @@ class Installer {
 
     $tables = [
       'hcisysq_sessions' => "CREATE TABLE {$wpdb->prefix}hcisysq_sessions (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        token VARCHAR(255) UNIQUE NOT NULL,
-        identity LONGTEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMP NOT NULL,
-        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        ip_address VARCHAR(45),
-        user_agent VARCHAR(255),
-        INDEX idx_token (token),
-        INDEX idx_expires (expires_at)
+        session_id VARCHAR(64) NOT NULL,
+        user_id BIGINT UNSIGNED NULL,
+        payload LONGTEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY  (session_id),
+        KEY idx_user_id (user_id),
+        KEY idx_expires (expires_at)
       ) $engine $charset;",
       'ysq_employees' => "CREATE TABLE {$wpdb->prefix}ysq_employees (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -145,12 +144,19 @@ class Installer {
       'hcisysq_logs' => "CREATE TABLE {$wpdb->prefix}hcisysq_logs (
         id BIGINT AUTO_INCREMENT PRIMARY KEY,
         level VARCHAR(20) NOT NULL,
+        severity VARCHAR(20) NOT NULL,
         message TEXT NOT NULL,
         context LONGTEXT,
+        extra LONGTEXT NULL,
+        stack_trace LONGTEXT NULL,
+        component VARCHAR(191) DEFAULT 'core',
+        request_id VARCHAR(64) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        user_id BIGINT,
+        user_id BIGINT NULL,
         ip_address VARCHAR(45),
-        KEY idx_level_date (level, created_at)
+        KEY idx_level_date (level, created_at),
+        KEY idx_component (component),
+        KEY idx_request (request_id)
       ) $engine $charset;",
       'hcisysq_password_resets' => "CREATE TABLE {$wpdb->prefix}hcisysq_password_resets (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -170,6 +176,10 @@ class Installer {
     }
 
     update_option('hcisysq_schema_version', self::SCHEMA_VERSION);
+    if (class_exists(__NAMESPACE__ . '\\SessionHandler')) {
+      \HCISYSQ\SessionHandler::verify_table_exists();
+    }
+    hcisysq_log('Installer::activate() - schema upgraded to version ' . self::SCHEMA_VERSION);
 
     self::add_roles_and_capabilities();
 
