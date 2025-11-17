@@ -49,11 +49,23 @@ CARA MUDAH (Tanpa Edit File):
 4. Teks: Appearance > Customize > Header Settings / Footer Settings
 5. Footer Content: Appearance > Widgets > Footer Info/Contact/Map
 6. Google Maps: Tambah widget Custom HTML dengan embed code
+7. Mode Warna & Branding: Appearance > Customize > Mode Warna / Branding Card (atur primary color, font stack, dan toggle mode gelap)
+8. Footer Columns: Appearance > Customize > Footer Settings (pilih jumlah kolom dan isinya tanpa edit kode)
+9. Header Behavior: Appearance > Customize > Header Settings (sticky solid, sticky transparan, atau header statis)
 
 CARA MANUAL (Edit File):
 
 * Logo: Ganti /assets/logo.png dengan logo Yayasan (ukuran rekomendasi: 200x200px atau 48px tinggi)
 * Background: Ganti /assets/bg.jpg dengan pola islami yang diinginkan (ukuran: 400x400px, seamless pattern)
+
+== Mode Gelap & Branding ==
+
+* Primary Color baru otomatis tersimpan sebagai CSS custom property sehingga tombol, link, dan aksen ikut berubah.
+* Font Stack dapat diisi di Appearance > Customize > Typography untuk menentukan urutan font global (misal "Inter, system-ui").
+* Toggle Mode Gelap dapat diaktifkan di Appearance > Customize > Mode Warna. Pengunjung dapat berganti antara Sistem > Terang > Gelap langsung dari header.
+* Default mode dapat dipaksa Light/Dark melalui opsi yang sama sehingga brand khusus event bisa diterapkan tanpa coding.
+* Pengaturan Header Behavior mengatur apakah header sticky solid, sticky blur, atau statis.
+* Footer Columns dapat diatur 1-4 kolom dan grid otomatis menyesuaikan.
 
 == Changelog ==
 

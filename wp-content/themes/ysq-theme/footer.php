@@ -47,6 +47,10 @@
         ];
     }
 
+    $footer_columns_count = intval(get_theme_mod('ysq_footer_columns_count', 4));
+    $footer_columns_count = max(1, min(count($footer_columns), $footer_columns_count));
+    $footer_columns       = array_slice($footer_columns, 0, $footer_columns_count, true);
+
     $footer_bottom_default = '&copy; 2025 Yayasan Sabilul Qur\'an &bull; HCIS v1.0';
     $footer_bottom_copy = get_theme_mod('footer_bottom_copy', null);
     if (null === $footer_bottom_copy) {
@@ -56,7 +60,7 @@
     ?>
 
     <div class="ysq-footer__container">
-        <div class="ysq-footer__grid">
+        <div class="ysq-footer__grid" style="--footer-columns-count: <?php echo esc_attr($footer_columns_count); ?>;">
             <?php foreach ($footer_columns as $column) : ?>
                 <div class="ysq-footer__title"><?php echo esc_html($column['title']); ?></div>
             <?php endforeach; ?>
