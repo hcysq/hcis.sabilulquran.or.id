@@ -32,6 +32,8 @@ class Shortcodes {
 
     add_filter('the_content', [__CLASS__, 'fix_dot_shortcodes'], 9);
     add_filter('the_content', [__CLASS__, 'ensure_login_content'], 11);
+
+    add_action('template_redirect', [__CLASS__, 'render_login_when_missing_page'], 1);
   }
 
   public static function fix_dot_shortcodes($content) {
@@ -108,5 +110,52 @@ class Shortcodes {
 
   public static function reset_password_form($atts) {
     return View::reset_password_form($atts);
+  }
+
+  public static function render_login_when_missing_page() {
+    if (is_admin() || wp_doing_ajax()) return;
+
+    $slug = trim(HCISYSQ_LOGIN_SLUG, '/');
+    if ($slug === '') return;
+
+    global $wp, $wp_query;
+    $requested = '';
+    if (isset($wp->request)) {
+      $requested = trim($wp->request, '/');
+    } elseif (!empty($_SERVER['REQUEST_URI'])) {
+      $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+      $requested = trim($path, '/');
+    }
+
+    if ($requested !== $slug) return;
+
+    if ($wp_query && $wp_query->post_count > 0 && !$wp_query->is_404()) {
+      return;
+    }
+
+    self::output_login_document();
+  }
+
+  protected static function output_login_document() {
+    status_header(200);
+    nocache_headers();
+
+    $content = View::login();
+
+    echo '<!DOCTYPE html><html ';
+    language_attributes();
+    echo '>';
+    echo '<head>';
+    echo '<meta charset="' . esc_attr(get_bloginfo('charset')) . '">';
+    echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
+    wp_head();
+    echo '</head>';
+    echo '<body ';
+    body_class('hcisysq-login-fallback');
+    echo '>';
+    echo '<main class="hcisysq-login-fallback__content">' . $content . '</main>';
+    wp_footer();
+    echo '</body></html>';
+    exit;
   }
 }
