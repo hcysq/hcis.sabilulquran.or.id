@@ -48,15 +48,25 @@ class AdminLogsViewer {
     $level = isset($_GET['level']) ? sanitize_text_field($_GET['level']) : '';
     $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : '';
     $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
+    $component = isset($_GET['component']) ? sanitize_text_field($_GET['component']) : '';
+    $request_id = isset($_GET['request_id']) ? sanitize_text_field($_GET['request_id']) : '';
+    $since = isset($_GET['since']) ? sanitize_text_field($_GET['since']) : '';
+    $until = isset($_GET['until']) ? sanitize_text_field($_GET['until']) : '';
     $paged = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
     $per_page = 25;
     $offset = ($paged - 1) * $per_page;
+    $since_value = $since ? date('Y-m-d\TH:i', strtotime($since)) : '';
+    $until_value = $until ? date('Y-m-d\TH:i', strtotime($until)) : '';
 
     // Fetch logs
     $logs = self::get_logs([
       'level' => $level,
       'user_id' => $user_id,
       'search' => $search,
+      'component' => $component,
+      'request_id' => $request_id,
+      'since' => $since,
+      'until' => $until,
       'limit' => $per_page,
       'offset' => $offset
     ]);
@@ -64,7 +74,11 @@ class AdminLogsViewer {
     $total = self::count_logs([
       'level' => $level,
       'user_id' => $user_id,
-      'search' => $search
+      'search' => $search,
+      'component' => $component,
+      'request_id' => $request_id,
+      'since' => $since,
+      'until' => $until,
     ]);
 
     $total_pages = ceil($total / $per_page);
@@ -95,9 +109,27 @@ class AdminLogsViewer {
           </select>
 
           <!-- Search -->
-          <input type="text" name="search" class="hcis-filter-input" 
-                 placeholder="<?php esc_attr_e('Search message...', 'hcis-ysq'); ?>" 
+          <input type="text" name="search" class="hcis-filter-input"
+                 placeholder="<?php esc_attr_e('Search message...', 'hcis-ysq'); ?>"
                  value="<?php echo esc_attr($search); ?>" />
+
+          <!-- Component Filter -->
+          <input type="text" name="component" class="hcis-filter-input"
+                 placeholder="<?php esc_attr_e('Component', 'hcis-ysq'); ?>"
+                 value="<?php echo esc_attr($component); ?>" />
+
+          <!-- Request ID Filter -->
+          <input type="text" name="request_id" class="hcis-filter-input"
+                 placeholder="<?php esc_attr_e('Request ID', 'hcis-ysq'); ?>"
+                 value="<?php echo esc_attr($request_id); ?>" />
+
+          <!-- Date Range -->
+          <label class="screen-reader-text" for="hcis-since"><?php esc_html_e('From date', 'hcis-ysq'); ?></label>
+          <input type="datetime-local" id="hcis-since" name="since" class="hcis-filter-input"
+                 value="<?php echo esc_attr($since_value); ?>" />
+          <label class="screen-reader-text" for="hcis-until"><?php esc_html_e('To date', 'hcis-ysq'); ?></label>
+          <input type="datetime-local" id="hcis-until" name="until" class="hcis-filter-input"
+                 value="<?php echo esc_attr($until_value); ?>" />
 
           <button type="submit" class="button button-primary">
             <?php esc_html_e('Filter', 'hcis-ysq'); ?>
@@ -130,6 +162,7 @@ class AdminLogsViewer {
           <tr>
             <th><?php esc_html_e('Time', 'hcis-ysq'); ?></th>
             <th><?php esc_html_e('Level', 'hcis-ysq'); ?></th>
+            <th><?php esc_html_e('Component', 'hcis-ysq'); ?></th>
             <th><?php esc_html_e('Message', 'hcis-ysq'); ?></th>
             <th><?php esc_html_e('User', 'hcis-ysq'); ?></th>
             <th><?php esc_html_e('IP Address', 'hcis-ysq'); ?></th>
@@ -148,6 +181,9 @@ class AdminLogsViewer {
                     <?php echo esc_html(ucfirst(strtolower($log['level']))); ?>
                   </span>
                 </td>
+                <td class="hcis-log-component">
+                  <?php echo esc_html($log['component'] ?? 'core'); ?>
+                </td>
                 <td class="hcis-log-message">
                   <?php echo esc_html(substr($log['message'], 0, 100)); ?>
                   <?php if (strlen($log['message']) > 100): ?>
@@ -160,7 +196,7 @@ class AdminLogsViewer {
                       $user = get_user_by('id', $log['user_id']);
                       echo $user ? esc_html($user->user_login) : esc_html($log['user_id']);
                     } else {
-                      echo esc_html_e('System', 'hcis-ysq');
+                      esc_html_e('System', 'hcis-ysq');
                     }
                   ?>
                 </td>
@@ -175,17 +211,40 @@ class AdminLogsViewer {
               </tr>
               
               <!-- Expandable details row -->
+              <?php
+                $context_output = self::format_json_output($log['context'] ?? '');
+                $extra_output = self::format_json_output($log['extra'] ?? '');
+              ?>
               <tr class="hcis-log-details-row" id="log-details-<?php echo esc_attr($log['id']); ?>" style="display:none;">
-                <td colspan="6" class="hcis-log-details-content">
+                <td colspan="7" class="hcis-log-details-content">
                   <div class="hcis-log-full-message">
                     <strong><?php esc_html_e('Full Message:', 'hcis-ysq'); ?></strong>
                     <pre><?php echo esc_html($log['message']); ?></pre>
                   </div>
-                  
-                  <?php if (!empty($log['context'])): ?>
+
+                  <div class="hcis-log-meta">
+                    <div><strong><?php esc_html_e('Request ID:', 'hcis-ysq'); ?></strong> <?php echo esc_html($log['request_id'] ?? '—'); ?></div>
+                    <div><strong><?php esc_html_e('User ID:', 'hcis-ysq'); ?></strong> <?php echo esc_html($log['user_id'] ?? '—'); ?></div>
+                  </div>
+
+                  <?php if (!empty($context_output)): ?>
                     <div class="hcis-log-context">
                       <strong><?php esc_html_e('Context:', 'hcis-ysq'); ?></strong>
-                      <pre><?php echo esc_html($log['context']); ?></pre>
+                      <pre><?php echo esc_html($context_output); ?></pre>
+                    </div>
+                  <?php endif; ?>
+
+                  <?php if (!empty($extra_output)): ?>
+                    <div class="hcis-log-extra">
+                      <strong><?php esc_html_e('Extra:', 'hcis-ysq'); ?></strong>
+                      <pre><?php echo esc_html($extra_output); ?></pre>
+                    </div>
+                  <?php endif; ?>
+
+                  <?php if (!empty($log['stack_trace'])): ?>
+                    <div class="hcis-log-stack">
+                      <strong><?php esc_html_e('Stack Trace:', 'hcis-ysq'); ?></strong>
+                      <pre><?php echo esc_html($log['stack_trace']); ?></pre>
                     </div>
                   <?php endif; ?>
                 </td>
@@ -380,6 +439,24 @@ class AdminLogsViewer {
       font-size: 12px;
     }
 
+    .hcis-log-extra pre,
+    .hcis-log-stack pre {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 3px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+
+    .hcis-log-meta {
+      display: flex;
+      gap: 20px;
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 15px;
+    }
+
     .hcis-no-logs {
       text-align: center;
       padding: 20px;
@@ -415,6 +492,38 @@ class AdminLogsViewer {
   }
 
   /**
+   * Format JSON stored columns for display.
+   */
+  private static function format_json_output($value): string {
+    if (empty($value)) {
+      return '';
+    }
+
+    if (is_string($value)) {
+      $decoded = json_decode($value, true);
+      if (json_last_error() === JSON_ERROR_NONE) {
+        if (empty($decoded)) {
+          return '';
+        }
+
+        if (function_exists('wp_json_encode')) {
+          return wp_json_encode($decoded, JSON_PRETTY_PRINT);
+        }
+
+        return json_encode($decoded, JSON_PRETTY_PRINT);
+      }
+
+      return $value;
+    }
+
+    if (function_exists('wp_json_encode')) {
+      return wp_json_encode($value, JSON_PRETTY_PRINT);
+    }
+
+    return json_encode($value, JSON_PRETTY_PRINT);
+  }
+
+  /**
    * Get logs from database
    */
   private static function get_logs($args = []) {
@@ -424,6 +533,10 @@ class AdminLogsViewer {
       'level' => '',
       'user_id' => '',
       'search' => '',
+      'component' => '',
+      'request_id' => '',
+      'since' => '',
+      'until' => '',
       'limit' => 25,
       'offset' => 0
     ];
@@ -449,6 +562,31 @@ class AdminLogsViewer {
       $params[] = $search;
       $params[] = $search;
     }
+    if (!empty($args['component'])) {
+      $query .= " AND component = %s";
+      $params[] = $args['component'];
+    }
+
+    if (!empty($args['request_id'])) {
+      $query .= " AND request_id = %s";
+      $params[] = $args['request_id'];
+    }
+
+    if (!empty($args['since'])) {
+      $normalized = self::normalize_date_filter($args['since']);
+      if ($normalized) {
+        $query .= " AND created_at >= %s";
+        $params[] = $normalized;
+      }
+    }
+
+    if (!empty($args['until'])) {
+      $normalized = self::normalize_date_filter($args['until']);
+      if ($normalized) {
+        $query .= " AND created_at <= %s";
+        $params[] = $normalized;
+      }
+    }
 
     $query .= " ORDER BY created_at DESC LIMIT %d OFFSET %d";
     $params[] = intval($args['limit']);
@@ -470,7 +608,11 @@ class AdminLogsViewer {
     $defaults = [
       'level' => '',
       'user_id' => '',
-      'search' => ''
+      'search' => '',
+      'component' => '',
+      'request_id' => '',
+      'since' => '',
+      'until' => ''
     ];
 
     $args = wp_parse_args($args, $defaults);
@@ -494,6 +636,32 @@ class AdminLogsViewer {
       $params[] = $search;
       $params[] = $search;
     }
+    if (!empty($args['component'])) {
+      $query .= " AND component = %s";
+      $params[] = $args['component'];
+    }
+
+    if (!empty($args['request_id'])) {
+      $query .= " AND request_id = %s";
+      $params[] = $args['request_id'];
+    }
+
+    if (!empty($args['since'])) {
+      $normalized = self::normalize_date_filter($args['since']);
+      if ($normalized) {
+        $query .= " AND created_at >= %s";
+        $params[] = $normalized;
+      }
+    }
+
+    if (!empty($args['until'])) {
+      $normalized = self::normalize_date_filter($args['until']);
+      if ($normalized) {
+        $query .= " AND created_at <= %s";
+        $params[] = $normalized;
+      }
+    }
+
 
     if (!empty($params)) {
       return intval($wpdb->get_var($wpdb->prepare($query, $params)));
@@ -519,6 +687,19 @@ class AdminLogsViewer {
         esc_html($user->display_name . ' (' . $user->user_login . ')')
       );
     }
+  }
+
+  private static function normalize_date_filter($value) {
+    if (empty($value)) {
+      return '';
+    }
+
+    $timestamp = strtotime($value);
+    if (!$timestamp) {
+      return '';
+    }
+
+    return $timestamp ? date('Y-m-d H:i:s', $timestamp) : '';
   }
 
   /**
@@ -563,15 +744,20 @@ class AdminLogsViewer {
     $output = fopen('php://output', 'w');
 
     // Header
-    fputcsv($output, ['ID', 'Level', 'Message', 'Context', 'Created At', 'User ID', 'IP Address']);
+    fputcsv($output, ['ID', 'Level', 'Severity', 'Component', 'Request ID', 'Message', 'Context', 'Extra', 'Stack Trace', 'Created At', 'User ID', 'IP Address']);
 
     // Data
     foreach ($logs as $log) {
       fputcsv($output, [
         $log['id'],
         $log['level'],
+        $log['severity'],
+        $log['component'],
+        $log['request_id'],
         $log['message'],
         $log['context'],
+        $log['extra'],
+        $log['stack_trace'],
         $log['created_at'],
         $log['user_id'],
         $log['ip_address']
