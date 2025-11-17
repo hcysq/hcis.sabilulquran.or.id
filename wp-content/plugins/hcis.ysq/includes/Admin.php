@@ -35,10 +35,12 @@ class Admin {
 
 
   public static function add_settings_page() {
+    $google_sheet_settings_label = __('Google Sheet Settings', 'hcis-ysq');
+
     add_submenu_page(
       'hcis-admin-portal',
-      __('Google Sheet Settings', 'hcis-ysq'),
-      __('Google Sheet Settings', 'hcis-ysq'),
+      $google_sheet_settings_label,
+      $google_sheet_settings_label,
       'manage_hcis_portal',
       'hcis-google-settings',
       [__CLASS__, 'render_settings_page']
