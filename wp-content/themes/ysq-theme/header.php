@@ -1,5 +1,10 @@
+<?php
+$default_color_mode        = get_theme_mod('ysq_default_color_mode', 'system');
+$header_behavior           = get_theme_mod('ysq_header_behavior', 'sticky');
+$enable_color_mode_toggle  = get_theme_mod('ysq_enable_color_mode_toggle', false);
+?>
 <!DOCTYPE html>
-<html <?php language_attributes(); ?>>
+<html <?php language_attributes(); ?> data-default-color-mode="<?php echo esc_attr($default_color_mode); ?>">
 <head>
     <meta charset="<?php bloginfo('charset'); ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,9 +13,7 @@
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 
-<a class="skip-link" href="#main-content"><?php esc_html_e('Lewati ke konten utama', 'ysq'); ?></a>
-
-<header class="site-header" role="banner">
+<header class="site-header site-header--behavior-<?php echo esc_attr($header_behavior); ?>" data-header-behavior="<?php echo esc_attr($header_behavior); ?>">
     <div class="header-container">
         <div class="site-branding">
             <div class="site-logo">
@@ -48,32 +51,32 @@
         $show_login_button = $show_buttons && !$is_wp_user_logged_in && !$is_hcis_logged_in && '' !== $login_button_text;
         $show_main_button  = $show_buttons && '' !== $main_button_text && '' !== $main_button_url;
 
-        if ($show_login_button || $show_main_button) :
-            $main_button_aria = '';
-            if ($show_main_button) {
-                /* translators: describes that the link opens a new tab */
-                $main_button_aria = sprintf(__('Buka %s di tab baru', 'ysq'), wp_strip_all_tags($main_button_text));
-            }
+        if ($show_login_button || $show_main_button || $enable_color_mode_toggle) :
         ?>
-            <nav class="main-navigation" aria-label="<?php esc_attr_e('Navigasi utama', 'ysq'); ?>">
-                <ul class="main-navigation__list">
-                    <?php if ($show_login_button) : ?>
-                        <li>
+            <div class="header-actions">
+                <?php if ($show_login_button || $show_main_button) : ?>
+                    <nav class="main-navigation">
+                        <?php if ($show_login_button) : ?>
                             <a href="<?php echo esc_url($login_button_url); ?>" class="btn-primary">
                                 <?php echo esc_html($login_button_text); ?>
                             </a>
-                        </li>
-                    <?php endif; ?>
+                        <?php endif; ?>
 
-                    <?php if ($show_main_button) : ?>
-                        <li>
-                            <a href="<?php echo esc_url($main_button_url); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr($main_button_aria); ?>">
+                        <?php if ($show_main_button) : ?>
+                            <a href="<?php echo esc_url($main_button_url); ?>" target="_blank" rel="noopener noreferrer">
                                 <?php echo esc_html($main_button_text); ?>
                             </a>
-                        </li>
-                    <?php endif; ?>
-                </ul>
-            </nav>
+                        <?php endif; ?>
+                    </nav>
+                <?php endif; ?>
+
+                <?php if ($enable_color_mode_toggle) : ?>
+                    <button type="button" class="color-mode-toggle" data-color-mode-toggle aria-pressed="false" data-label-system="<?php esc_attr_e('Ikuti Sistem', 'ysq'); ?>" data-label-light="<?php esc_attr_e('Mode Terang', 'ysq'); ?>" data-label-dark="<?php esc_attr_e('Mode Gelap', 'ysq'); ?>">
+                        <span class="color-mode-toggle__icon" aria-hidden="true"></span>
+                        <span class="color-mode-toggle__label" data-color-mode-toggle-label><?php esc_html_e('Ikuti Sistem', 'ysq'); ?></span>
+                    </button>
+                <?php endif; ?>
+            </div>
         <?php endif; ?>
     </div>
 </header>

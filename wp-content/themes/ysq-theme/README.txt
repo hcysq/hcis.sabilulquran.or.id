@@ -2,7 +2,7 @@
 Contributors: Yayasan Sabilul Qur'an
 Requires at least: 5.0
 Tested up to: 6.4
-Stable tag: 1.2
+Stable tag: 1.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -49,13 +49,44 @@ CARA MUDAH (Tanpa Edit File):
 4. Teks: Appearance > Customize > Header Settings / Footer Settings
 5. Footer Content: Appearance > Widgets > Footer Info/Contact/Map
 6. Google Maps: Tambah widget Custom HTML dengan embed code
+7. Mode Warna & Branding: Appearance > Customize > Mode Warna / Branding Card (atur primary color, font stack, dan toggle mode gelap)
+8. Footer Columns: Appearance > Customize > Footer Settings (pilih jumlah kolom dan isinya tanpa edit kode)
+9. Header Behavior: Appearance > Customize > Header Settings (sticky solid, sticky transparan, atau header statis)
 
 CARA MANUAL (Edit File):
 
 * Logo: Ganti /assets/logo.png dengan logo Yayasan (ukuran rekomendasi: 200x200px atau 48px tinggi)
 * Background: Ganti /assets/bg.jpg dengan pola islami yang diinginkan (ukuran: 400x400px, seamless pattern)
 
+== Asset Pipeline ==
+
+Semua stylesheet utama berada di folder `assets/scss/` dan dibagi ke dalam beberapa chunk (base, layout, components, pages, responsive).
+
+Tooling bundler berada di folder `tooling/` dan menggunakan Webpack + PostCSS (autoprefixer, cssnano). Perintah yang tersedia:
+
+```
+npm install
+npm run dev   # build + watch saat pengembangan
+npm run build # build produksi (CSS terminifikasi)
+```
+
+Output build tersimpan di folder `dist/` dengan nama file versi hash dan manifest `dist/manifest.json`. File tersebut otomatis dimuat oleh `functions.php` (fungsi `ysq_get_compiled_asset`) sehingga cache busting dilakukan melalui hash + `filemtime`. Jika manifest belum tersedia, helper akan mencoba `dist/main.css` sebelum akhirnya jatuh ke `style.css`.
+
+Untuk kompatibilitas dengan aset lama, file `assets/css/ysq-footer.css` masih dipertahankan. File tersebut bersumber dari SCSS baru sehingga tampilan footer tetap konsisten walau ada cache lawas yang masih memanggil path lama.
+== Mode Gelap & Branding ==
+
+* Primary Color baru otomatis tersimpan sebagai CSS custom property sehingga tombol, link, dan aksen ikut berubah.
+* Font Stack dapat diisi di Appearance > Customize > Typography untuk menentukan urutan font global (misal "Inter, system-ui").
+* Toggle Mode Gelap dapat diaktifkan di Appearance > Customize > Mode Warna. Pengunjung dapat berganti antara Sistem > Terang > Gelap langsung dari header.
+* Default mode dapat dipaksa Light/Dark melalui opsi yang sama sehingga brand khusus event bisa diterapkan tanpa coding.
+* Pengaturan Header Behavior mengatur apakah header sticky solid, sticky blur, atau statis.
+* Footer Columns dapat diatur 1-4 kolom dan grid otomatis menyesuaikan.
+
 == Changelog ==
+
+= 1.5 =
+* Migrasi ke pipeline SCSS + Webpack dan penambahan fallback otomatis (manifest → dist/main.css → style.css)
+* Menyediakan ulang `assets/css/ysq-footer.css` agar path lama tidak 404 pasca merge
 
 = 1.2 =
 * Pembaruan metadata tema untuk rilis 1.2 (versi stylesheet, paket, dan tampilan footer)
