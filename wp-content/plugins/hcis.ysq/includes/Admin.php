@@ -38,7 +38,7 @@ class Admin {
     add_submenu_page(
       'hcis-admin-portal',
       __('Google Sheet Settings', 'hcis-ysq'),
-      __('HCIS Settings', 'hcis-ysq'),
+      __('Google Sheet Settings', 'hcis-ysq'),
       'manage_hcis_portal',
       'hcis-google-settings',
       [__CLASS__, 'render_settings_page']
