@@ -1,0 +1,123 @@
+@media (max-width: 1024px) {
+  .ysq-publication-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ysq-publication-grid--home {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .footer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .footer-grid__cell--col1.footer-grid__cell--title,
+  .footer-grid__cell--col2.footer-grid__cell--title,
+  .footer-grid__cell--col3.footer-grid__cell--title,
+  .footer-grid__cell--col4.footer-grid__cell--title,
+  .footer-grid__cell--col1.footer-grid__cell--content,
+  .footer-grid__cell--col2.footer-grid__cell--content,
+  .footer-grid__cell--col3.footer-grid__cell--content,
+  .footer-grid__cell--col4.footer-grid__cell--content {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .dashboard-layout {
+    flex-direction: column;
+  }
+
+  .dashboard-sidebar {
+    width: 100%;
+  }
+
+  .announcement-feed {
+    min-height: auto;
+    width: 100%;
+  }
+
+  .ysq-footer__grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .main-navigation {
+    width: 100%;
+  }
+
+  .site-title {
+    font-size: 16px;
+  }
+
+  .content-wrapper {
+    padding: 24px 16px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .ysq-publication-grid,
+  .ysq-publication-grid--home {
+    grid-template-columns: 1fr;
+  }
+
+  .ysq-publication-card__body {
+    padding: 16px 18px 18px;
+  }
+
+  .footer-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .footer-grid__cell--col1.footer-grid__cell--title,
+  .footer-grid__cell--col2.footer-grid__cell--title,
+  .footer-grid__cell--col3.footer-grid__cell--title,
+  .footer-grid__cell--col4.footer-grid__cell--title,
+  .footer-grid__cell--col1.footer-grid__cell--content,
+  .footer-grid__cell--col2.footer-grid__cell--content,
+  .footer-grid__cell--col3.footer-grid__cell--content,
+  .footer-grid__cell--col4.footer-grid__cell--content {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .form-field-inline {
+    flex-direction: column;
+  }
+
+  .history-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  body.home .content-wrapper {
+    min-height: auto;
+  }
+
+  .announcement-feed__body {
+    overflow: visible;
+    margin-bottom: 20px;
+  }
+
+  .ysq-footer__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ysq-footer__title {
+    margin-top: 10px;
+  }
+}

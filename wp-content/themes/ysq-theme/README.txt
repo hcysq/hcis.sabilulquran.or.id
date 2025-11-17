@@ -55,6 +55,20 @@ CARA MANUAL (Edit File):
 * Logo: Ganti /assets/logo.png dengan logo Yayasan (ukuran rekomendasi: 200x200px atau 48px tinggi)
 * Background: Ganti /assets/bg.jpg dengan pola islami yang diinginkan (ukuran: 400x400px, seamless pattern)
 
+== Asset Pipeline ==
+
+Semua stylesheet utama berada di folder `assets/scss/` dan dibagi ke dalam beberapa chunk (base, layout, components, pages, responsive).
+
+Tooling bundler berada di folder `tooling/` dan menggunakan Webpack + PostCSS (autoprefixer, cssnano). Perintah yang tersedia:
+
+```
+npm install
+npm run dev   # build + watch saat pengembangan
+npm run build # build produksi (CSS termininifikasi)
+```
+
+Output build tersimpan di folder `dist/` dengan nama file versi hash dan manifest `dist/manifest.json`. File tersebut otomatis dimuat oleh `functions.php` (fungsi `ysq_get_compiled_asset`) sehingga cache busting dilakukan melalui hash + `filemtime`. Jika manifest belum tersedia, tema akan menggunakan `style.css` sebagai fallback.
+
 == Changelog ==
 
 = 1.2 =

@@ -38,15 +38,48 @@ function ysq_setup() {
 }
 add_action('after_setup_theme', 'ysq_setup');
 
-function ysq_enqueue_scripts() {
-    wp_enqueue_style('ysq-style', get_stylesheet_uri(), array(), '1.3');
-    wp_enqueue_style(
-        'ysq-footer',
-        get_stylesheet_directory_uri() . '/assets/css/ysq-footer.css',
-        array('ysq-style'),
-        '1.0'
+function ysq_get_compiled_asset($filename = 'main.css') {
+    static $manifest = null;
+
+    $dist_path = trailingslashit(get_template_directory()) . 'dist';
+    $dist_uri  = trailingslashit(get_template_directory_uri()) . 'dist';
+    $manifest_path = trailingslashit($dist_path) . 'manifest.json';
+
+    if (is_null($manifest) && file_exists($manifest_path)) {
+        $contents = file_get_contents($manifest_path);
+        $manifest = json_decode($contents, true);
+    }
+
+    if (is_array($manifest) && isset($manifest[$filename])) {
+        $relative = ltrim($manifest[$filename], '/');
+        $asset_path = trailingslashit($dist_path) . $relative;
+        $asset_uri  = trailingslashit($dist_uri) . $relative;
+        $version    = file_exists($asset_path) ? filemtime($asset_path) : null;
+
+        return array(
+            'uri'     => $asset_uri,
+            'version' => $version ? (string) $version : null,
+        );
+    }
+
+    $fallback_path = get_stylesheet_directory() . '/style.css';
+    $fallback_version = file_exists($fallback_path) ? filemtime($fallback_path) : wp_get_theme()->get('Version');
+
+    return array(
+        'uri'     => get_stylesheet_uri(),
+        'version' => $fallback_version ? (string) $fallback_version : null,
     );
-    wp_enqueue_script('ysq-theme', get_template_directory_uri() . '/assets/js/theme.js', array(), '1.0.0', true);
+}
+
+function ysq_enqueue_scripts() {
+    $stylesheet = ysq_get_compiled_asset('main.css');
+
+    wp_enqueue_style('ysq-style', $stylesheet['uri'], array(), $stylesheet['version']);
+
+    $script_path = get_template_directory() . '/assets/js/theme.js';
+    $script_version = file_exists($script_path) ? filemtime($script_path) : wp_get_theme()->get('Version');
+
+    wp_enqueue_script('ysq-theme', get_template_directory_uri() . '/assets/js/theme.js', array(), $script_version, true);
 }
 add_action('wp_enqueue_scripts', 'ysq_enqueue_scripts');
 
