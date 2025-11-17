@@ -27,13 +27,17 @@ class Hcis_Gas_Token {
   public static function register_routes() {
     register_rest_route('hcis/v1', '/gas-token/new', [
       'methods'             => WP_REST_Server::CREATABLE,
-      'callback'            => [__CLASS__, 'handle_new_token'],
+      'callback'            => Security::wrap_rest_callback([__CLASS__, 'handle_new_token'], [
+        'channel' => 'gas_token_new',
+      ]),
       'permission_callback' => [__CLASS__, 'rest_user_permission'],
     ]);
 
     register_rest_route('hcis/v1', '/gas-token/exchange', [
       'methods'             => WP_REST_Server::READABLE,
-      'callback'            => [__CLASS__, 'handle_exchange_token'],
+      'callback'            => Security::wrap_rest_callback([__CLASS__, 'handle_exchange_token'], [
+        'channel' => 'gas_token_exchange',
+      ]),
       'permission_callback' => '__return_true',
       'args'                => [
         'token' => [

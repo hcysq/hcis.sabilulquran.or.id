@@ -26,6 +26,7 @@ class View {
             <button type="button" id="hcisysq-eye" class="eye">lihat</button>
           </div>
 
+          <?= Security::render_captcha_placeholder('login'); ?>
           <button type="submit" class="btn-primary">Masuk</button>
           <a id="hcisysq-forgot" class="link-forgot" href="<?= esc_url(wp_lostpassword_url()) ?>">Lupa password?</a>
           <div class="msg" aria-live="polite"></div>
@@ -57,6 +58,7 @@ class View {
                 <label for="hcisysq-nik">NIK (Nomor Induk Kependudukan) <span class="req">*</span></label>
                 <input id="hcisysq-nik" type="text" name="nik" required>
 
+                <?= Security::render_captcha_placeholder('registration'); ?>
                 <button type="submit" name="submit_reset_request" class="btn-primary">Kirim Permintaan</button>
                 <a class="link-forgot" href="<?= esc_url(wp_login_url()) ?>">Kembali ke Login</a>
                 <div class="msg" aria-live="polite">
@@ -96,13 +98,14 @@ class View {
               <form id="hcisysq-reset-password-form" class="auth-form" method="post">
                   <?php wp_nonce_field('hcis_reset_password'); ?>
                   <input type="hidden" name="token" value="<?= esc_attr($token) ?>">
-                  
+
                   <label for="new_password">Password Baru <span class="req">*</span></label>
                   <input id="new_password" type="password" name="new_password" required>
 
                   <label for="confirm_password">Konfirmasi Password Baru <span class="req">*</span></label>
                   <input id="confirm_password" type="password" name="confirm_password" required>
 
+                  <?= Security::render_captcha_placeholder('registration'); ?>
                   <button type="submit" name="submit_new_password" class="btn-primary">Simpan Password Baru</button>
                   <div class="msg" aria-live="polite">
                     <?php if ($message && isset($message['error'])): ?>
