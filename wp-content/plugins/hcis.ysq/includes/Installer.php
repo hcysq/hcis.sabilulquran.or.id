@@ -176,6 +176,8 @@ class Installer {
     Publikasi_Post_Type::on_activation();
     Tasks::on_activation();
 
+    self::ensure_login_page();
+
     flush_rewrite_rules();
   }
 
@@ -216,5 +218,79 @@ class Installer {
     }
 
     remove_role('hcis_admin');
+  }
+
+  /**
+   * Ensure the login page exists and contains the required shortcode
+   */
+  public static function maybe_ensure_login_page() {
+    static $checked = false;
+    if ($checked) return;
+    $checked = true;
+
+    $page = get_page_by_path(sanitize_title(HCISYSQ_LOGIN_SLUG), OBJECT, 'page');
+    if ($page && $page->post_status === 'publish' && self::login_page_has_shortcode($page->post_content)) {
+      update_option('hcisysq_login_page_id', (int) $page->ID);
+      return;
+    }
+
+    self::ensure_login_page();
+  }
+
+  protected static function login_page_has_shortcode($content) {
+    if (empty($content)) return false;
+    return (bool) preg_match('/\[hcis_ysq_login\b/i', $content);
+  }
+
+  public static function ensure_login_page() {
+    if (!function_exists('wp_insert_post')) {
+      require_once ABSPATH . 'wp-admin/includes/post.php';
+    }
+
+    $slug = sanitize_title(HCISYSQ_LOGIN_SLUG);
+    $shortcode = '[hcis_ysq_login]';
+    $page = get_page_by_path($slug, OBJECT, 'page');
+
+    if (!$page) {
+      $page_id = wp_insert_post([
+        'post_title'   => __('Masuk', 'hcis-ysq'),
+        'post_name'    => $slug,
+        'post_status'  => 'publish',
+        'post_type'    => 'page',
+        'post_content' => $shortcode,
+        'post_author'  => get_current_user_id() ?: 1,
+      ], true);
+
+      if (!is_wp_error($page_id)) {
+        update_option('hcisysq_login_page_id', (int) $page_id);
+      }
+      return;
+    }
+
+    if ($page->post_status === 'trash') {
+      wp_untrash_post($page->ID);
+      $page = get_post($page->ID);
+    }
+
+    $needs_update = false;
+    $updated_post = ['ID' => $page->ID];
+
+    if ($page->post_status !== 'publish') {
+      $updated_post['post_status'] = 'publish';
+      $needs_update = true;
+    }
+
+    if (!self::login_page_has_shortcode($page->post_content)) {
+      $content = trim($page->post_content);
+      $content = $content ? $content . "\n\n" . $shortcode : $shortcode;
+      $updated_post['post_content'] = $content;
+      $needs_update = true;
+    }
+
+    if ($needs_update) {
+      wp_update_post($updated_post);
+    }
+
+    update_option('hcisysq_login_page_id', (int) $page->ID);
   }
 }

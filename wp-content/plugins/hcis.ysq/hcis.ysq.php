@@ -86,6 +86,8 @@ add_action('plugins_loaded', function(){
   }
 });
 
+add_action('init', ['HCISYSQ\\Installer', 'maybe_ensure_login_page'], 1);
+
 /* =======================================================
  *  Init modules
  * ======================================================= */
