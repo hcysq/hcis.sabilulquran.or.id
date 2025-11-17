@@ -111,6 +111,7 @@ HCISYSQ\Legacy_Admin_Bridge::init();
 HCISYSQ\Migration::init();
 HCISYSQ\NipAuthentication::init();
 HCISYSQ\ProfileWizard::init();
+HCISYSQ\SessionMaintenance::init();
 
 // Initialize the new Password Reset flow
 if (class_exists('Hcis\Ysq\Includes\PasswordReset')) {
