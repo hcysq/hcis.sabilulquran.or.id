@@ -78,6 +78,7 @@ add_action('init', ['HCISYSQ\\Installer', 'maybe_ensure_login_page'], 1);
  *  Init modules
  * ======================================================= */
 HCISYSQ\Config::init();
+HCISYSQ\Security::init();
 
 // Initialize error handling with structured logging (must be first)
 if (class_exists('HCISYSQ\ErrorHandler')) {
@@ -133,29 +134,107 @@ if (class_exists('HCISYSQ\Logging\LogsEndpoint')) {
 }
 
 /* =======================================================
- *  AJAX endpoints
+ *  AJAX endpoints + middleware inventory
  * ======================================================= */
-add_action('wp_ajax_nopriv_hcisysq_login',    ['HCISYSQ\\Api', 'login']);
-add_action('wp_ajax_hcisysq_logout',          ['HCISYSQ\\Api', 'logout']);
-add_action('wp_ajax_nopriv_hcisysq_logout',   ['HCISYSQ\\Api', 'logout']);
-add_action('wp_ajax_hcisysq_submit_training', ['HCISYSQ\\Api', 'submit_training']);
+$hcisysq_ajax_endpoints = [
+  [
+    'action'         => 'hcisysq_login',
+    'callback'       => ['HCISYSQ\\Api', 'login'],
+    'nopriv'         => true,
+    'channel'        => 'login',
+    'captcha_action' => 'login',
+  ],
+  [
+    'action'   => 'hcisysq_logout',
+    'callback' => ['HCISYSQ\\Api', 'logout'],
+    'nopriv'   => true,
+    'channel'  => 'logout',
+  ],
+  [
+    'action'         => 'hcisysq_submit_training',
+    'callback'       => ['HCISYSQ\\Api', 'submit_training'],
+    'channel'        => 'training',
+    'captcha_action' => 'training',
+  ],
+  [
+    'action'   => 'hcisysq_admin_create_publication',
+    'callback' => ['HCISYSQ\\Api', 'admin_create_publication'],
+    'channel'  => 'admin_publications',
+  ],
+  [
+    'action'   => 'hcisysq_admin_update_publication',
+    'callback' => ['HCISYSQ\\Api', 'admin_update_publication'],
+    'channel'  => 'admin_publications',
+  ],
+  [
+    'action'   => 'hcisysq_admin_delete_publication',
+    'callback' => ['HCISYSQ\\Api', 'admin_delete_publication'],
+    'channel'  => 'admin_publications',
+  ],
+  [
+    'action'   => 'hcisysq_admin_set_publication_status',
+    'callback' => ['HCISYSQ\\Api', 'admin_set_publication_status'],
+    'channel'  => 'admin_publications',
+  ],
+  [
+    'action'   => 'hcisysq_admin_save_settings',
+    'callback' => ['HCISYSQ\\Api', 'admin_save_settings'],
+    'channel'  => 'admin_settings',
+  ],
+  [
+    'action'   => 'hcisysq_admin_save_home_settings',
+    'callback' => ['HCISYSQ\\Api', 'admin_save_home_settings'],
+    'channel'  => 'admin_settings',
+  ],
+  [
+    'action'   => 'hcisysq_admin_create_task',
+    'callback' => ['HCISYSQ\\Api', 'admin_create_task'],
+    'channel'  => 'admin_tasks',
+  ],
+  [
+    'action'   => 'hcisysq_admin_update_task',
+    'callback' => ['HCISYSQ\\Api', 'admin_update_task'],
+    'channel'  => 'admin_tasks',
+  ],
+  [
+    'action'   => 'hcisysq_admin_delete_task',
+    'callback' => ['HCISYSQ\\Api', 'admin_delete_task'],
+    'channel'  => 'admin_tasks',
+  ],
+  [
+    'action'   => 'hcisysq_admin_set_task_status',
+    'callback' => ['HCISYSQ\\Api', 'admin_set_task_status'],
+    'channel'  => 'admin_tasks',
+  ],
+  [
+    'action'   => 'hcisysq_admin_update_assignment',
+    'callback' => ['HCISYSQ\\Api', 'admin_update_assignment'],
+    'channel'  => 'admin_tasks',
+  ],
+  [
+    'action'   => 'ysq_get_employees_by_units',
+    'callback' => ['HCISYSQ\\Api', 'ysq_get_employees_by_units'],
+    'channel'  => 'employee_lookup',
+  ],
+  [
+    'action'   => 'ysq_get_all_profiles',
+    'callback' => ['HCISYSQ\\Api', 'ysq_api_get_all_profiles'],
+    'channel'  => 'employee_lookup',
+  ],
+  [
+    'action'   => 'ysq_update_profile',
+    'callback' => ['HCISYSQ\\Api', 'ysq_api_update_profile'],
+    'channel'  => 'profile_update',
+  ],
+];
+
+foreach ($hcisysq_ajax_endpoints as $endpoint) {
+  HCISYSQ\Security::register_ajax_endpoint($endpoint);
+}
+
 add_action('wp_ajax_nopriv_hcisysq_submit_training', function(){
-  wp_send_json(['ok'=>false,'msg'=>'Unauthorized']);
+  wp_send_json(['ok' => false, 'msg' => 'Unauthorized'], 403);
 });
-add_action('wp_ajax_hcisysq_admin_create_publication', ['HCISYSQ\\Api', 'admin_create_publication']);
-add_action('wp_ajax_hcisysq_admin_update_publication', ['HCISYSQ\\Api', 'admin_update_publication']);
-add_action('wp_ajax_hcisysq_admin_delete_publication', ['HCISYSQ\\Api', 'admin_delete_publication']);
-add_action('wp_ajax_hcisysq_admin_set_publication_status', ['HCISYSQ\\Api', 'admin_set_publication_status']);
-add_action('wp_ajax_hcisysq_admin_save_settings', ['HCISYSQ\\Api', 'admin_save_settings']);
-add_action('wp_ajax_hcisysq_admin_save_home_settings', ['HCISYSQ\\Api', 'admin_save_home_settings']);
-add_action('wp_ajax_hcisysq_admin_create_task', ['HCISYSQ\\Api', 'admin_create_task']);
-add_action('wp_ajax_hcisysq_admin_update_task', ['HCISYSQ\\Api', 'admin_update_task']);
-add_action('wp_ajax_hcisysq_admin_delete_task', ['HCISYSQ\\Api', 'admin_delete_task']);
-add_action('wp_ajax_hcisysq_admin_set_task_status', ['HCISYSQ\\Api', 'admin_set_task_status']);
-add_action('wp_ajax_hcisysq_admin_update_assignment', ['HCISYSQ\\Api', 'admin_update_assignment']);
-add_action('wp_ajax_ysq_get_employees_by_units', ['HCISYSQ\\Api', 'ysq_get_employees_by_units']);
-add_action('wp_ajax_ysq_get_all_profiles', ['HCISYSQ\\Api', 'ysq_api_get_all_profiles']);
-add_action('wp_ajax_ysq_update_profile', ['HCISYSQ\\Api', 'ysq_api_update_profile']);
 
 /* =======================================================
  *  Cron (jika pakai import)

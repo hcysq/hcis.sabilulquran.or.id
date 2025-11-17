@@ -342,6 +342,35 @@ class Admin {
 
         $msg .= "<strong>WhatsApp & GAS settings saved.</strong><br>";
       }
+
+      if (isset($_POST['save_security_settings'])) {
+        $rate_limit = [
+          'window'   => max(10, absint($_POST['security_rate_window'] ?? 300)),
+          'per_ip'   => max(1, absint($_POST['security_rate_ip'] ?? 30)),
+          'per_user' => max(0, absint($_POST['security_rate_user'] ?? 60)),
+        ];
+
+        $enabled_forms = [
+          'login'        => !empty($_POST['security_captcha_form_login']),
+          'registration' => !empty($_POST['security_captcha_form_registration']),
+          'training'     => !empty($_POST['security_captcha_form_training']),
+        ];
+
+        $captcha = [
+          'provider'      => sanitize_text_field($_POST['security_captcha_provider'] ?? ''),
+          'site_key'      => sanitize_text_field($_POST['security_captcha_site_key'] ?? ''),
+          'secret_key'    => sanitize_text_field($_POST['security_captcha_secret_key'] ?? ''),
+          'threshold'     => (float) ($_POST['security_captcha_threshold'] ?? 0.5),
+          'enabled_forms' => $enabled_forms,
+        ];
+
+        Security::save_settings([
+          'rate_limit' => $rate_limit,
+          'captcha'    => $captcha,
+        ]);
+
+        $msg .= "<strong>Security & CAPTCHA settings saved.</strong><br>";
+      }
     }
 
     $profiles_csv = esc_url(Profiles::get_csv_url());
@@ -356,6 +385,17 @@ class Admin {
     $wa_token_value = esc_attr(Config::get('wa_token', 'option'));
     $admin_wa_notice = Config::describe_override('admin_wa');
     $wa_token_notice = Config::describe_override('wa_token');
+    $security_settings = Security::get_settings();
+    $rate_settings = $security_settings['rate_limit'];
+    $captcha_settings = $security_settings['captcha'];
+    $rate_window = esc_attr($rate_settings['window']);
+    $rate_per_ip = esc_attr($rate_settings['per_ip']);
+    $rate_per_user = esc_attr($rate_settings['per_user']);
+    $captcha_provider = esc_attr($captcha_settings['provider']);
+    $captcha_site_key = esc_attr($captcha_settings['site_key']);
+    $captcha_secret_key = esc_attr($captcha_settings['secret_key']);
+    $captcha_threshold = esc_attr($captcha_settings['threshold']);
+    $captcha_forms = is_array($captcha_settings['enabled_forms']) ? $captcha_settings['enabled_forms'] : [];
     ?>
     <div class="wrap">
       <h1>HCIS.YSQ • Settings & Import</h1>
@@ -498,6 +538,84 @@ class Admin {
         </table>
         <p class="submit">
           <button type="submit" name="save_wa_settings" class="button button-primary">Simpan</button>
+        </p>
+      </form>
+
+      <hr>
+
+      <!-- SECURITY SETTINGS -->
+      <h2>5. Keamanan & CAPTCHA</h2>
+      <form method="post">
+        <?php wp_nonce_field('hcisysq_settings'); ?>
+        <table class="form-table">
+          <tr>
+            <th scope="row"><label for="security_rate_window">Jendela Rate Limit (detik)</label></th>
+            <td>
+              <input type="number" min="10" id="security_rate_window" name="security_rate_window" class="small-text" value="<?= $rate_window ?>">
+              <p class="description">Durasi perhitungan kuota permintaan. Semua batas dihitung ulang setiap jendela waktu.</p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="security_rate_ip">Maksimal per IP</label></th>
+            <td>
+              <input type="number" min="1" id="security_rate_ip" name="security_rate_ip" class="small-text" value="<?= $rate_per_ip ?>">
+              <p class="description">Jumlah permintaan yang diizinkan dari satu alamat IP di setiap jendela.</p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="security_rate_user">Maksimal per Pengguna</label></th>
+            <td>
+              <input type="number" min="0" id="security_rate_user" name="security_rate_user" class="small-text" value="<?= $rate_per_user ?>">
+              <p class="description">Set ke 0 untuk menonaktifkan batas khusus pengguna.</p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="security_captcha_provider">Penyedia CAPTCHA</label></th>
+            <td>
+              <select id="security_captcha_provider" name="security_captcha_provider">
+                <option value=""<?= $captcha_provider === '' ? ' selected' : '' ?>>Nonaktif</option>
+                <option value="recaptcha"<?= $captcha_provider === 'recaptcha' ? ' selected' : '' ?>>Google reCAPTCHA</option>
+                <option value="hcaptcha"<?= $captcha_provider === 'hcaptcha' ? ' selected' : '' ?>>hCaptcha</option>
+              </select>
+              <p class="description">Masukkan Site Key & Secret Key sesuai penyedia.</p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="security_captcha_site_key">Site Key</label></th>
+            <td>
+              <input type="text" id="security_captcha_site_key" name="security_captcha_site_key" class="regular-text" value="<?= $captcha_site_key ?>" autocomplete="off">
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="security_captcha_secret_key">Secret Key</label></th>
+            <td>
+              <input type="password" id="security_captcha_secret_key" name="security_captcha_secret_key" class="regular-text" value="<?= $captcha_secret_key ?>" autocomplete="off">
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="security_captcha_threshold">Threshold Skor</label></th>
+            <td>
+              <input type="number" id="security_captcha_threshold" name="security_captcha_threshold" min="0" max="1" step="0.1" value="<?= $captcha_threshold ?>" class="small-text">
+              <p class="description">Digunakan untuk provider berbasis skor seperti reCAPTCHA v3.</p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Aktifkan untuk Form</th>
+            <td>
+              <label>
+                <input type="checkbox" name="security_captcha_form_login" value="1" <?php checked(!empty($captcha_forms['login'])); ?>> Login
+              </label><br>
+              <label>
+                <input type="checkbox" name="security_captcha_form_registration" value="1" <?php checked(!empty($captcha_forms['registration'])); ?>> Reset/Registrasi Pengguna
+              </label><br>
+              <label>
+                <input type="checkbox" name="security_captcha_form_training" value="1" <?php checked(!empty($captcha_forms['training'])); ?>> Form Pelatihan / high-risk
+              </label>
+            </td>
+          </tr>
+        </table>
+        <p class="submit">
+          <button type="submit" name="save_security_settings" class="button button-primary">Simpan</button>
         </p>
       </form>
 

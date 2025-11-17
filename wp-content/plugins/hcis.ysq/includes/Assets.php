@@ -17,6 +17,7 @@ class Assets {
     wp_register_style('hcisysq-admin', HCISYSQ_URL . 'assets/css/admin.css', ['hcisysq-dashboard'], HCISYSQ_VER);
 
     wp_register_script('hcisysq-shared', HCISYSQ_URL . 'assets/js/shared.js', ['jquery'], HCISYSQ_VER, true);
+    wp_register_script('hcisysq-security', HCISYSQ_URL . 'assets/js/security.js', [], HCISYSQ_VER, true);
     wp_register_script('hcisysq-login', HCISYSQ_URL . 'assets/js/login.js', ['hcisysq-shared'], HCISYSQ_VER, true);
     wp_register_script('hcisysq-dashboard', HCISYSQ_URL . 'assets/js/dashboard.js', ['hcisysq-shared'], HCISYSQ_VER, true);
     wp_register_script('hcisysq-admin', HCISYSQ_URL . 'assets/js/admin.js', ['hcisysq-dashboard'], HCISYSQ_VER, true);
@@ -31,6 +32,8 @@ class Assets {
       'resetSlug'     => HCISYSQ_RESET_SLUG,
       'gas_url'       => $settings['gas_url'],
     ]);
+
+    wp_localize_script('hcisysq-security', 'hcisysqSecurity', \HCISYSQ\Security::get_frontend_config());
   }
 
   public static function conditional_enqueue() {
