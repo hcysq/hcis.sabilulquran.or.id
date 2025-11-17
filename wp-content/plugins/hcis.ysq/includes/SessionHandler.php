@@ -6,230 +6,156 @@ if (!defined('ABSPATH')) exit;
 /**
  * Session Handler
  *
- * Manages user sessions with persistent database storage.
- * Provides methods for creating, reading, updating, and destroying sessions.
- * Automatically handles session expiration and cleanup.
- *
- * @package HCISYSQ
+ * Persists sessions to the dedicated hcisysq_sessions table while
+ * gracefully falling back to the legacy transient-based store if the
+ * table is not yet available during rollout.
  */
 class SessionHandler {
+  const TRANSIENT_PREFIX = 'hcisysq_sess_';
+  const DEFAULT_TTL      = 12 * HOUR_IN_SECONDS;
+
+  /** @var bool|null */
+  private static $tableExists = null;
 
   /**
-   * Create a new session
+   * Create a new session payload.
    *
-   * @param array $payload Session data to store (will include 'type' and timestamp fields)
-   * @param int $expires_in_seconds TTL in seconds (default: 12 hours)
-   * @return string|false Session token on success, false on failure
+   * @param array $payload
+   * @param int|null $expires_in_seconds
+   * @return string|false
    */
   public static function create(array $payload, $expires_in_seconds = null) {
-    global $wpdb;
-    
-    if ($expires_in_seconds === null) {
-      $expires_in_seconds = 12 * HOUR_IN_SECONDS;
+    $ttl = $expires_in_seconds ?? self::DEFAULT_TTL;
+    $payload = self::normalize_payload($payload);
+    $session_id = wp_generate_uuid4();
+
+    if (self::should_use_database() && self::persist_to_database($session_id, $payload, $ttl)) {
+      hcisysq_log('SessionHandler::create() - Session stored in database: ' . $session_id);
+      return $session_id;
     }
 
-    $token = wp_generate_uuid4();
-    $now = current_time('mysql');
-    $expires_at = date('Y-m-d H:i:s', time() + $expires_in_seconds);
-    
-    // Ensure payload contains type
-    if (!isset($payload['type'])) {
-      $payload['type'] = 'user';
+    if (self::persist_to_transient($session_id, $payload, $ttl)) {
+      hcisysq_log('SessionHandler::create() - Session stored via transient fallback: ' . $session_id);
+      return $session_id;
     }
 
-    $table = $wpdb->prefix . 'hcisysq_sessions';
-    $data = [
-      'token'         => $token,
-      'identity'      => wp_json_encode($payload),
-      'created_at'    => $now,
-      'expires_at'    => $expires_at,
-      'last_activity' => $now,
-      'ip_address'    => self::get_client_ip(),
-      'user_agent'    => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
-    ];
-
-    $formats = ['%s', '%s', '%s', '%s', '%s', '%s', '%s'];
-    $result = $wpdb->insert($table, $data, $formats);
-
-    if (false === $result) {
-      hcisysq_log('SessionHandler::create() - Database insert failed: ' . $wpdb->last_error);
-      return false;
-    }
-
-    hcisysq_log('SessionHandler::create() - Session created: ' . $token);
-    return $token;
+    hcisysq_log('SessionHandler::create() - Failed to create session', 'error');
+    return false;
   }
 
   /**
-   * Read an existing session
+   * Read a session payload by identifier.
    *
-   * @param string $token Session token
-   * @return array|false Session payload on success, false if not found or expired
+   * @param string $session_id
+   * @return array|false
    */
-  public static function read($token) {
-    global $wpdb;
-
-    if (empty($token)) {
+  public static function read($session_id) {
+    $session_id = sanitize_text_field($session_id);
+    if ($session_id === '') {
       return false;
     }
 
-    $token = sanitize_text_field($token);
-    $table = $wpdb->prefix . 'hcisysq_sessions';
-    $now = current_time('mysql');
-
-    // Fetch and verify session is not expired
-    $row = $wpdb->get_row($wpdb->prepare(
-      "SELECT * FROM $table WHERE token = %s AND expires_at > %s LIMIT 1",
-      $token,
-      $now
-    ));
-
-    if (!$row) {
-      hcisysq_log('SessionHandler::read() - Session not found or expired: ' . $token);
-      return false;
+    if (self::should_use_database()) {
+      $payload = self::read_from_database($session_id);
+      if ($payload !== false) {
+        return $payload;
+      }
     }
 
-    // Update last_activity timestamp
-    $wpdb->update(
-      $table,
-      ['last_activity' => $now],
-      ['id' => $row->id],
-      ['%s'],
-      ['%d']
-    );
-
-    // Decode and return payload
-    $payload = json_decode($row->identity, true);
-    if (!is_array($payload)) {
-      $payload = [];
-    }
-
-    hcisysq_log('SessionHandler::read() - Session retrieved: ' . $token);
-    return $payload;
+    return self::read_from_transient($session_id);
   }
 
   /**
-   * Update an existing session
+   * Update an existing session.
    *
-   * @param string $token Session token
-   * @param array $payload Updated session data
-   * @return bool True on success, false otherwise
+   * @param string $session_id
+   * @param array $payload
+   * @return bool
    */
-  public static function update($token, array $payload) {
-    global $wpdb;
-
-    if (empty($token)) {
+  public static function update($session_id, array $payload) {
+    $session_id = sanitize_text_field($session_id);
+    if ($session_id === '') {
       return false;
     }
 
-    $token = sanitize_text_field($token);
-    $table = $wpdb->prefix . 'hcisysq_sessions';
-    $now = current_time('mysql');
+    $payload = self::normalize_payload($payload);
 
-    // Verify session exists and is not expired
-    $exists = $wpdb->get_var($wpdb->prepare(
-      "SELECT id FROM $table WHERE token = %s AND expires_at > %s LIMIT 1",
-      $token,
-      $now
-    ));
-
-    if (!$exists) {
-      hcisysq_log('SessionHandler::update() - Session not found or expired: ' . $token);
-      return false;
+    if (self::should_use_database()) {
+      $updated = self::update_database_record($session_id, $payload);
+      if ($updated) {
+        return true;
+      }
     }
 
-    // Update identity and last_activity
-    $result = $wpdb->update(
-      $table,
-      [
-        'identity'      => wp_json_encode($payload),
-        'last_activity' => $now,
-      ],
-      ['token' => $token],
-      ['%s', '%s'],
-      ['%s']
-    );
-
-    if (false === $result) {
-      hcisysq_log('SessionHandler::update() - Database update failed: ' . $wpdb->last_error);
-      return false;
-    }
-
-    hcisysq_log('SessionHandler::update() - Session updated: ' . $token);
-    return true;
+    $stored = self::persist_to_transient($session_id, $payload, self::DEFAULT_TTL);
+    return (bool)$stored;
   }
 
   /**
-   * Destroy (delete) a session
+   * Destroy a session.
    *
-   * @param string $token Session token
-   * @return bool True on success, false otherwise
+   * @param string $session_id
+   * @return bool
    */
-  public static function destroy($token) {
-    global $wpdb;
-
-    if (empty($token)) {
+  public static function destroy($session_id) {
+    $session_id = sanitize_text_field($session_id);
+    if ($session_id === '') {
       return false;
     }
 
-    $token = sanitize_text_field($token);
-    $table = $wpdb->prefix . 'hcisysq_sessions';
+    $deleted = false;
 
-    $result = $wpdb->delete(
-      $table,
-      ['token' => $token],
-      ['%s']
-    );
-
-    if (false === $result) {
-      hcisysq_log('SessionHandler::destroy() - Database delete failed: ' . $wpdb->last_error);
-      return false;
+    if (self::should_use_database()) {
+      $deleted = self::delete_database_record($session_id);
     }
 
-    hcisysq_log('SessionHandler::destroy() - Session destroyed: ' . $token);
-    return true;
+    $deleted_transient = self::delete_transient_session($session_id);
+
+    return (bool)($deleted || $deleted_transient);
   }
 
   /**
-   * Clean up expired sessions
+   * Clean up expired sessions from both the database and transient store.
    *
-   * Deletes all sessions where expires_at < NOW()
-   *
-   * @return int Number of sessions deleted
+   * @return int Number of sessions removed.
    */
   public static function cleanup() {
-    global $wpdb;
+    $removed = 0;
 
-    $table = $wpdb->prefix . 'hcisysq_sessions';
-    $now = current_time('mysql');
-
-    $deleted = $wpdb->query($wpdb->prepare(
-      "DELETE FROM $table WHERE expires_at < %s",
-      $now
-    ));
-
-    if ($deleted === false) {
-      hcisysq_log('SessionHandler::cleanup() - Database cleanup failed: ' . $wpdb->last_error);
-      return 0;
+    if (self::should_use_database()) {
+      $table = self::table_name();
+      global $wpdb;
+      $now = gmdate('Y-m-d H:i:s', current_time('timestamp', true));
+      $deleted = $wpdb->query($wpdb->prepare("DELETE FROM $table WHERE expires_at <= %s", $now));
+      if ($deleted === false) {
+        self::handle_database_error('SessionHandler::cleanup()');
+      } else {
+        $removed += intval($deleted);
+      }
     }
 
-    hcisysq_log('SessionHandler::cleanup() - Deleted ' . $deleted . ' expired sessions');
-    return intval($deleted);
+    $removed += self::cleanup_transient_store(true);
+    hcisysq_log('SessionHandler::cleanup() - Removed ' . $removed . ' expired sessions');
+
+    return $removed;
   }
 
   /**
-   * Get all active sessions (for debugging/monitoring)
+   * Retrieve active sessions from the database for diagnostics.
    *
-   * @return array Array of session objects
+   * @return array
    */
   public static function get_active_sessions() {
-    global $wpdb;
+    if (!self::should_use_database()) {
+      return [];
+    }
 
-    $table = $wpdb->prefix . 'hcisysq_sessions';
-    $now = current_time('mysql');
+    global $wpdb;
+    $table = self::table_name();
+    $now = gmdate('Y-m-d H:i:s', current_time('timestamp', true));
 
     $sessions = $wpdb->get_results($wpdb->prepare(
-      "SELECT id, token, created_at, expires_at, last_activity, ip_address FROM $table WHERE expires_at > %s ORDER BY last_activity DESC",
+      "SELECT session_id, user_id, expires_at, created_at, updated_at FROM $table WHERE expires_at > %s ORDER BY expires_at ASC",
       $now
     ));
 
@@ -237,36 +163,279 @@ class SessionHandler {
   }
 
   /**
-   * Get client's IP address
+   * Invalidate every session for a specific user.
    *
-   * @return string Client IP address
+   * @param int $user_id
+   * @return int Number of sessions removed.
    */
-  private static function get_client_ip() {
-    $ip = '';
-
-    if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-      $ip = $_SERVER['HTTP_CLIENT_IP'];
-    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-      $ip = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0];
-    } elseif (!empty($_SERVER['REMOTE_ADDR'])) {
-      $ip = $_SERVER['REMOTE_ADDR'];
+  public static function invalidate_user_sessions($user_id) {
+    $user_id = intval($user_id);
+    if ($user_id <= 0) {
+      return 0;
     }
 
-    $ip = sanitize_text_field($ip);
-    $ip = substr($ip, 0, 45); // VARCHAR(45) in schema
+    $removed = 0;
 
-    return $ip;
+    if (self::should_use_database()) {
+      global $wpdb;
+      $table = self::table_name();
+      $deleted = $wpdb->delete($table, ['user_id' => $user_id], ['%d']);
+      if ($deleted === false) {
+        self::handle_database_error('SessionHandler::invalidate_user_sessions()');
+      } else {
+        $removed += intval($deleted);
+      }
+    }
+
+    $removed += self::delete_transients_for_user($user_id);
+
+    return $removed;
   }
 
   /**
-   * Verify table exists and is properly structured
+   * Invalidate every stored session regardless of owner.
    *
-   * @return bool True if table exists and is valid
+   * @return int Number of sessions removed.
+   */
+  public static function invalidate_all_sessions() {
+    $removed = 0;
+
+    if (self::should_use_database()) {
+      global $wpdb;
+      $table = self::table_name();
+      $deleted = $wpdb->query("DELETE FROM $table");
+      if ($deleted === false) {
+        self::handle_database_error('SessionHandler::invalidate_all_sessions()');
+      } else {
+        $removed += intval($deleted);
+      }
+    }
+
+    $removed += self::cleanup_transient_store(false);
+
+    return $removed;
+  }
+
+  /**
+   * Check if the database table exists.
+   *
+   * @return bool
    */
   public static function verify_table_exists() {
     global $wpdb;
+    $table = self::table_name();
+    $exists = ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table);
+    self::$tableExists = $exists;
+    return $exists;
+  }
 
-    $table = $wpdb->prefix . 'hcisysq_sessions';
-    return $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table;
+  /**
+   * Determine if the table should be used.
+   *
+   * @return bool
+   */
+  private static function should_use_database() {
+    if (self::$tableExists === null) {
+      self::$tableExists = self::verify_table_exists();
+    }
+    return self::$tableExists;
+  }
+
+  private static function table_name() {
+    global $wpdb;
+    return $wpdb->prefix . 'hcisysq_sessions';
+  }
+
+  private static function persist_to_database($session_id, array $payload, $ttl) {
+    global $wpdb;
+    $table = self::table_name();
+
+    $result = $wpdb->insert(
+      $table,
+      [
+        'session_id' => $session_id,
+        'user_id'    => self::extract_user_id($payload),
+        'payload'    => wp_json_encode($payload),
+        'expires_at' => self::expiration_for_ttl($ttl),
+      ],
+      ['%s', '%d', '%s', '%s']
+    );
+
+    if ($result === false) {
+      self::handle_database_error('SessionHandler::create()');
+      return false;
+    }
+
+    return true;
+  }
+
+  private static function persist_to_transient($session_id, array $payload, $ttl) {
+    return set_transient(self::TRANSIENT_PREFIX . $session_id, $payload, $ttl);
+  }
+
+  private static function read_from_database($session_id) {
+    global $wpdb;
+    $table = self::table_name();
+
+    $row = $wpdb->get_row($wpdb->prepare("SELECT payload, expires_at FROM $table WHERE session_id = %s LIMIT 1", $session_id));
+    if ($row === null) {
+      return false;
+    }
+
+    $expires = strtotime($row->expires_at . ' UTC');
+    $now = current_time('timestamp', true);
+    if ($expires !== false && $expires <= $now) {
+      self::delete_database_record($session_id);
+      return false;
+    }
+
+    $payload = json_decode($row->payload, true);
+    if (!is_array($payload)) {
+      $payload = [];
+    }
+
+    return $payload;
+  }
+
+  private static function read_from_transient($session_id) {
+    $payload = get_transient(self::TRANSIENT_PREFIX . $session_id);
+    if ($payload === false) {
+      return false;
+    }
+
+    if (is_array($payload)) {
+      return $payload;
+    }
+
+    if (is_object($payload)) {
+      return (array)$payload;
+    }
+
+    if (is_string($payload) && trim($payload) !== '') {
+      return ['type' => 'user', 'nip' => $payload];
+    }
+
+    return false;
+  }
+
+  private static function update_database_record($session_id, array $payload) {
+    global $wpdb;
+    $table = self::table_name();
+
+    $result = $wpdb->update(
+      $table,
+      [
+        'payload'    => wp_json_encode($payload),
+        'user_id'    => self::extract_user_id($payload),
+        'updated_at' => gmdate('Y-m-d H:i:s', current_time('timestamp', true)),
+      ],
+      ['session_id' => $session_id],
+      ['%s', '%d', '%s'],
+      ['%s']
+    );
+
+    if ($result === false) {
+      self::handle_database_error('SessionHandler::update()');
+      return false;
+    }
+
+    return (bool)$result;
+  }
+
+  private static function delete_database_record($session_id) {
+    global $wpdb;
+    $table = self::table_name();
+    $deleted = $wpdb->delete($table, ['session_id' => $session_id], ['%s']);
+    if ($deleted === false) {
+      self::handle_database_error('SessionHandler::destroy()');
+      return false;
+    }
+    return (bool)$deleted;
+  }
+
+  private static function delete_transient_session($session_id) {
+    return delete_transient(self::TRANSIENT_PREFIX . $session_id);
+  }
+
+  private static function cleanup_transient_store($only_expired = true) {
+    global $wpdb;
+    $deleted = 0;
+    $now = time();
+    $timeout_prefix = '_transient_timeout_' . self::TRANSIENT_PREFIX;
+
+    $rows = $wpdb->get_col($wpdb->prepare(
+      "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
+      $timeout_prefix . '%'
+    ));
+
+    foreach ($rows as $option_name) {
+      $key = substr($option_name, strlen('_transient_timeout_'));
+      $expires = intval(get_option($option_name));
+      if (!$only_expired || $expires <= $now) {
+        if (delete_transient($key)) {
+          $deleted++;
+        }
+      }
+    }
+
+    return $deleted;
+  }
+
+  private static function delete_transients_for_user($user_id) {
+    global $wpdb;
+    $removed = 0;
+    $prefix = '_transient_' . self::TRANSIENT_PREFIX;
+
+    $rows = $wpdb->get_results($wpdb->prepare(
+      "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s",
+      $prefix . '%'
+    ));
+
+    foreach ($rows as $row) {
+      $key = substr($row->option_name, strlen('_transient_'));
+      $payload = maybe_unserialize($row->option_value);
+      if (is_array($payload) && intval($payload['user_id'] ?? 0) === $user_id) {
+        if (delete_transient($key)) {
+          $removed++;
+        }
+      }
+    }
+
+    return $removed;
+  }
+
+  private static function normalize_payload(array $payload) {
+    if (!isset($payload['type'])) {
+      $payload['type'] = 'user';
+    }
+    if (!isset($payload['user_id']) && isset($payload['wp_user_id'])) {
+      $payload['user_id'] = intval($payload['wp_user_id']);
+    }
+    return $payload;
+  }
+
+  private static function extract_user_id(array $payload) {
+    if (isset($payload['user_id'])) {
+      return intval($payload['user_id']);
+    }
+    if (isset($payload['wp_user_id'])) {
+      return intval($payload['wp_user_id']);
+    }
+    return 0;
+  }
+
+  private static function expiration_for_ttl($ttl) {
+    $timestamp = current_time('timestamp', true) + intval($ttl);
+    return gmdate('Y-m-d H:i:s', $timestamp);
+  }
+
+  private static function handle_database_error($context) {
+    global $wpdb;
+    $message = sprintf('%s - Database error: %s', $context, $wpdb->last_error);
+    hcisysq_log($message, 'error');
+
+    if (strpos(strtolower($wpdb->last_error), 'doesn\'t exist') !== false) {
+      self::$tableExists = false;
+    }
   }
 }
