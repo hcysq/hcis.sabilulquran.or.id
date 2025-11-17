@@ -8,7 +8,9 @@
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 
-<header class="site-header">
+<a class="skip-link" href="#main-content"><?php esc_html_e('Lewati ke konten utama', 'ysq'); ?></a>
+
+<header class="site-header" role="banner">
     <div class="header-container">
         <div class="site-branding">
             <div class="site-logo">
@@ -47,19 +49,30 @@
         $show_main_button  = $show_buttons && '' !== $main_button_text && '' !== $main_button_url;
 
         if ($show_login_button || $show_main_button) :
+            $main_button_aria = '';
+            if ($show_main_button) {
+                /* translators: describes that the link opens a new tab */
+                $main_button_aria = sprintf(__('Buka %s di tab baru', 'ysq'), wp_strip_all_tags($main_button_text));
+            }
         ?>
-            <nav class="main-navigation">
-                <?php if ($show_login_button) : ?>
-                    <a href="<?php echo esc_url($login_button_url); ?>" class="btn-primary">
-                        <?php echo esc_html($login_button_text); ?>
-                    </a>
-                <?php endif; ?>
+            <nav class="main-navigation" aria-label="<?php esc_attr_e('Navigasi utama', 'ysq'); ?>">
+                <ul class="main-navigation__list">
+                    <?php if ($show_login_button) : ?>
+                        <li>
+                            <a href="<?php echo esc_url($login_button_url); ?>" class="btn-primary">
+                                <?php echo esc_html($login_button_text); ?>
+                            </a>
+                        </li>
+                    <?php endif; ?>
 
-                <?php if ($show_main_button) : ?>
-                    <a href="<?php echo esc_url($main_button_url); ?>" target="_blank" rel="noopener noreferrer">
-                        <?php echo esc_html($main_button_text); ?>
-                    </a>
-                <?php endif; ?>
+                    <?php if ($show_main_button) : ?>
+                        <li>
+                            <a href="<?php echo esc_url($main_button_url); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr($main_button_aria); ?>">
+                                <?php echo esc_html($main_button_text); ?>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                </ul>
             </nav>
         <?php endif; ?>
     </div>
@@ -159,4 +172,4 @@ if ((is_front_page() || is_home()) && !empty($marquee_items)) :
     </div>
 <?php endif; ?>
 
-<main class="site-main">
+<main id="main-content" class="site-main" tabindex="-1">

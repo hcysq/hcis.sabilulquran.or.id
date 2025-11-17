@@ -9,6 +9,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+require_once get_template_directory() . '/inc/template-tags.php';
+
 function ysq_setup() {
     add_theme_support('title-tag');
     add_theme_support('post-thumbnails');
@@ -39,7 +41,7 @@ function ysq_setup() {
 add_action('after_setup_theme', 'ysq_setup');
 
 function ysq_enqueue_scripts() {
-    wp_enqueue_style('ysq-style', get_stylesheet_uri(), array(), '1.3');
+    wp_enqueue_style('ysq-style', get_stylesheet_uri(), array(), '1.6.0');
     wp_enqueue_style(
         'ysq-footer',
         get_stylesheet_directory_uri() . '/assets/css/ysq-footer.css',
@@ -49,6 +51,21 @@ function ysq_enqueue_scripts() {
     wp_enqueue_script('ysq-theme', get_template_directory_uri() . '/assets/js/theme.js', array(), '1.0.0', true);
 }
 add_action('wp_enqueue_scripts', 'ysq_enqueue_scripts');
+
+function ysq_widgets_init() {
+    register_sidebar(
+        array(
+            'name'          => __('Sidebar Utama', 'ysq'),
+            'id'            => 'sidebar-1',
+            'description'   => __('Tambahkan widget yang ingin ditampilkan di area sidebar.', 'ysq'),
+            'before_widget' => '<section id="%1$s" class="widget %2$s">',
+            'after_widget'  => '</section>',
+            'before_title'  => '<h2 class="widget-title">',
+            'after_title'   => '</h2>',
+        )
+    );
+}
+add_action('widgets_init', 'ysq_widgets_init');
 
 function ysq_get_current_year() {
     return date('Y');

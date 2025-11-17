@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
 }
 ?>
 
-<section class="no-results not-found content-wrapper">
+<section class="no-results not-found content-wrapper" role="status" aria-live="polite">
     <header class="page-header">
         <h1 class="page-title"><?php esc_html_e('Tidak Ada Konten', 'ysq'); ?></h1>
     </header>

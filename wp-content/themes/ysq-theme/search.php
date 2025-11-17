@@ -10,15 +10,17 @@ if (!defined('ABSPATH')) {
 }
 
 get_header();
+
+$search_title_id = 'search-title-' . uniqid();
 ?>
 
-<main class="site-main">
+<div class="content-wrapper" role="region" aria-labelledby="<?php echo esc_attr($search_title_id); ?>">
     <header class="page-header">
-        <h1 class="page-title">
+        <h1 id="<?php echo esc_attr($search_title_id); ?>" class="page-title">
             <?php
             printf(
-                esc_html__('Search Results for: %s', 'ysq'),
-                '<span>' . get_search_query() . '</span>'
+                esc_html__('Hasil pencarian untuk: %s', 'ysq'),
+                '<span>' . esc_html(get_search_query()) . '</span>'
             );
             ?>
         </h1>
@@ -28,7 +30,7 @@ get_header();
     if (have_posts()) :
         while (have_posts()) :
             the_post();
-            get_template_part('template-parts/content');
+            get_template_part('template-parts/content', get_post_type());
         endwhile;
 
         the_posts_pagination();
@@ -36,7 +38,7 @@ get_header();
         get_template_part('template-parts/content', 'none');
     endif;
     ?>
-</main>
+</div>
 
 <?php
 get_footer();
