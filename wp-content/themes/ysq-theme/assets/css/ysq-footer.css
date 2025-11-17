@@ -4,7 +4,8 @@
  * in assets/scss/responsive/_responsive.scss.
  */
 .ysq-footer {
-  background: #f8f9fa;
+    background: var(--ysq-footer-background, #f8f9fa);
+    color: var(--ysq-color-text, #0f172a);
 }
 
 .ysq-footer__container {
@@ -14,23 +15,23 @@
 }
 
 .ysq-footer__grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: auto auto;
-  gap: 12px 28px;
+    display: grid;
+    grid-template-columns: repeat(var(--footer-columns-count, 4), minmax(0, 1fr));
+    grid-template-rows: auto auto;
+    gap: 12px 28px;
 }
 
 .ysq-footer__title {
-  font-weight: 700;
-  font-size: 1rem;
-  margin-bottom: 6px;
-  color: #0f172a;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 6px;
+    color: var(--ysq-color-text, #0f172a);
 }
 
 .ysq-footer__content {
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: #444;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--ysq-color-muted, #475569);
 }
 
 .ysq-footer__content p {
@@ -48,8 +49,9 @@
 }
 
 .footer-bottom {
-  margin-top: 48px;
-  padding: 20px 0;
+    background: var(--ysq-footer-bottom-background, #2f7e20);
+    width: 100%;
+    padding: 10px 0;
 }
 
 .footer-bottom-inner {
@@ -67,10 +69,10 @@
 }
 
 .footer-copy {
-  text-align: center;
-  color: #fff;
-  margin: 0;
-  font-size: 0.95rem;
+    text-align: center;
+    color: var(--ysq-footer-bottom-text, #ffffff);
+    margin: 0;
+    font-size: 0.95rem;
 }
 
 @media (max-width: 991px) {

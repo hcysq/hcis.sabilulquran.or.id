@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "34ccfa4d3a07cdc930c6ade7b4b74485",
+    "content-hash": "8fdf50abcdefa3c819005829df45de10",
     "packages": [
         {
             "name": "firebase/php-jwt",
@@ -1272,7 +1272,6 @@
             "time": "2024-09-25T14:21:43+00:00"
         }
     ],
-
     "packages-dev": [
         {
             "name": "doctrine/instantiator",
