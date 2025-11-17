@@ -66,10 +66,46 @@ if (!defined('HCISYSQ_RESET_SLUG'))     define('HCISYSQ_RESET_SLUG', 'ganti-pass
 if (!defined('HCISYSQ_SS_URL')) define('HCISYSQ_SS_URL', 'https://starsender.online/api/sendText');
 
 /* =======================================================
- * Includes Composer Autoloader
+ * Includes Composer Autoloader (with fallback)
  * ======================================================= */
 
-require_once HCISYSQ_DIR . 'vendor/autoload.php';
+$composer_autoload = HCISYSQ_DIR . 'vendor/autoload.php';
+
+if (file_exists($composer_autoload)) {
+  require_once $composer_autoload;
+  if (!defined('HCISYSQ_AUTOLOAD_MODE')) {
+    define('HCISYSQ_AUTOLOAD_MODE', 'composer');
+  }
+} else {
+  if (!defined('HCISYSQ_AUTOLOAD_MODE')) {
+    define('HCISYSQ_AUTOLOAD_MODE', 'fallback');
+  }
+
+  spl_autoload_register(function ($class) {
+    $prefix = 'HCISYSQ\\';
+    $len = strlen($prefix);
+
+    if (strncmp($prefix, $class, $len) !== 0) {
+      return;
+    }
+
+    $relative_class = substr($class, $len);
+    $relative_path  = str_replace('\\', DIRECTORY_SEPARATOR, $relative_class);
+    $file           = HCISYSQ_DIR . 'includes/' . $relative_path . '.php';
+
+    if (file_exists($file)) {
+      require_once $file;
+    }
+  });
+
+  hcisysq_log('Composer autoload.php tidak ditemukan, menggunakan fallback autoloader', 'warning');
+
+  add_action('admin_notices', function () {
+    echo '<div class="notice notice-warning"><p>';
+    echo esc_html__('HCIS YSQ membutuhkan folder vendor/. Jalankan "composer install" agar semua fitur aktif.', 'hcis-ysq');
+    echo '</p></div>';
+  });
+}
 require_once HCISYSQ_DIR . 'includes/PasswordResetManager.php';
 require_once HCISYSQ_DIR . 'includes/PasswordReset.php';
 require_once HCISYSQ_DIR . 'includes/StarSender.php';

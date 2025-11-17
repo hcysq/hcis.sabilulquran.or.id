@@ -80,15 +80,15 @@ class Shortcodes {
   }
 
   public static function login($atts) {
-    return View::login($atts);
+    return View::login();
   }
 
   public static function dashboard($atts) {
-    return View::dashboard($atts);
+    return View::dashboard();
   }
 
   public static function form($atts) {
-    return View::form($atts);
+    return View::form();
   }
 
   public static function form_button($atts) {
@@ -101,15 +101,15 @@ class Shortcodes {
   }
 
   public static function reset_password($atts) {
-    return View::reset_password($atts);
+    return View::reset_password();
   }
 
   public static function lupa_password_form($atts) {
-    return View::lupa_password_form($atts);
+    return View::lupa_password_form();
   }
 
   public static function reset_password_form($atts) {
-    return View::reset_password_form($atts);
+    return View::reset_password_form();
   }
 
   public static function render_login_when_missing_page() {
