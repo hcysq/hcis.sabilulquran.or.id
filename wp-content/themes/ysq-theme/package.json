@@ -1,8 +1,25 @@
 {
   "name": "ysq-theme",
-  "version": "1.2.0",
-  "description": "YSQ WordPress Theme",
+  "version": "1.3.0",
+  "description": "YSQ WordPress Theme assets",
+  "private": true,
   "scripts": {
-    "build": "echo 'WordPress theme - no build required' && exit 0"
+    "dev": "cross-env NODE_ENV=development webpack --config tooling/webpack.config.cjs --watch",
+    "build": "cross-env NODE_ENV=production webpack --config tooling/webpack.config.cjs"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.18",
+    "cross-env": "^7.0.3",
+    "css-loader": "^6.10.0",
+    "cssnano": "^6.0.1",
+    "mini-css-extract-plugin": "^2.7.6",
+    "postcss": "^8.4.35",
+    "postcss-loader": "^7.3.3",
+    "sass": "^1.71.1",
+    "sass-loader": "^13.3.2",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-manifest-plugin": "^5.0.0",
+    "webpack-remove-empty-scripts": "^1.1.0"
   }
 }

@@ -1,12 +1,17 @@
+/*!
+ * Legacy footer stylesheet kept for compatibility with pre-build references.
+ * The SCSS source lives in assets/scss/layout/_layout.scss and responsive tweaks
+ * in assets/scss/responsive/_responsive.scss.
+ */
 .ysq-footer {
     background: var(--ysq-footer-background, #f8f9fa);
     color: var(--ysq-color-text, #0f172a);
 }
 
 .ysq-footer__container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 32px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 20px;
 }
 
 .ysq-footer__grid {
@@ -30,17 +35,17 @@
 }
 
 .ysq-footer__content p {
-    margin: 0 0 8px;
+  margin: 0 0 8px;
 }
 
 .ysq-footer__content p:last-child {
-    margin-bottom: 0;
+  margin-bottom: 0;
 }
 
 .ysq-footer__content ul,
 .ysq-footer__content ol {
-    margin: 0;
-    padding-left: 1.1rem;
+  margin: 0;
+  padding-left: 1.1rem;
 }
 
 .footer-bottom {
@@ -49,10 +54,18 @@
     padding: 10px 0;
 }
 
-.footer-bottom .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 16px;
+.footer-bottom-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.footer-bottom-inner p {
+  margin: 0;
 }
 
 .footer-copy {
@@ -62,19 +75,19 @@
     font-size: 0.95rem;
 }
 
-@media (max-width: 1024px) {
-    .ysq-footer__grid {
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: auto;
-    }
+@media (max-width: 991px) {
+  .ysq-footer__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
 }
 
-@media (max-width: 640px) {
-    .ysq-footer__grid {
-        grid-template-columns: 1fr;
-    }
+@media (max-width: 575px) {
+  .ysq-footer__grid {
+    grid-template-columns: 1fr;
+  }
 
-    .ysq-footer__title {
-        margin-top: 10px;
-    }
+  .ysq-footer__container {
+    padding: 24px 16px;
+  }
 }

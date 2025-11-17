@@ -10,6 +10,10 @@ License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: ysq
 */
 
+/*
+ * Styles are generated via assets/scss and bundled to dist/ by the build pipeline.
+ * The rules below are a minimal fallback when the compiled bundle is missing.
+ */
 :root {
   color-scheme: light;
   --ysq-font-base: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -120,6 +124,7 @@ Text Domain: ysq
   box-sizing: border-box;
 }
 
+html,
 body {
   font-family: var(--ysq-font-base, system-ui, 'Segoe UI', Roboto, sans-serif);
   font-size: var(--ysq-font-size-base, 16px);
@@ -1287,23 +1292,26 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.3;
 }
 
-h1 {
-  font-size: 32px;
-  font-weight: 700;
+a {
+    color: var(--ysq-brand-color);
 }
 
-h2 {
-  font-size: 24px;
-  font-weight: 600;
+.site-header {
+    padding: 32px 0;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(15, 22, 42, 0.06);
 }
 
-h3 {
-  font-size: 20px;
-  font-weight: 600;
+.site-footer,
+.ysq-footer {
+    background: #f8f9fa;
+    padding: 32px 0;
 }
 
-p {
-  margin-bottom: 16px;
+.ysq-footer__container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
 }
 
 a {
@@ -1311,33 +1319,12 @@ a {
   text-decoration: none;
 }
 
-a:hover {
-  text-decoration: underline;
+.ysq-footer__title {
+    font-weight: 600;
+    margin-bottom: 8px;
 }
 
-@media (max-width: 768px) {
-  .header-container {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .main-navigation {
-    width: 100%;
-  }
-
-  .site-title {
-    font-size: 16px;
-  }
-
-  .content-wrapper {
-    padding: 24px 16px;
-  }
-
-  h1 {
-    font-size: 24px;
-  }
-
-  h2 {
-    font-size: 20px;
-  }
+.ysq-footer__content {
+    font-size: 0.95rem;
+    color: #475569;
 }
