@@ -2,7 +2,7 @@
 Contributors: Yayasan Sabilul Qur'an
 Requires at least: 5.0
 Tested up to: 6.4
-Stable tag: 1.2
+Stable tag: 1.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -64,12 +64,18 @@ Tooling bundler berada di folder `tooling/` dan menggunakan Webpack + PostCSS (a
 ```
 npm install
 npm run dev   # build + watch saat pengembangan
-npm run build # build produksi (CSS termininifikasi)
+npm run build # build produksi (CSS terminifikasi)
 ```
 
-Output build tersimpan di folder `dist/` dengan nama file versi hash dan manifest `dist/manifest.json`. File tersebut otomatis dimuat oleh `functions.php` (fungsi `ysq_get_compiled_asset`) sehingga cache busting dilakukan melalui hash + `filemtime`. Jika manifest belum tersedia, tema akan menggunakan `style.css` sebagai fallback.
+Output build tersimpan di folder `dist/` dengan nama file versi hash dan manifest `dist/manifest.json`. File tersebut otomatis dimuat oleh `functions.php` (fungsi `ysq_get_compiled_asset`) sehingga cache busting dilakukan melalui hash + `filemtime`. Jika manifest belum tersedia, helper akan mencoba `dist/main.css` sebelum akhirnya jatuh ke `style.css`.
+
+Untuk kompatibilitas dengan aset lama, file `assets/css/ysq-footer.css` masih dipertahankan. File tersebut bersumber dari SCSS baru sehingga tampilan footer tetap konsisten walau ada cache lawas yang masih memanggil path lama.
 
 == Changelog ==
+
+= 1.5 =
+* Migrasi ke pipeline SCSS + Webpack dan penambahan fallback otomatis (manifest → dist/main.css → style.css)
+* Menyediakan ulang `assets/css/ysq-footer.css` agar path lama tidak 404 pasca merge
 
 = 1.2 =
 * Pembaruan metadata tema untuk rilis 1.2 (versi stylesheet, paket, dan tampilan footer)

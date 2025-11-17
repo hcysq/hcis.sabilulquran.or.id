@@ -45,21 +45,43 @@ function ysq_get_compiled_asset($filename = 'main.css') {
     $dist_uri  = trailingslashit(get_template_directory_uri()) . 'dist';
     $manifest_path = trailingslashit($dist_path) . 'manifest.json';
 
-    if (is_null($manifest) && file_exists($manifest_path)) {
-        $contents = file_get_contents($manifest_path);
-        $manifest = json_decode($contents, true);
+    if ($manifest === null) {
+        $manifest = array();
+
+        if (file_exists($manifest_path)) {
+            $contents = file_get_contents($manifest_path);
+            $decoded  = json_decode($contents, true);
+
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $manifest = $decoded;
+            }
+        }
     }
 
-    if (is_array($manifest) && isset($manifest[$filename])) {
-        $relative = ltrim($manifest[$filename], '/');
-        $asset_path = trailingslashit($dist_path) . $relative;
-        $asset_uri  = trailingslashit($dist_uri) . $relative;
-        $version    = file_exists($asset_path) ? filemtime($asset_path) : null;
+    $candidates = array();
 
-        return array(
-            'uri'     => $asset_uri,
-            'version' => $version ? (string) $version : null,
+    if (isset($manifest[$filename])) {
+        $relative   = ltrim($manifest[$filename], '/');
+        $candidates[] = array(
+            'path' => trailingslashit($dist_path) . $relative,
+            'uri'  => trailingslashit($dist_uri) . $relative,
         );
+    }
+
+    $candidates[] = array(
+        'path' => trailingslashit($dist_path) . $filename,
+        'uri'  => trailingslashit($dist_uri) . $filename,
+    );
+
+    foreach ($candidates as $candidate) {
+        if (!empty($candidate['path']) && file_exists($candidate['path'])) {
+            $version = filemtime($candidate['path']);
+
+            return array(
+                'uri'     => $candidate['uri'],
+                'version' => $version ? (string) $version : null,
+            );
+        }
     }
 
     $fallback_path = get_stylesheet_directory() . '/style.css';

@@ -12,4 +12,61 @@ Text Domain: ysq
 
 /*
  * Styles are generated via assets/scss and bundled to dist/ by the build pipeline.
+ * The rules below are a minimal fallback when the compiled bundle is missing.
  */
+:root {
+    --ysq-brand-color: #0f766e;
+    --ysq-body-bg: #f4f5f7;
+    --ysq-text-color: #111827;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    background: var(--ysq-body-bg);
+    color: var(--ysq-text-color);
+    line-height: 1.5;
+}
+
+a {
+    color: var(--ysq-brand-color);
+}
+
+.site-header {
+    padding: 32px 0;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(15, 22, 42, 0.06);
+}
+
+.site-footer,
+.ysq-footer {
+    background: #f8f9fa;
+    padding: 32px 0;
+}
+
+.ysq-footer__container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.ysq-footer__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.ysq-footer__title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.ysq-footer__content {
+    font-size: 0.95rem;
+    color: #475569;
+}
