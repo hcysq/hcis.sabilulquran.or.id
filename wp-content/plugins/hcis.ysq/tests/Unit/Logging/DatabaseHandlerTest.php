@@ -5,6 +5,7 @@ use HCISYSQ\Logging\DatabaseHandler;
 use Monolog\Logger;
 use Monolog\LogRecord;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 /**
  * DatabaseHandler Unit Tests
@@ -113,8 +114,22 @@ class DatabaseHandlerTest extends TestCase {
     $handler = new DatabaseHandler(Logger::WARNING);
     $logger = new Logger('test');
     $logger->pushHandler($handler);
-    
+
     // Should not throw any compatibility errors
     $this->assertTrue(true);
+  }
+
+  public function test_getLogger_returns_psr_logger() {
+    $logger = DatabaseHandler::getLogger();
+
+    $this->assertInstanceOf(LoggerInterface::class, $logger);
+  }
+
+  public function test_resetLogger_creates_new_instance() {
+    $first = DatabaseHandler::getLogger();
+    DatabaseHandler::resetLogger();
+    $second = DatabaseHandler::getLogger();
+
+    $this->assertNotSame($first, $second);
   }
 }

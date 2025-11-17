@@ -15,38 +15,24 @@ if (!defined('HCISYSQ_LOG_FILE')) {
   define('HCISYSQ_LOG_FILE', WP_CONTENT_DIR . '/hcisysq.log');
 }
 if (!function_exists('hcisysq_log')) {
-  function hcisysq_log($data, $level = 'info') {
+  function hcisysq_log($data, $level = 'info', array $context = []) {
     // Use new ErrorHandler if available, fall back to legacy logging
     if (class_exists('HCISYSQ\ErrorHandler')) {
-      $handler = \HCISYSQ\ErrorHandler::getInstance();
-      
-      // Determine level based on context
-      if (is_string($level) && in_array($level, ['debug', 'info', 'warning', 'error', 'critical'])) {
-        call_user_func([$handler, $level], is_scalar($data) ? $data : print_r($data, true));
-      } else {
-        $handler->info(is_scalar($data) ? $data : print_r($data, true));
-      }
+      \HCISYSQ\ErrorHandler::log(
+        is_scalar($data) ? $data : print_r($data, true),
+        $level,
+        $context
+      );
     } else {
       // Legacy fallback: write to simple log file
       $msg = '[HCIS.YSQ ' . date('Y-m-d H:i:s') . '] ';
+      $msg .= '[' . strtoupper($level) . '] ';
       $msg .= is_scalar($data) ? $data : print_r($data, true);
       $msg .= PHP_EOL;
       @error_log($msg, 3, HCISYSQ_LOG_FILE);
     }
   }
 }
-// tangkap warning/notice
-set_error_handler(function($errno, $errstr, $errfile, $errline){
-  hcisysq_log("PHP[$errno] $errstr @ $errfile:$errline");
-  return false;
-});
-// tangkap fatal error
-register_shutdown_function(function(){
-  $e = error_get_last();
-  if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
-    hcisysq_log("FATAL {$e['message']} @ {$e['file']}:{$e['line']}");
-  }
-});
 hcisysq_log('hcis.ysq plugin boot...');
 
 /* =======================================================
@@ -95,9 +81,8 @@ HCISYSQ\Config::init();
 
 // Initialize error handling with structured logging (must be first)
 if (class_exists('HCISYSQ\ErrorHandler')) {
-  HCISYSQ\ErrorHandler::setupLogger();
-  HCISYSQ\ErrorHandler::registerHandlers();
-  hcisysq_log('Structured error handling initialized');
+  HCISYSQ\ErrorHandler::init();
+  hcisysq_log('Structured error handling initialized', 'info', ['component' => 'bootstrap']);
 }
 
 HCISYSQ\Admin::init();
@@ -141,6 +126,10 @@ if (class_exists('HCISYSQ\GoogleSheetMetrics')) {
 if (class_exists('HCISYSQ\AdminLogsViewer')) {
   HCISYSQ\AdminLogsViewer::init();
   hcisysq_log('Admin logs viewer initialized');
+}
+
+if (class_exists('HCISYSQ\Logging\LogsEndpoint')) {
+  HCISYSQ\Logging\LogsEndpoint::init();
 }
 
 /* =======================================================

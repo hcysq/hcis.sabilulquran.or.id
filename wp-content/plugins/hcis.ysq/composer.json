@@ -11,7 +11,8 @@
     }
   ],
   "require": {
-    "php": "^7.4 || ^8.0",
+    "php": "^7.4 || ^8.1",
+
     "google/apiclient": "^2.18",
     "monolog/monolog": "^3.0"
   },
