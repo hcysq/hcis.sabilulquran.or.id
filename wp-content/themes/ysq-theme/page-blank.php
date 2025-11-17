@@ -28,12 +28,18 @@
 <body <?php body_class('blank-template'); ?>>
 <?php wp_body_open(); ?>
 
+<a class="skip-link" href="#main-content"><?php esc_html_e('Lewati ke konten utama', 'ysq'); ?></a>
+
+<main id="main-content" tabindex="-1">
+
 <?php
 while (have_posts()) :
     the_post();
     the_content();
 endwhile;
 ?>
+
+</main>
 
 <?php wp_footer(); ?>
 </body>

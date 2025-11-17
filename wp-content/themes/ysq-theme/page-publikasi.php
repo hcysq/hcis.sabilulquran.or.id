@@ -118,7 +118,7 @@ $base_permalink = $base_permalink ? $base_permalink : home_url('/publikasi/');
                     $is_active  = ($current_category === $slug);
                     ?>
                     <li>
-                        <a class="ysq-publication-filter__link<?php echo $is_active ? ' is-active' : ''; ?>" href="<?php echo esc_url($target_url); ?>">
+                        <a class="ysq-publication-filter__link<?php echo $is_active ? ' is-active' : ''; ?>" href="<?php echo esc_url($target_url); ?>"<?php echo $is_active ? ' aria-current="page"' : ''; ?>>
                             <?php echo esc_html($label); ?>
                         </a>
                     </li>
@@ -170,7 +170,7 @@ $base_permalink = $base_permalink ? $base_permalink : home_url('/publikasi/');
             <?php endwhile; ?>
         </div>
     <?php else : ?>
-        <p class="ysq-publication-empty"><?php esc_html_e('Belum ada publikasi pada kategori ini.', 'ysq'); ?></p>
+        <p class="ysq-publication-empty" role="status" aria-live="polite"><?php esc_html_e('Belum ada publikasi pada kategori ini.', 'ysq'); ?></p>
     <?php endif; ?>
 
     <?php if ($pagination) : ?>

@@ -175,4 +175,4 @@ if ((is_front_page() || is_home()) && !empty($marquee_items)) :
     </div>
 <?php endif; ?>
 
-<main class="site-main">
+<main id="main-content" class="site-main" tabindex="-1">

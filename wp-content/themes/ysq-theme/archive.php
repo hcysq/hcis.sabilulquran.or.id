@@ -10,12 +10,14 @@ if (!defined('ABSPATH')) {
 }
 
 get_header();
+
+$archive_title_id = 'archive-title-' . uniqid();
 ?>
 
-<main class="site-main">
+<div class="content-wrapper" role="region" aria-labelledby="<?php echo esc_attr($archive_title_id); ?>">
     <header class="page-header">
         <?php
-        the_archive_title('<h1 class="page-title">', '</h1>');
+        the_archive_title('<h1 id="' . esc_attr($archive_title_id) . '" class="page-title">', '</h1>');
         the_archive_description('<div class="archive-description">', '</div>');
         ?>
     </header>
@@ -24,7 +26,7 @@ get_header();
     if (have_posts()) :
         while (have_posts()) :
             the_post();
-            get_template_part('template-parts/content');
+            get_template_part('template-parts/content', get_post_type());
         endwhile;
 
         the_posts_pagination();
@@ -32,7 +34,7 @@ get_header();
         get_template_part('template-parts/content', 'none');
     endif;
     ?>
-</main>
+</div>
 
 <?php
 get_footer();

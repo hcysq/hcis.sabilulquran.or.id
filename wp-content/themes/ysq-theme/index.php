@@ -76,7 +76,7 @@ if (!$is_hcis_logged_in) {
                         <?php wp_reset_postdata(); ?>
                     </div>
                 <?php else : ?>
-                    <p class="ysq-publication-empty"><?php esc_html_e('Belum ada publikasi untuk saat ini.', 'ysq'); ?></p>
+                    <p class="ysq-publication-empty" role="status" aria-live="polite"><?php esc_html_e('Belum ada publikasi untuk saat ini.', 'ysq'); ?></p>
                 <?php endif; ?>
 
                 <div class="announcement-feed__footer">

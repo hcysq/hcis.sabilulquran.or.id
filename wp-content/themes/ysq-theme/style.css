@@ -4,7 +4,7 @@ Theme URI: https://login.sabilulquran.or.id
 Author: Yayasan Sabilul Qur'an
 Author URI: https://sabilulquran.or.id
 Description: Tema ringan untuk subdomain login HRIS Yayasan Sabilul Qur'an
-Version: 1.5
+Version: 1.6.0
 License: GNU General Public License v2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: ysq
@@ -232,9 +232,21 @@ h6 {
 
 .main-navigation {
   display: flex;
+  align-items: center;
+}
+
+.main-navigation__list {
+  display: flex;
   gap: 16px;
   align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
   flex-wrap: wrap;
+}
+
+.main-navigation__list li {
+  display: flex;
 }
 
 .main-navigation a {
@@ -404,7 +416,7 @@ h6 {
 .ysq-publication-card__media {
   position: relative;
   aspect-ratio: 16 / 9;
-  background: linear-gradient(135deg, rgba(23, 88, 135, 0.16), rgba(14, 165, 233, 0.12));
+  background: linear-gradient(135deg, rgba(15, 76, 129, 0.2), rgba(10, 117, 194, 0.15));
   overflow: hidden;
 }
 
@@ -501,7 +513,7 @@ h6 {
 }
 
 .ysq-publication-filter__link.is-active {
-  background: linear-gradient(135deg, rgba(23, 88, 135, 0.85), rgba(14, 165, 233, 0.68));
+  background: linear-gradient(135deg, var(--ysq-color-primary), var(--ysq-color-primary-accent));
   border-color: transparent;
   color: var(--ysq-color-primary-contrast);
   box-shadow: 0 12px 28px rgba(23, 88, 135, 0.28);
@@ -940,6 +952,16 @@ h6 {
   color: var(--ysq-color-primary-contrast);
 }
 
+.sidebar-navigation {
+  margin-bottom: 16px;
+}
+
+.widget-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .sidebar-logout {
   margin-top: auto;
   text-decoration: none;
@@ -1025,6 +1047,44 @@ h6 {
   border-color: var(--ysq-color-primary);
   box-shadow: 0 0 0 3px rgba(23, 88, 135, 0.15);
   background: var(--ysq-color-surface);
+}
+
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.search-form__label {
+  font-weight: 600;
+  color: var(--ysq-color-text);
+}
+
+.search-form__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.search-form__input {
+  flex: 1 1 240px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  background: #f8fafc;
+}
+
+.search-form__input:focus {
+  border-color: var(--ysq-color-primary);
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.15);
+  background: #ffffff;
+}
+
+.search-form__submit {
+  flex: 0 0 auto;
 }
 
 .form-helper {
@@ -1284,6 +1344,42 @@ body.home .announcement-feed {
   border-radius: 8px;
   padding: 32px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.entry-summary-card {
+  background: var(--ysq-surface);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+}
+
+.entry-summary-card .entry-title {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.entry-summary-card .entry-title a {
+  color: var(--ysq-color-text);
+  text-decoration: none;
+}
+
+.entry-summary-card .entry-title a:hover {
+  text-decoration: underline;
+}
+
+.entry-summary-card .entry-meta {
+  color: var(--ysq-color-muted-soft);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.entry-summary {
+  color: var(--ysq-color-muted);
+}
+
+.entry-summary-card .entry-footer {
+  margin-top: 16px;
 }
 
 h1, h2, h3, h4, h5, h6 {
