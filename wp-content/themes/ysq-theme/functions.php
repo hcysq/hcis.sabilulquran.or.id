@@ -9,6 +9,96 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+function ysq_sanitize_checkbox($checked) {
+    return (bool) $checked;
+}
+
+function ysq_sanitize_select($input, $setting) {
+    $input   = is_string($input) ? sanitize_key($input) : '';
+    $control = $setting->manager->get_control($setting->id);
+
+    if ($control && isset($control->choices[$input])) {
+        return $input;
+    }
+
+    return $setting->default;
+}
+
+function ysq_sanitize_int_range($value, $setting) {
+    $value = intval($value);
+    $control = $setting->manager->get_control($setting->id);
+    $attrs = $control && isset($control->input_attrs) ? $control->input_attrs : array();
+    $min   = isset($attrs['min']) ? intval($attrs['min']) : $value;
+    $max   = isset($attrs['max']) ? intval($attrs['max']) : $value;
+
+    if ($value < $min) {
+        return $min;
+    }
+
+    if ($value > $max) {
+        return $max;
+    }
+
+    return $value;
+}
+
+function ysq_sanitize_font_stack($value) {
+    $value = is_string($value) ? wp_strip_all_tags($value) : '';
+
+    return $value !== '' ? $value : 'system-ui, "Segoe UI", Roboto, sans-serif';
+}
+
+function ysq_get_contrast_color($hex_color) {
+    $hex = sanitize_hex_color($hex_color);
+    if (!$hex) {
+        return '#ffffff';
+    }
+
+    $hex = ltrim($hex, '#');
+    $red = hexdec(substr($hex, 0, 2));
+    $green = hexdec(substr($hex, 2, 2));
+    $blue = hexdec(substr($hex, 4, 2));
+    $luma = 0.299 * $red + 0.587 * $green + 0.114 * $blue;
+
+    return $luma >= 186 ? '#0f172a' : '#ffffff';
+}
+
+function ysq_adjust_color_brightness($hex_color, $percent = 0) {
+    $hex = sanitize_hex_color($hex_color);
+
+    if (!$hex) {
+        return '#175887';
+    }
+
+    $percent = max(-100, min(100, floatval($percent)));
+    $hex = ltrim($hex, '#');
+
+    $red = hexdec(substr($hex, 0, 2));
+    $green = hexdec(substr($hex, 2, 2));
+    $blue = hexdec(substr($hex, 4, 2));
+
+    $adjust = function ($channel) use ($percent) {
+        if ($percent === 0) {
+            return intval($channel);
+        }
+
+        $channel = intval($channel);
+        $delta   = ($percent / 100) * (255 - $channel);
+
+        if ($percent < 0) {
+            $delta = ($percent / 100) * $channel;
+        }
+
+        return max(0, min(255, intval(round($channel + $delta))));
+    };
+
+    $red   = $adjust($red);
+    $green = $adjust($green);
+    $blue  = $adjust($blue);
+
+    return sprintf('#%02x%02x%02x', $red, $green, $blue);
+}
+
 function ysq_setup() {
     add_theme_support('title-tag');
     add_theme_support('post-thumbnails');
@@ -39,14 +129,14 @@ function ysq_setup() {
 add_action('after_setup_theme', 'ysq_setup');
 
 function ysq_enqueue_scripts() {
-    wp_enqueue_style('ysq-style', get_stylesheet_uri(), array(), '1.3');
+    wp_enqueue_style('ysq-style', get_stylesheet_uri(), array(), '1.4');
     wp_enqueue_style(
         'ysq-footer',
         get_stylesheet_directory_uri() . '/assets/css/ysq-footer.css',
         array('ysq-style'),
-        '1.0'
+        '1.1'
     );
-    wp_enqueue_script('ysq-theme', get_template_directory_uri() . '/assets/js/theme.js', array(), '1.0.0', true);
+    wp_enqueue_script('ysq-theme', get_template_directory_uri() . '/assets/js/theme.js', array(), '1.1.0', true);
 }
 add_action('wp_enqueue_scripts', 'ysq_enqueue_scripts');
 
@@ -82,8 +172,9 @@ function ysq_customize_register($wp_customize) {
     ));
 
     $wp_customize->add_setting('ysq_base_font_size', array(
-        'default'   => '16',
-        'transport' => 'refresh',
+        'default'           => '16',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'absint',
     ));
 
     $wp_customize->add_control('ysq_base_font_size', array(
@@ -99,8 +190,22 @@ function ysq_customize_register($wp_customize) {
     ));
 
     $wp_customize->add_setting('ysq_heading_font_size', array(
-        'default'   => '24',
-        'transport' => 'refresh',
+        'default'           => '24',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'absint',
+    ));
+
+    $wp_customize->add_setting('ysq_font_stack', array(
+        'default'           => 'system-ui, "Segoe UI", Roboto, sans-serif',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'ysq_sanitize_font_stack',
+    ));
+
+    $wp_customize->add_control('ysq_font_stack', array(
+        'label'       => __('Font Stack', 'ysq'),
+        'description' => __('Contoh: system-ui, "Segoe UI", Roboto, sans-serif', 'ysq'),
+        'section'     => 'ysq_typography_section',
+        'type'        => 'text',
     ));
 
     $wp_customize->add_control('ysq_heading_font_size', array(
@@ -121,8 +226,9 @@ function ysq_customize_register($wp_customize) {
     ));
 
     $wp_customize->add_setting('ysq_header_bg_color', array(
-        'default'   => '#ffffff',
-        'transport' => 'refresh',
+        'default'           => '#ffffff',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'sanitize_hex_color',
     ));
 
     if (class_exists('WP_Customize_Color_Control')) {
@@ -133,8 +239,9 @@ function ysq_customize_register($wp_customize) {
     }
 
     $wp_customize->add_setting('ysq_header_bg_opacity', array(
-        'default'   => '100',
-        'transport' => 'refresh',
+        'default'           => '100',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'absint',
     ));
 
     $wp_customize->add_control('ysq_header_bg_opacity', array(
@@ -148,14 +255,33 @@ function ysq_customize_register($wp_customize) {
         ),
     ));
 
+    $wp_customize->add_setting('ysq_header_behavior', array(
+        'default'           => 'sticky',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'ysq_sanitize_select',
+    ));
+
+    $wp_customize->add_control('ysq_header_behavior', array(
+        'label'       => __('Header Behavior', 'ysq'),
+        'description' => __('Atur apakah header selalu menempel di atas atau statis.', 'ysq'),
+        'section'     => 'ysq_header_section',
+        'type'        => 'select',
+        'choices'     => array(
+            'sticky'            => __('Sticky solid', 'ysq'),
+            'sticky_transparent'=> __('Sticky transparan dengan blur', 'ysq'),
+            'static'            => __('Statis (tidak mengikuti scroll)', 'ysq'),
+        ),
+    ));
+
     $wp_customize->add_section('ysq_branding_section', array(
         'title'    => __('Branding Card', 'ysq'),
         'priority' => 31,
     ));
 
     $wp_customize->add_setting('ysq_show_branding_card', array(
-        'default'   => true,
-        'transport' => 'refresh',
+        'default'           => true,
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'ysq_sanitize_checkbox',
     ));
 
     $wp_customize->add_control('ysq_show_branding_card', array(
@@ -176,9 +302,24 @@ function ysq_customize_register($wp_customize) {
         'type'    => 'text',
     ));
 
+    $wp_customize->add_setting('ysq_primary_color', array(
+        'default'           => '#175887',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'sanitize_hex_color',
+    ));
+
+    if (class_exists('WP_Customize_Color_Control')) {
+        $wp_customize->add_control(new WP_Customize_Color_Control($wp_customize, 'ysq_primary_color', array(
+            'label'       => __('Primary Brand Color', 'ysq'),
+            'description' => __('Digunakan untuk tombol dan tautan utama.', 'ysq'),
+            'section'     => 'ysq_branding_section',
+        )));
+    }
+
     $wp_customize->add_setting('ysq_brand_color', array(
-        'default'   => '#175887',
-        'transport' => 'refresh',
+        'default'           => '#175887',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'sanitize_hex_color',
     ));
 
     if (class_exists('WP_Customize_Color_Control')) {
@@ -190,8 +331,9 @@ function ysq_customize_register($wp_customize) {
     }
 
     $wp_customize->add_setting('ysq_brand_color_opacity', array(
-        'default'   => '100',
-        'transport' => 'refresh',
+        'default'           => '100',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'absint',
     ));
 
     $wp_customize->add_control('ysq_brand_color_opacity', array(
@@ -211,8 +353,9 @@ function ysq_customize_register($wp_customize) {
     ));
 
     $wp_customize->add_setting('ysq_show_header_buttons', array(
-        'default'   => true,
-        'transport' => 'refresh',
+        'default'           => true,
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'ysq_sanitize_checkbox',
     ));
 
     $wp_customize->add_control('ysq_show_header_buttons', array(
@@ -272,8 +415,9 @@ function ysq_customize_register($wp_customize) {
     ));
 
     $wp_customize->add_setting('ysq_footer_bg_color', array(
-        'default'   => '#f8f9fa',
-        'transport' => 'refresh',
+        'default'           => '#f8f9fa',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'sanitize_hex_color',
     ));
 
     if (class_exists('WP_Customize_Color_Control')) {
@@ -284,8 +428,9 @@ function ysq_customize_register($wp_customize) {
     }
 
     $wp_customize->add_setting('ysq_footer_bg_opacity', array(
-        'default'   => '100',
-        'transport' => 'refresh',
+        'default'           => '100',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'absint',
     ));
 
     $wp_customize->add_control('ysq_footer_bg_opacity', array(
@@ -300,8 +445,9 @@ function ysq_customize_register($wp_customize) {
     ));
 
     $wp_customize->add_setting('ysq_footer_bottom_bg_color', array(
-        'default'   => '#2f7e20',
-        'transport' => 'refresh',
+        'default'           => '#2f7e20',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'sanitize_hex_color',
     ));
 
     if (class_exists('WP_Customize_Color_Control')) {
@@ -312,8 +458,9 @@ function ysq_customize_register($wp_customize) {
     }
 
     $wp_customize->add_setting('ysq_footer_bottom_bg_opacity', array(
-        'default'   => '100',
-        'transport' => 'refresh',
+        'default'           => '100',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'absint',
     ));
 
     $wp_customize->add_control('ysq_footer_bottom_bg_opacity', array(
@@ -328,8 +475,9 @@ function ysq_customize_register($wp_customize) {
     ));
 
     $wp_customize->add_setting('ysq_footer_bottom_text_color', array(
-        'default'   => '#ffffff',
-        'transport' => 'refresh',
+        'default'           => '#ffffff',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'sanitize_hex_color',
     ));
 
     if (class_exists('WP_Customize_Color_Control')) {
@@ -338,6 +486,23 @@ function ysq_customize_register($wp_customize) {
             'section' => 'ysq_footer_section',
         )));
     }
+
+    $wp_customize->add_setting('ysq_footer_columns_count', array(
+        'default'           => 4,
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'ysq_sanitize_int_range',
+    ));
+
+    $wp_customize->add_control('ysq_footer_columns_count', array(
+        'label'       => __('Jumlah Kolom Footer', 'ysq'),
+        'description' => __('Atur 1-4 kolom informasi yang tampil.', 'ysq'),
+        'section'     => 'ysq_footer_section',
+        'type'        => 'number',
+        'input_attrs' => array(
+            'min' => 1,
+            'max' => 4,
+        ),
+    ));
 
     $footer_content_defaults = array(
         1 => array(
@@ -399,12 +564,48 @@ function ysq_customize_register($wp_customize) {
         'section'     => 'ysq_footer_section',
         'type'        => 'textarea',
     ));
+
+    $wp_customize->add_section('ysq_color_mode_section', array(
+        'title'    => __('Mode Warna', 'ysq'),
+        'priority' => 45,
+    ));
+
+    $wp_customize->add_setting('ysq_enable_color_mode_toggle', array(
+        'default'           => false,
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'ysq_sanitize_checkbox',
+    ));
+
+    $wp_customize->add_control('ysq_enable_color_mode_toggle', array(
+        'label'       => __('Tampilkan tombol mode gelap', 'ysq'),
+        'description' => __('Menambahkan toggle light/dark di header situs.', 'ysq'),
+        'section'     => 'ysq_color_mode_section',
+        'type'        => 'checkbox',
+    ));
+
+    $wp_customize->add_setting('ysq_default_color_mode', array(
+        'default'           => 'system',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'ysq_sanitize_select',
+    ));
+
+    $wp_customize->add_control('ysq_default_color_mode', array(
+        'label'   => __('Default mode warna', 'ysq'),
+        'section' => 'ysq_color_mode_section',
+        'type'    => 'select',
+        'choices' => array(
+            'system' => __('Ikuti preferensi perangkat', 'ysq'),
+            'light'  => __('Selalu terang', 'ysq'),
+            'dark'   => __('Selalu gelap', 'ysq'),
+        ),
+    ));
 }
 add_action('customize_register', 'ysq_customize_register');
 
 function ysq_custom_styles() {
     $base_font_size     = get_theme_mod('ysq_base_font_size', '16');
     $heading_font_size  = get_theme_mod('ysq_heading_font_size', '24');
+    $font_stack         = get_theme_mod('ysq_font_stack', 'system-ui, "Segoe UI", Roboto, sans-serif');
 
     $header_bg          = get_theme_mod('ysq_header_bg_color', '#ffffff');
     $header_bg_opacity  = get_theme_mod('ysq_header_bg_opacity', '100');
@@ -413,6 +614,10 @@ function ysq_custom_styles() {
     $brand_color        = get_theme_mod('ysq_brand_color', '#175887');
     $brand_color_op     = get_theme_mod('ysq_brand_color_opacity', '100');
     $brand_color_rgba   = ysq_hex_to_rgba($brand_color, floatval($brand_color_op) / 100);
+
+    $primary_color      = get_theme_mod('ysq_primary_color', '#175887');
+    $primary_hover      = ysq_adjust_color_brightness($primary_color, -15);
+    $primary_contrast   = ysq_get_contrast_color($primary_color);
 
     $footer_bg          = get_theme_mod('ysq_footer_bg_color', '#f8f9fa');
     $footer_bg_opacity  = get_theme_mod('ysq_footer_bg_opacity', '100');
@@ -430,21 +635,17 @@ function ysq_custom_styles() {
     ?>
     <style type="text/css">
         :root {
+            --ysq-font-base: <?php echo esc_attr($font_stack); ?>;
+            --ysq-font-size-base: <?php echo esc_attr($base_font_size); ?>px;
+            --ysq-heading-base-size: <?php echo esc_attr($heading_font_size); ?>px;
             --ysq-header-bg: <?php echo esc_attr($header_bg_rgba); ?>;
             --ysq-header-bg-transparent: <?php echo esc_attr($header_bg_half); ?>;
-        }
-
-        body {
-            font-size: <?php echo esc_attr($base_font_size); ?>px !important;
-        }
-
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6 {
-            font-size: <?php echo esc_attr($heading_font_size); ?>px !important;
+            --ysq-color-primary: <?php echo esc_attr($primary_color); ?>;
+            --ysq-color-primary-contrast: <?php echo esc_attr($primary_contrast); ?>;
+            --ysq-color-primary-strong: <?php echo esc_attr($primary_hover); ?>;
+            --ysq-footer-background: <?php echo esc_attr($footer_bg_rgba); ?>;
+            --ysq-footer-bottom-background: <?php echo esc_attr($footer_bottom_bg_rgba); ?>;
+            --ysq-footer-bottom-text: <?php echo esc_attr($footer_bottom_text_color); ?>;
         }
 
         .site-branding {
@@ -461,29 +662,6 @@ function ysq_custom_styles() {
 
         .site-title {
             color: <?php echo esc_attr($brand_color_rgba); ?> !important;
-        }
-
-        .main-navigation a.btn-primary {
-            background-color: <?php echo esc_attr($brand_color_rgba); ?> !important;
-            border-color: <?php echo esc_attr($brand_color_rgba); ?> !important;
-        }
-
-        a {
-            color: <?php echo esc_attr($brand_color_rgba); ?>;
-        }
-
-        .ysq-footer {
-            background-color: <?php echo esc_attr($footer_bg_rgba); ?> !important;
-        }
-
-        .footer-bottom {
-            background-color: <?php echo esc_attr($footer_bottom_bg_rgba); ?> !important;
-        }
-
-        .footer-bottom,
-        .footer-bottom a,
-        .footer-copy {
-            color: <?php echo esc_attr($footer_bottom_text_color); ?> !important;
         }
     </style>
     <?php
