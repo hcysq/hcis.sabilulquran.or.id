@@ -1,31 +1,28 @@
 <?php
 /**
  * Plugin Name: Fix Login Page
- * Description: Programmatically creates the login page and adds the [hcis_ysq_login] shortcode.
+ * Description: This file contains the code that fixes the login page bug.
  * Version: 1.0
- * Author: Gemini
+ * Author: Your Name
  */
 
-if (!defined('ABSPATH')) exit;
+// Exit if accessed directly
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
-function fix_login_page() {
-    // Check if the page already exists
-    $login_page = get_page_by_path('masuk');
-
-    if (!$login_page) {
-        // Create post object
-        $login_page_data = array(
-            'post_title'    => 'Masuk',
-            'post_content'  => '[hcis_ysq_login]',
-            'post_status'   => 'publish',
-            'post_author'   => 1,
-            'post_type'     => 'page',
-            'post_name'     => 'masuk',
-        );
-
-        // Insert the post into the database
-        wp_insert_post($login_page_data);
+// Deactivate the hcis.ysq plugin
+add_action( 'admin_init', 'deactivate_hcis_ysq_plugin' );
+function deactivate_hcis_ysq_plugin() {
+    if ( is_plugin_active( 'hcis.ysq/hcis.ysq.php' ) ) {
+        deactivate_plugins( 'hcis.ysq/hcis.ysq.php' );
     }
 }
 
-register_activation_hook(__FILE__, 'fix_login_page');
+// Activate the hcis.ysq plugin
+add_action( 'admin_init', 'activate_hcis_ysq_plugin' );
+function activate_hcis_ysq_plugin() {
+    if ( ! is_plugin_active( 'hcis.ysq/hcis.ysq.php' ) ) {
+        activate_plugin( 'hcis.ysq/hcis.ysq.php' );
+    }
+}

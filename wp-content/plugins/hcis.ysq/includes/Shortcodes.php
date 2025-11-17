@@ -31,7 +31,7 @@ class Shortcodes {
     add_shortcode('hrissq_reset_password_form', [__CLASS__, 'reset_password_form']);
 
     add_filter('the_content', [__CLASS__, 'fix_dot_shortcodes'], 9);
-    add_filter('the_content', [__CLASS__, 'ensure_login_content'], 11);
+    add_filter('the_content', [__CLASS__, 'ensure_login_content'], 1);
 
     add_action('template_redirect', [__CLASS__, 'render_login_when_missing_page'], 1);
   }
@@ -76,7 +76,7 @@ class Shortcodes {
       }
     }
 
-    return $content . View::login();
+    return View::login();
   }
 
   public static function login($atts) {

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HCIS YSQ (hcis.ysq)
  * Description: Login NIP+HP, Dashboard Pegawai, Form Pelatihan dengan Google Sheets Integration + SSO ke Google Apps Script.
- * Version: 1.5
+ * Version: 1.6
  * Author: samijaya
  */
 
@@ -38,7 +38,7 @@ hcisysq_log('hcis.ysq plugin boot...');
 /* =======================================================
  *  Konstanta plugin
  * ======================================================= */
-if (!defined('HCISYSQ_VER')) define('HCISYSQ_VER', '1.5');
+if (!defined('HCISYSQ_VER')) define('HCISYSQ_VER', '1.6');
 if (!defined('HCISYSQ_DIR')) define('HCISYSQ_DIR', plugin_dir_path(__FILE__));
 if (!defined('HCISYSQ_URL')) define('HCISYSQ_URL', plugin_dir_url(__FILE__));
 
