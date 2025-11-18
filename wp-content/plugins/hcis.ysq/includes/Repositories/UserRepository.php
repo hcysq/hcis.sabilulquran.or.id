@@ -99,6 +99,11 @@ class UserRepository extends AbstractSheetRepository {
   public function syncToWordPress(array $rows): int {
     global $wpdb;
     $table = $wpdb->prefix . 'hcisysq_users';
+    $table_exists = ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table);
+    if (!$table_exists) {
+      hcisysq_log('UserRepository::syncToWordPress - legacy table missing, skipping sync', 'warning');
+      return 0;
+    }
     $synced = 0;
 
     foreach ($rows as $row) {

@@ -4,7 +4,7 @@ namespace HCISYSQ;
 if (!defined('ABSPATH')) exit;
 
 class Installer {
-  const SCHEMA_VERSION = '5';
+  const SCHEMA_VERSION = '6';
 
   public static function activate(){
     global $wpdb;
@@ -157,6 +157,16 @@ class Installer {
         KEY idx_level_date (level, created_at),
         KEY idx_component (component),
         KEY idx_request (request_id)
+      ) $engine $charset;",
+      'hcisysq_users' => "CREATE TABLE {$wpdb->prefix}hcisysq_users (
+        nip VARCHAR(64) NOT NULL,
+        nama VARCHAR(255) DEFAULT '',
+        jabatan VARCHAR(255) DEFAULT '',
+        unit VARCHAR(255) DEFAULT '',
+        no_hp VARCHAR(64) DEFAULT '',
+        password VARCHAR(255) DEFAULT '',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY  (nip)
       ) $engine $charset;",
       'hcisysq_password_resets' => "CREATE TABLE {$wpdb->prefix}hcisysq_password_resets (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
