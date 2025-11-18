@@ -46,17 +46,21 @@ $enable_color_mode_toggle  = get_theme_mod('ysq_enable_color_mode_toggle', false
             $identity = HCISYSQ\Auth::current_identity();
         }
 
-        $is_hcis_logged_in = !empty($identity);
+        $is_hcis_logged_in   = !empty($identity);
+        $show_logout_button  = $show_buttons && $is_hcis_logged_in;
+        $show_login_button   = $show_buttons && !$is_wp_user_logged_in && !$is_hcis_logged_in && '' !== $login_button_text;
+        $show_main_button    = $show_buttons && '' !== $main_button_text && '' !== $main_button_url;
 
-        $show_login_button = $show_buttons && !$is_wp_user_logged_in && !$is_hcis_logged_in && '' !== $login_button_text;
-        $show_main_button  = $show_buttons && '' !== $main_button_text && '' !== $main_button_url;
-
-        if ($show_login_button || $show_main_button || $enable_color_mode_toggle) :
+        if ($show_login_button || $show_logout_button || $show_main_button || $enable_color_mode_toggle) :
         ?>
             <div class="header-actions">
-                <?php if ($show_login_button || $show_main_button) : ?>
+                <?php if ($show_login_button || $show_logout_button || $show_main_button) : ?>
                     <nav class="main-navigation">
-                        <?php if ($show_login_button) : ?>
+                        <?php if ($show_logout_button) : ?>
+                            <button type="button" class="btn-primary" data-hcisysq-logout data-logout-loading="<?php esc_attr_e('Keluar…', 'ysq'); ?>" data-logout-error="<?php esc_attr_e('Gagal. Coba lagi.', 'ysq'); ?>">
+                                <?php esc_html_e('Keluar', 'ysq'); ?>
+                            </button>
+                        <?php elseif ($show_login_button) : ?>
                             <a href="<?php echo esc_url($login_button_url); ?>" class="btn-primary">
                                 <?php echo esc_html($login_button_text); ?>
                             </a>

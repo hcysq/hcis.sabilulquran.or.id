@@ -136,7 +136,25 @@ function ysq_enqueue_scripts() {
         array('ysq-style'),
         '1.1'
     );
-    wp_enqueue_script('ysq-theme', get_template_directory_uri() . '/assets/js/theme.js', array(), '1.1.0', true);
+    $ysq_theme_handle = 'ysq-theme';
+    wp_enqueue_script($ysq_theme_handle, get_template_directory_uri() . '/assets/js/theme.js', array(), '1.2.0', true);
+
+    if (class_exists('HCISYSQ\\Auth')) {
+        $login_slug = defined('HCISYSQ_LOGIN_SLUG') ? trim((string) HCISYSQ_LOGIN_SLUG, '/') : 'masuk';
+        if ($login_slug === '') {
+            $login_slug = 'masuk';
+        }
+
+        wp_localize_script(
+            $ysq_theme_handle,
+            'ysqTheme',
+            array(
+                'ajaxUrl'        => admin_url('admin-ajax.php'),
+                'logoutNonce'    => wp_create_nonce('hcisysq_nonce'),
+                'logoutRedirect' => home_url('/' . $login_slug . '/'),
+            )
+        );
+    }
 }
 add_action('wp_enqueue_scripts', 'ysq_enqueue_scripts');
 
