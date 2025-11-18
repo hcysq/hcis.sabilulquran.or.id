@@ -1,0 +1,67 @@
+.hcisysq-admin-view {
+  display: none;
+}
+
+.hcisysq-admin-view.is-active {
+  display: block;
+}
+
+.hcisysq-admin .hcisysq-sidebar {
+  background: #111827;
+}
+
+.hcisysq-admin .hcisysq-page-title {
+  color: var(--hcis-text);
+}
+
+.hcisysq-admin .hcisysq-sidebar-nav a[data-view] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hcisysq-admin .hcisysq-sidebar-nav a[data-view]::after {
+  content: '›';
+  font-size: 1rem;
+  opacity: 0.45;
+}
+
+.hcisysq-admin .hcisysq-sidebar-nav a.is-active::after,
+.hcisysq-admin .hcisysq-sidebar-nav a:hover::after {
+  opacity: 0.8;
+}
+
+.hcisysq-task-form--settings {
+  border-top: 1px solid var(--hcis-line);
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+
+.hcisysq-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.hcisysq-form-grid .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.hcisysq-form-grid .form-actions {
+  grid-column: 1 / -1;
+}
+
+.hcisysq-admin-view[data-view='pegawai'] .hcisysq-card-header {
+  margin-bottom: 1rem;
+}
+
+.hcisysq-employee-card {
+  padding: 2rem;
+}
+
+@media (max-width: 640px) {
+  .hcisysq-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

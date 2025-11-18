@@ -1,0 +1,118 @@
+.hcisysq-auth-wrap {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, rgba(22, 101, 52, 0.15), transparent 55%)
+    , radial-gradient(circle at 20% 20%, rgba(249, 115, 22, 0.2), transparent 40%)
+    , var(--hcis-surface-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.auth-card {
+  width: min(640px, 100%);
+  background: #fff;
+  border-radius: var(--hcis-radius);
+  padding: 2.5rem;
+  box-shadow: var(--hcis-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.auth-header h2 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.auth-header p {
+  margin: 0.35rem 0 0;
+  color: var(--hcis-text-muted);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-form label {
+  font-size: 0.95rem;
+}
+
+.auth-form input,
+.auth-form textarea,
+.auth-form select {
+  font-size: 1rem;
+}
+
+.pw-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pw-row .eye {
+  border-radius: var(--hcis-radius-sm);
+  border: 1px solid var(--hcis-line);
+  background: transparent;
+  color: var(--hcis-text);
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.pw-row .eye:hover,
+.pw-row .eye:focus-visible {
+  border-color: var(--hcis-primary);
+  color: var(--hcis-primary);
+}
+
+.link-forgot {
+  text-align: center;
+  color: var(--hcis-text-muted);
+  font-weight: 600;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.link-forgot:hover {
+  color: var(--hcis-primary);
+}
+
+.auth-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.auth-footer .btn-primary {
+  width: 100%;
+}
+
+.auth-body p {
+  color: var(--hcis-text-muted);
+  margin: 0;
+}
+
+#hcisysq-login-form .msg,
+#hcisysq-request-reset-form .msg,
+#hcisysq-reset-password-form .msg {
+  min-height: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .auth-card {
+    padding: 1.75rem;
+  }
+
+  .pw-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pw-row .eye {
+    width: 100%;
+  }
+}
