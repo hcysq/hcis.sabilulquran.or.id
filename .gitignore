@@ -16,7 +16,6 @@ wp-config.php
 node_modules/
 vendor/
 
-
 # Sistem / OS
 .DS_Store
 Thumbs.db
