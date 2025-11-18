@@ -20,6 +20,118 @@
   gap: 1.25rem;
 }
 
+.hcisysq-reset-page {
+  background: rgba(248, 250, 252, 0.65);
+  padding: clamp(1.5rem, 5vw, 3rem);
+}
+
+.hcisysq-reset-page .auth-card {
+  width: min(420px, 100%);
+  border-radius: 24px;
+  padding: 2rem;
+  border: none;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  gap: 1.5rem;
+}
+
+.login-card {
+  text-align: center;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.login-description {
+  margin: 0.5rem auto 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.login-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.hcisysq-reset-page input[type='password'] {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.hcisysq-reset-page input[type='password']:focus {
+  border-color: #cbd5f5;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.35);
+}
+
+.input-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.reset-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hcisysq-reset-page .btn-primary {
+  width: 100%;
+  border-radius: 999px;
+  background: #e5efff;
+  color: #1d4ed8;
+  box-shadow: 0 12px 30px rgba(30, 64, 175, 0.15);
+  border: none;
+  padding: 0.9rem 1rem;
+}
+
+.hcisysq-reset-page .btn-primary:hover,
+.hcisysq-reset-page .btn-primary:focus-visible {
+  background: #d8e6ff;
+  box-shadow: 0 18px 36px rgba(30, 64, 175, 0.18);
+}
+
+.btn-ghost {
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: transparent;
+  color: #475569;
+  padding: 0.85rem 1rem;
+}
+
+.btn-ghost:hover,
+.btn-ghost:focus-visible {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.login-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
 .auth-header h2 {
   margin: 0;
   font-size: 1.75rem;
@@ -105,6 +217,10 @@
 @media (max-width: 640px) {
   .auth-card {
     padding: 1.75rem;
+  }
+
+  .hcisysq-reset-page .auth-card {
+    padding: 1.5rem;
   }
 
   .pw-row {

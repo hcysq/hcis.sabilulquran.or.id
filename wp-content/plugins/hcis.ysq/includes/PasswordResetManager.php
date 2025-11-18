@@ -170,6 +170,28 @@ class PasswordResetManager {
             return $validation;
         }
 
+        $update = self::update_password_for_nip($validation['nip'], $new_password);
+        if (is_wp_error($update)) {
+            return $update;
+        }
+
+        $token_hash = hash('sha256', $token);
+        $wpdb->update(
+            self::get_table_name(),
+            ['used_at' => current_time('mysql')],
+            ['token_hash' => $token_hash],
+            ['%s'],
+            ['%s']
+        );
+
+        return ['success' => true];
+    }
+
+    public static function update_password_for_nip($nip, $new_password) {
+        if (empty($nip)) {
+            return new WP_Error('invalid_user', 'Pengguna tidak ditemukan.');
+        }
+
         if (empty($new_password)) {
             return new WP_Error('password_empty', 'Password tidak boleh kosong.');
         }
@@ -179,15 +201,11 @@ class PasswordResetManager {
             return $password_requirements;
         }
 
-        $nip = $validation['nip'];
-
-        // Hash the new password
         $new_password_hash = password_hash($new_password, PASSWORD_DEFAULT);
         if (!$new_password_hash) {
             return new WP_Error('hash_failed', 'Gagal memproses password baru.');
         }
 
-        // Update the password hash in the Google Sheet
         $user_repo = self::get_user_repository();
         $success = $user_repo->updateByPrimary([
             'nip' => $nip,
@@ -197,16 +215,6 @@ class PasswordResetManager {
         if (!$success) {
             return new WP_Error('update_failed', 'Gagal memperbarui password di sistem. Silakan coba lagi.');
         }
-
-        // Mark the token as used
-        $token_hash = hash('sha256', $token);
-        $wpdb->update(
-            self::get_table_name(),
-            ['used_at' => current_time('mysql')],
-            ['token_hash' => $token_hash],
-            ['%s'],
-            ['%s']
-        );
 
         return ['success' => true];
     }

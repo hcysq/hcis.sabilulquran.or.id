@@ -85,31 +85,91 @@ class PasswordReset {
             return;
         }
 
-        if (is_page($resetSlug) && isset($_POST['submit_new_password'])) {
-            if (isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'hcis_reset_password')) {
-                $token = sanitize_text_field($_POST['token']);
-                $new_password = $_POST['new_password'];
-                $confirm_password = $_POST['confirm_password'];
-
-                if ($new_password !== $confirm_password) {
-                    set_transient('hcis_reset_message', ['error' => 'Password baru tidak cocok.'], 60);
-                    wp_redirect(home_url('/' . $resetSlug . '/?token=' . rawurlencode($token)));
-                    exit;
-                }
-
-                $result = PasswordResetManager::complete_reset($token, $new_password);
-
-                if (is_wp_error($result)) {
-                    set_transient('hcis_reset_message', ['error' => $result->get_error_message()], 60);
-                    wp_redirect(home_url('/' . $resetSlug . '/?token=' . rawurlencode($token)));
-                    exit;
-                } else {
-                    // Redirect to login page with a success message
-                    wp_redirect(wp_login_url() . '?password_reset=success');
-                    exit;
-                }
-            }
+        if (!is_page($resetSlug)) {
+            return;
         }
+
+        $identity   = \HCISYSQ\Auth::current_identity();
+        $isUser     = $identity && ($identity['type'] ?? '') === 'user';
+        $needsReset = $isUser && !empty($identity['needs_password_reset']);
+        $dashboardUrl = home_url('/' . trim(HCISYSQ_DASHBOARD_SLUG, '/') . '/');
+        $nonceValid = isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'hcis_reset_password');
+
+        if (isset($_POST['skip_password_reset'])) {
+            if ($nonceValid && $needsReset) {
+                \HCISYSQ\Auth::update_current_session([
+                    'reset_skip_granted'    => true,
+                    'needs_password_reset'  => false,
+                ]);
+                wp_redirect($dashboardUrl);
+            } else {
+                wp_redirect(home_url('/' . $resetSlug . '/'));
+            }
+            exit;
+        }
+
+        if (!isset($_POST['submit_new_password'])) {
+            return;
+        }
+
+        if (!$nonceValid) {
+            wp_redirect(home_url('/' . $resetSlug . '/'));
+            exit;
+        }
+
+        $token = isset($_POST['token']) ? sanitize_text_field($_POST['token']) : '';
+        $new_password = $_POST['new_password'];
+        $confirm_password = $_POST['confirm_password'];
+
+        if ($new_password !== $confirm_password) {
+            set_transient('hcis_reset_message', ['error' => 'Password baru tidak cocok.'], 60);
+            $redirect = $token !== ''
+                ? home_url('/' . $resetSlug . '/?token=' . rawurlencode($token))
+                : home_url('/' . $resetSlug . '/');
+            wp_redirect($redirect);
+            exit;
+        }
+
+        if ($token !== '') {
+            $result = PasswordResetManager::complete_reset($token, $new_password);
+
+            if (is_wp_error($result)) {
+                set_transient('hcis_reset_message', ['error' => $result->get_error_message()], 60);
+                wp_redirect(home_url('/' . $resetSlug . '/?token=' . rawurlencode($token)));
+                exit;
+            }
+
+            wp_redirect(wp_login_url() . '?password_reset=success');
+            exit;
+        }
+
+        if (!$needsReset || !$isUser || empty($identity['user'])) {
+            set_transient('hcis_reset_message', ['error' => 'Sesi Anda tidak memiliki akses untuk mengganti password tanpa token.'], 60);
+            wp_redirect(home_url('/' . $resetSlug . '/'));
+            exit;
+        }
+
+        $nip = $identity['user']->nip ?? '';
+        if ($nip === '') {
+            set_transient('hcis_reset_message', ['error' => 'Identitas pengguna tidak valid.'], 60);
+            wp_redirect(home_url('/' . $resetSlug . '/'));
+            exit;
+        }
+
+        $result = PasswordResetManager::update_password_for_nip($nip, $new_password);
+        if (is_wp_error($result)) {
+            set_transient('hcis_reset_message', ['error' => $result->get_error_message()], 60);
+            wp_redirect(home_url('/' . $resetSlug . '/'));
+            exit;
+        }
+
+        \HCISYSQ\Auth::update_current_session([
+            'needs_password_reset' => false,
+            'reset_skip_granted'   => false,
+        ]);
+
+        wp_redirect(add_query_arg('password_reset', 'success', $dashboardUrl));
+        exit;
     }
 
     public static function handle_legacy_reset_redirect() {
