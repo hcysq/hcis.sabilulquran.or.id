@@ -16,11 +16,12 @@ class PayrollRepository extends AbstractSheetRepository {
     'status' => 'Status',
   ];
 
-  public function syncToWordPress(array $rows): int {
+  public function syncToWordPress(array $rows): array {
     global $wpdb;
     $table = $wpdb->prefix . 'hcisysq_payroll';
     $this->maybeCreateTable($table);
     $synced = 0;
+    $failed = 0;
 
     $wpdb->query("TRUNCATE TABLE $table");
 
@@ -44,10 +45,15 @@ class PayrollRepository extends AbstractSheetRepository {
       $inserted = $wpdb->insert($table, $data, $formats);
       if ($inserted !== false) {
         $synced++;
+      } else {
+        $failed++;
       }
     }
 
-    return $synced;
+    return [
+      'synced' => $synced,
+      'failed' => $failed,
+    ];
   }
 
   protected function maybeCreateTable(string $table): void {

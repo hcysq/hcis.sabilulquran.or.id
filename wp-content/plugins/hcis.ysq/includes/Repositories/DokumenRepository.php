@@ -17,13 +17,14 @@ class DokumenRepository extends AbstractSheetRepository {
     'tautan' => 'Tautan',
   ];
 
-  public function syncToWordPress(array $rows): int {
+  public function syncToWordPress(array $rows): array {
     global $wpdb;
     $table = $wpdb->prefix . 'hcisysq_documents';
     $this->maybeCreateTable($table);
     $wpdb->query("TRUNCATE TABLE $table");
 
     $synced = 0;
+    $failed = 0;
     foreach ($rows as $row) {
       $nip = $row['nip'] ?? '';
       $title = $row['judul'] ?? '';
@@ -44,10 +45,15 @@ class DokumenRepository extends AbstractSheetRepository {
       $inserted = $wpdb->insert($table, $data, $formats);
       if ($inserted !== false) {
         $synced++;
+      } else {
+        $failed++;
       }
     }
 
-    return $synced;
+    return [
+      'synced' => $synced,
+      'failed' => $failed,
+    ];
   }
 
   protected function maybeCreateTable(string $table): void {

@@ -115,9 +115,12 @@ abstract class AbstractSheetRepository {
     return false;
   }
 
-  public function syncToWordPress(array $rows): int {
+  public function syncToWordPress(array $rows): array {
     // default no-op
-    return 0;
+    return [
+      'synced' => 0,
+      'failed' => 0,
+    ];
   }
 
   protected function mapRow(array $row, int $index): array {
