@@ -149,6 +149,32 @@ class SessionPersistenceTest extends \WP_UnitTestCase {
   }
 
   /**
+   * @covers \HCISYSQ\Auth::update_current_session
+   */
+  public function test_auth_update_current_session_preserves_existing_fields() {
+    $initial_payload = [
+      'type' => 'user',
+      'nip'  => 'KEEP001',
+      'nama' => 'Keep Existing Field',
+      'reset_skip_granted' => false,
+    ];
+
+    $token = SessionHandler::create($initial_payload);
+    $this->assertIsString($token);
+
+    $_COOKIE['hcisysq_token'] = $token;
+
+    $this->assertTrue(Auth::update_current_session(['reset_skip_granted' => true]));
+
+    $updated = SessionHandler::read($token);
+    $this->assertIsArray($updated);
+    $this->assertEquals('KEEP001', $updated['nip']);
+    $this->assertTrue($updated['reset_skip_granted']);
+
+    unset($_COOKIE['hcisysq_token']);
+  }
+
+  /**
    * Test cleanup removes only expired sessions
    *
    * @covers \HCISYSQ\SessionHandler::cleanup

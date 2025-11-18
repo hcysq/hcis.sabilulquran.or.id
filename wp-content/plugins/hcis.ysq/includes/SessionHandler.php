@@ -78,7 +78,12 @@ class SessionHandler {
       return false;
     }
 
-    $payload = self::normalize_payload($payload);
+    $existing_payload = self::read($session_id);
+    if (!is_array($existing_payload)) {
+      $existing_payload = [];
+    }
+
+    $payload = self::normalize_payload(array_merge($existing_payload, $payload));
 
     if (self::should_use_database()) {
       $updated = self::update_database_record($session_id, $payload);
