@@ -139,11 +139,23 @@ class Auth {
     return $s;
   }
 
-  /** Ambil user by NIP dari wpw3_hcisysq_users */
+  /** Ambil user by NIP langsung dari Google Sheet */
   public static function get_user_by_nip($nip){
-    global $wpdb;
-    $t = $wpdb->prefix . 'hcisysq_users';
-    return $wpdb->get_row($wpdb->prepare("SELECT * FROM $t WHERE nip = %s", $nip));
+    $record = Users::get_by_nip($nip);
+    if (!$record || !is_array($record)) {
+      return null;
+    }
+
+    $user = new \stdClass();
+    $user->id = (int)($record['id'] ?? 0);
+    $user->nip = $record['nip'] ?? '';
+    $user->nama = $record['nama'] ?? '';
+    $user->jabatan = $record['jabatan'] ?? '';
+    $user->unit = $record['unit'] ?? '';
+    $user->no_hp = $record['no_hp'] ?? '';
+    $user->password = $record['password'] ?? '';
+    $user->row = $record['row'] ?? 0;
+    return $user;
   }
 
   public static function get_admin_settings(){

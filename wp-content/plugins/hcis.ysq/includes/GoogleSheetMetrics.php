@@ -159,6 +159,34 @@ class GoogleSheetMetrics {
         </div>
       </div>
 
+      <div class="hcis-metric-card">
+        <div class="hcis-metric-label"><?php esc_html_e('Tab Snapshot', 'hcis-ysq'); ?></div>
+        <?php if (!empty($metrics['tabs'])): ?>
+          <table class="widefat fixed" style="margin-top:10px;">
+            <thead>
+              <tr>
+                <th><?php esc_html_e('Tab', 'hcis-ysq'); ?></th>
+                <th><?php esc_html_e('Rows', 'hcis-ysq'); ?></th>
+                <th><?php esc_html_e('Applied', 'hcis-ysq'); ?></th>
+                <th><?php esc_html_e('Last Sync', 'hcis-ysq'); ?></th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($metrics['tabs'] as $slug => $info): ?>
+                <tr>
+                  <td><?php echo esc_html(ucfirst($slug)); ?></td>
+                  <td><?php echo esc_html($info['rows'] ?? 0); ?></td>
+                  <td><?php echo esc_html($info['applied'] ?? 0); ?></td>
+                  <td><?php echo esc_html($info['last_sync'] ?? ''); ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php else: ?>
+          <p><?php esc_html_e('Belum ada data sinkronisasi tab yang terekam.', 'hcis-ysq'); ?></p>
+        <?php endif; ?>
+      </div>
+
       <?php endif; ?>
 
       <p style="margin-top: 15px; font-size: 12px; color: #666;">
@@ -193,6 +221,7 @@ class GoogleSheetMetrics {
       'cache_misses' => $cache_metrics['misses'] ?? 0,
       'sync_success' => get_option('hcis_gs_sync_success', 0),
       'sync_failed' => get_option('hcis_gs_sync_failed', 0),
+      'tabs' => GoogleSheetSettings::get_tab_metrics(),
     ];
   }
 

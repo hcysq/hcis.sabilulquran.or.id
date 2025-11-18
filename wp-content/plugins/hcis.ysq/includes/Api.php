@@ -238,40 +238,22 @@ class Api {
     self::check_nonce();
     self::require_admin();
 
-    global $wpdb;
-    $table = $wpdb->prefix . 'hcisysq_profiles';
-    $results = $wpdb->get_results("SELECT * FROM $table ORDER BY nama ASC");
-    if (!is_array($results)) {
-      $results = [];
+    if (!GoogleSheetSettings::is_configured()) {
+      wp_send_json_error(['message' => __('Google Sheet belum dikonfigurasi.', 'hcisysq')], 400);
     }
 
-    $to_string = static function($value){
-      if ($value === null) {
-        return '';
-      }
-      return trim((string) $value);
-    };
+    $api = new GoogleSheetsAPI();
+    if (!$api->authenticate(GoogleSheetSettings::get_credentials())) {
+      wp_send_json_error(['message' => __('Autentikasi Google Sheet gagal.', 'hcisysq')], 500);
+    }
 
-    $profiles = array_map(static function($row) use ($to_string){
-      return [
-        'id'            => isset($row->id) ? (int) $row->id : 0,
-        'nip'           => $to_string($row->nip ?? ''),
-        'nama'          => $to_string($row->nama ?? ''),
-        'unit'          => $to_string($row->unit ?? ''),
-        'jabatan'       => $to_string($row->jabatan ?? ''),
-        'tempat_lahir'  => $to_string($row->tempat_lahir ?? ''),
-        'tanggal_lahir' => $to_string($row->tanggal_lahir ?? ''),
-        'alamat_ktp'    => $to_string($row->alamat_ktp ?? ''),
-        'desa'          => $to_string($row->desa ?? ''),
-        'kecamatan'     => $to_string($row->kecamatan ?? ''),
-        'kota'          => $to_string($row->kota ?? ''),
-        'kode_pos'      => $to_string($row->kode_pos ?? ''),
-        'email'         => $to_string($row->email ?? ''),
-        'hp'            => $to_string($row->hp ?? ''),
-        'tmt'           => $to_string($row->tmt ?? ''),
-        'updated_at'    => $to_string($row->updated_at ?? ''),
-      ];
-    }, $results);
+    $class = GoogleSheetSettings::repository_class_for('profiles');
+    if (!$class || !class_exists($class)) {
+      wp_send_json_error(['message' => __('Repository profil tidak tersedia.', 'hcisysq')], 500);
+    }
+
+    $repo = new $class($api, new SheetCache());
+    $profiles = $repo->all();
 
     wp_send_json_success([
       'profiles' => $profiles,
@@ -288,9 +270,10 @@ class Api {
       wp_send_json_error(['message' => __('NIP wajib diisi.', 'hcisysq')], 400);
     }
 
-    global $wpdb;
-    $table = $wpdb->prefix . 'hcisysq_profiles';
-    $existing = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE nip = %s", $nip));
+    $existing = Profiles::find($nip);
+    if (is_wp_error($existing)) {
+      wp_send_json_error(['message' => $existing->get_error_message()], 500);
+    }
     if (!$existing) {
       wp_send_json_error(['message' => __('Data profil tidak ditemukan.', 'hcisysq')], 404);
     }
@@ -331,61 +314,14 @@ class Api {
       wp_send_json_error(['message' => __('Tidak ada perubahan data yang dikirim.', 'hcisysq')], 400);
     }
 
-    $updated = $wpdb->update(
-      $table,
-      $data,
-      ['nip' => $nip],
-      array_fill(0, count($data), '%s'),
-      ['%s']
-    );
-
-    if ($updated === false) {
-      wp_send_json_error(['message' => __('Gagal memperbarui data pegawai.', 'hcisysq')], 500);
+    $updated = Profiles::update_profile($nip, $data);
+    if (is_wp_error($updated)) {
+      wp_send_json_error(['message' => $updated->get_error_message()], 500);
     }
-
-    $profile = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE nip = %s", $nip));
-    $to_string = static function($value){
-      if ($value === null) {
-        return '';
-      }
-      return trim((string) $value);
-    };
-
-    if (!$profile) {
-      $normalizedFallback = ['nip' => $nip];
-      foreach ($allowedFields as $field) {
-        if (isset($data[$field])) {
-          $normalizedFallback[$field] = $to_string($data[$field]);
-        }
-      }
-      wp_send_json_success([
-        'message' => __('Profil pegawai berhasil diperbarui.', 'hcisysq'),
-        'profile' => $normalizedFallback,
-      ]);
-    }
-
-    $normalized = [
-      'id'            => isset($profile->id) ? (int) $profile->id : 0,
-      'nip'           => $to_string($profile->nip ?? $nip),
-      'nama'          => $to_string($profile->nama ?? ''),
-      'unit'          => $to_string($profile->unit ?? ''),
-      'jabatan'       => $to_string($profile->jabatan ?? ''),
-      'tempat_lahir'  => $to_string($profile->tempat_lahir ?? ''),
-      'tanggal_lahir' => $to_string($profile->tanggal_lahir ?? ''),
-      'alamat_ktp'    => $to_string($profile->alamat_ktp ?? ''),
-      'desa'          => $to_string($profile->desa ?? ''),
-      'kecamatan'     => $to_string($profile->kecamatan ?? ''),
-      'kota'          => $to_string($profile->kota ?? ''),
-      'kode_pos'      => $to_string($profile->kode_pos ?? ''),
-      'email'         => $to_string($profile->email ?? ''),
-      'hp'            => $to_string($profile->hp ?? ''),
-      'tmt'           => $to_string($profile->tmt ?? ''),
-      'updated_at'    => $to_string($profile->updated_at ?? ''),
-    ];
 
     wp_send_json_success([
       'message' => __('Profil pegawai berhasil diperbarui.', 'hcisysq'),
-      'profile' => $normalized,
+      'profile' => $updated,
     ]);
   }
 
@@ -750,6 +686,8 @@ class Api {
     if ($sheet_result && empty($sheet_result['ok'])) {
       wp_send_json(['ok'=>false,'msg'=>$sheet_result['msg'] ?? 'Gagal mengirim data ke Google Sheet.']);
     }
+
+    do_action('hcisysq/training/submitted', $sheet_data, $me);
 
     wp_send_json(['ok'=>true]);
   }

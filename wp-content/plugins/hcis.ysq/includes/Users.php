@@ -7,38 +7,81 @@ class Users {
 
   const OPT_USERS_SHEET_ID = 'hcisysq_users_sheet_id';
   const OPT_USERS_TAB_NAME = 'hcisysq_users_tab_name';
+  const CACHE_KEY = 'hcisysq_users_sheet_rows_v1';
 
   /** Simpan / Ambil config Google Sheet untuk users */
   public static function set_sheet_config($sheet_id, $tab_name = 'User'){
     update_option(self::OPT_USERS_SHEET_ID, sanitize_text_field($sheet_id), false);
     update_option(self::OPT_USERS_TAB_NAME, sanitize_text_field($tab_name), false);
+    SheetCache::forget(self::CACHE_KEY);
   }
 
   public static function get_sheet_id(){
-    return get_option(self::OPT_USERS_SHEET_ID, '');
+    $specific = get_option(self::OPT_USERS_SHEET_ID, '');
+    if ($specific !== '') {
+      return $specific;
+    }
+    return get_option('hcis_google_sheet_id', '');
   }
 
   public static function get_tab_name(){
-    return get_option(self::OPT_USERS_TAB_NAME, 'User');
+    $tab = get_option(self::OPT_USERS_TAB_NAME, 'User');
+    return $tab !== '' ? $tab : 'User';
   }
 
-  /** Build URL CSV dari Sheet ID + Tab Name */
-  public static function get_csv_url(){
-    return self::build_csv_url(self::get_sheet_id(), self::get_tab_name());
+  /** Ambil seluruh data user dari Google Sheet */
+  public static function get_all(){
+    $sheet = self::get_sheet_snapshot();
+    if (is_wp_error($sheet)) {
+      hcisysq_log('Users::get_all - ' . $sheet->get_error_message(), 'ERROR');
+      return [];
+    }
+
+    [$headers, $rows] = $sheet;
+    $map = self::header_map($headers);
+    $users = [];
+
+    foreach ($rows as $index => $row) {
+      $nip = self::col($row, $map, 'nip');
+      $nama = self::col($row, $map, 'nama');
+      if ($nip === '' || $nama === '') {
+        continue;
+      }
+
+      $users[] = [
+        'id'        => $index + 1,
+        'row'       => $index + 2, // +1 header, +1 for 1-indexed sheet row
+        'nip'       => $nip,
+        'nama'      => $nama,
+        'jabatan'   => self::col($row, $map, 'jabatan'),
+        'unit'      => self::col($row, $map, 'unit'),
+        'no_hp'     => Auth::norm_phone(self::col($row, $map, 'no hp')),
+        'password'  => self::col($row, $map, 'password'),
+        'raw_row'   => $row,
+      ];
+    }
+
+    return $users;
   }
 
-  /**
-   * Build URL CSV menggunakan endpoint gviz sehingga bisa pakai nama tab langsung.
-   * https://docs.google.com/spreadsheets/d/<SID>/gviz/tq?tqx=out:csv&sheet=<TAB>
-   */
-  public static function build_csv_url($sheet_id, $tab_name = 'User'){
-    $sheet_id = trim((string)$sheet_id);
-    if (!$sheet_id) return '';
+  public static function get_by_nip($nip){
+    $nip = trim((string)$nip);
+    if ($nip === '') {
+      return null;
+    }
 
-    $tab_name = $tab_name !== '' ? $tab_name : 'User';
-    $encoded_tab = rawurlencode($tab_name);
+    $users = self::get_all();
+    foreach ($users as $user) {
+      if ($user['nip'] === $nip) {
+        return $user;
+      }
+    }
 
-    return "https://docs.google.com/spreadsheets/d/{$sheet_id}/gviz/tq?tqx=out:csv&sheet={$encoded_tab}";
+    return null;
+  }
+
+  public static function flush_cache(){
+    SheetCache::forget(self::CACHE_KEY);
   }
 
   /** Map header → index (case-insensitive) */
@@ -46,6 +89,7 @@ class Users {
     $map = [];
     foreach ($headers as $i => $h) {
       $key = strtolower(trim($h));
+      if ($key === '') continue;
       $map[$key] = $i;
     }
     return $map;
@@ -58,86 +102,80 @@ class Users {
     return isset($row[$idx]) ? trim((string)$row[$idx]) : '';
   }
 
-  /** Import dari URL CSV (users) */
-  public static function import_from_csv($url){
-    if (!$url) return ['ok'=>false,'msg'=>'CSV URL kosong'];
-
-    // Ambil konten
-    $resp = wp_remote_get($url, ['timeout'=>30]);
-    if (is_wp_error($resp)) {
-      return ['ok'=>false,'msg'=>$resp->get_error_message()];
-    }
-    $code = wp_remote_retrieve_response_code($resp);
-    if ($code < 200 || $code >= 300) {
-      return ['ok'=>false,'msg'=>'HTTP '.$code];
-    }
-    $body = wp_remote_retrieve_body($resp);
-    if (!$body) return ['ok'=>false,'msg'=>'Body kosong'];
-
-    if (stripos($body, 'Cannot find range or sheet') !== false) {
-      return ['ok'=>false,'msg'=>'Tab Google Sheet tidak ditemukan. Periksa nama tab.'];
-    }
-    if (preg_match('/<html/i', $body)) {
-      return ['ok'=>false,'msg'=>'Respon bukan CSV. Pastikan sheet dapat diakses publik.'];
+  private static function get_sheet_snapshot(){
+    $cached = SheetCache::get(self::CACHE_KEY);
+    if ($cached !== null) {
+      return $cached;
     }
 
-    // Parse CSV
-    $fh = fopen('php://temp','rw');
-    fwrite($fh, $body);
-    rewind($fh);
-
-    $headers = fgetcsv($fh);
-    if (!$headers) return ['ok'=>false,'msg'=>'Header CSV tidak terbaca'];
-    $map = self::header_map($headers);
-
-    // Label kolom: NIP, NAMA, JABATAN, UNIT, NO HP, PASSWORD (opsional)
-    $required = ['nip','nama'];
-    foreach ($required as $r) {
-      if (!array_key_exists(strtolower($r), $map)) {
-        return ['ok'=>false,'msg'=>"Kolom wajib '$r' tidak ditemukan di CSV"];
-      }
+    $result = self::request_sheet_values();
+    if (is_wp_error($result)) {
+      return $result;
     }
 
-    global $wpdb;
-    $t = $wpdb->prefix.'hcisysq_users';
-    $inserted = 0; $updated = 0;
+    SheetCache::put(self::CACHE_KEY, $result, SheetCache::CACHE_TTL);
+    return $result;
+  }
 
-    while (($row = fgetcsv($fh)) !== false) {
-      $nip   = self::col($row,$map,'nip');
-      $nama  = self::col($row,$map,'nama');
-      if (!$nip || !$nama) continue;
+  private static function request_sheet_values(){
+    $sheet_id = self::get_sheet_id();
+    $tab_name = self::get_tab_name();
+    $creds_json = get_option('hcis_google_json_creds', '');
 
-      $no_hp_raw = self::col($row,$map,'no hp');
-      $no_hp = Auth::norm_phone($no_hp_raw);
-
-      $password_raw = self::col($row,$map,'password');
-      if ($password_raw === '') {
-        $password_raw = $no_hp;
-      }
-
-      // Jika password ada dan tidak terlihat hash, hash dulu
-      $password_stored = '';
-      if ($password_raw !== '') {
-        $looksHashed = (strpos($password_raw, '$2y$') === 0 || strpos($password_raw, '$argon2') === 0);
-        $password_stored = $looksHashed ? $password_raw : password_hash($password_raw, PASSWORD_BCRYPT);
-      }
-
-      $data = [
-        'nip'        => $nip,
-        'nama'       => $nama,
-        'jabatan'    => self::col($row,$map,'jabatan'),
-        'unit'       => self::col($row,$map,'unit'),
-        'no_hp'      => $no_hp,
-        'password'   => $password_stored,
-        'updated_at' => current_time('mysql')
-      ];
-
-      $res = $wpdb->replace($t, $data, ['%s','%s','%s','%s','%s','%s','%s']);
-      if ($res === 1) $inserted++;
-      elseif ($res === 2) $updated++;
+    if ($sheet_id === '' || $creds_json === '') {
+      $message = __('Konfigurasi Google Sheet belum lengkap untuk Users.', 'hcis-ysq');
+      self::record_error($message);
+      return new \WP_Error('hcis_gs_missing_config', $message);
     }
-    fclose($fh);
 
-    return ['ok'=>true,'inserted'=>$inserted,'updated'=>$updated];
+    $credentials = json_decode($creds_json, true);
+    if (!is_array($credentials)) {
+      $message = __('Format kredensial Google Sheet tidak valid.', 'hcis-ysq');
+      self::record_error($message);
+      return new \WP_Error('hcis_gs_invalid_credentials', $message);
+    }
+
+    $api = new GoogleSheetsAPI();
+    if (!$api->authenticate($credentials)) {
+      $message = __('Gagal mengautentikasi Google Sheets API untuk Users.', 'hcis-ysq');
+      self::record_error($message);
+      return new \WP_Error('hcis_gs_auth_failed', $message);
+    }
+
+    $api->setSpreadsheetId($sheet_id);
+    $range = sprintf('%s!A:F', $tab_name);
+    $values = $api->getRows($range);
+
+    if (empty($values) || !is_array($values)) {
+      $message = __('Sheet Users tidak memiliki data.', 'hcis-ysq');
+      self::record_error($message);
+      return new \WP_Error('hcis_gs_empty_users', $message);
+    }
+
+    $headers = array_shift($values);
+    if (empty($headers)) {
+      $message = __('Header Sheet Users tidak ditemukan.', 'hcis-ysq');
+      self::record_error($message);
+      return new \WP_Error('hcis_gs_missing_headers', $message);
+    }
+
+    self::record_success();
+    return [$headers, $values];
+  }
+
+  private static function record_error($message){
+    update_option('hcis_gs_last_error', $message, false);
+    hcisysq_log('Users::sheet_error - ' . $message, 'ERROR');
+    if (class_exists('HCISYSQ\\GoogleSheetMetrics')) {
+      GoogleSheetMetrics::recordFailure();
+    }
+  }
+
+  private static function record_success(){
+    update_option('hcis_gs_last_error', '', false);
+    update_option('hcis_gs_last_sync', current_time('mysql'), false);
+    if (class_exists('HCISYSQ\\GoogleSheetMetrics')) {
+      GoogleSheetMetrics::recordSuccess();
+    }
   }
 }

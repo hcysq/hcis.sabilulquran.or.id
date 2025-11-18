@@ -3,225 +3,187 @@ namespace HCISYSQ;
 
 if (!defined('ABSPATH')) exit;
 
+use WP_REST_Request;
+use WP_REST_Response;
+use WP_Error;
+
 class GoogleSheetSettings {
-  const OPT_JSON_CREDS = 'hcis_portal_credentials_json';
-  const OPT_SHEET_ID   = 'hcis_portal_sheet_id';
-  const OPT_GID_MAP    = 'hcis_portal_gids';
-  const OPT_STATUS     = 'hcis_portal_config_status';
 
-  const DEFAULT_SHEET_ID = '110MjkBJbBzFayIUZcA3ZhKuno8y5OcWEnn04TDVHW-Y';
+  const OPT_JSON_CREDS = 'hcis_google_json_creds';
+  const OPT_SHEET_ID = 'hcis_google_sheet_id';
+  const OPT_TAB_METRICS = 'hcis_gs_tab_metrics';
+  const TAB_HASH_PREFIX = 'hcis_gs_tab_hash_';
 
-  const REQUIRED_CREDENTIAL_KEYS = [
-    'type',
-    'project_id',
-    'private_key',
-    'client_email',
-  ];
-
-  private static $tab_labels = [
-    'users'      => 'Users',
-    'profiles'   => 'Profiles',
-    'payroll'    => 'Payroll',
-    'keluarga'   => 'Keluarga',
-    'dokumen'    => 'Dokumen',
-    'pendidikan' => 'Pendidikan',
-    'pelatihan'  => 'Pelatihan',
+  private const TAB_MAP = [
+    'users' => [
+      'title' => 'Users',
+      'gid_option' => 'hcis_gid_users',
+      'range_end' => 'E',
+    ],
+    'profiles' => [
+      'title' => 'Profiles',
+      'gid_option' => 'hcis_gid_profiles',
+      'range_end' => 'N',
+    ],
+    'payroll' => [
+      'title' => 'Payroll',
+      'gid_option' => 'hcis_gid_payroll',
+      'range_end' => 'G',
+    ],
+    'keluarga' => [
+      'title' => 'Keluarga',
+      'gid_option' => 'hcis_gid_keluarga',
+      'range_end' => 'F',
+    ],
+    'dokumen' => [
+      'title' => 'Dokumen',
+      'gid_option' => 'hcis_gid_dokumen',
+      'range_end' => 'G',
+    ],
+    'pendidikan' => [
+      'title' => 'Pendidikan',
+      'gid_option' => 'hcis_gid_pendidikan',
+      'range_end' => 'G',
+    ],
+    'pelatihan' => [
+      'title' => 'Pelatihan',
+      'gid_option' => 'hcis_gid_pelatihan',
+      'range_end' => 'G',
+    ],
   ];
 
   public static function init() {
-    add_action('admin_init', [__CLASS__, 'maybe_initialize_options']);
-    add_action('admin_init', [__CLASS__, 'register_settings']);
-    self::maybe_initialize_options();
+    add_action('rest_api_init', [__CLASS__, 'register_rest_routes']);
   }
 
-  public static function register_settings() {
-    register_setting('hcis_portal_settings', self::OPT_JSON_CREDS, [
-      'type' => 'string',
-      'sanitize_callback' => [__CLASS__, 'sanitize_credentials_field'],
-    ]);
-
-    register_setting('hcis_portal_settings', self::OPT_SHEET_ID, [
-      'type' => 'string',
-      'sanitize_callback' => 'sanitize_text_field',
-    ]);
-
-    register_setting('hcis_portal_settings', self::OPT_GID_MAP, [
-      'type' => 'array',
-      'sanitize_callback' => [__CLASS__, 'sanitize_gid_option'],
-    ]);
+  public static function is_configured(): bool {
+    $sheet = self::get_sheet_id();
+    $creds = self::get_credentials();
+    return !empty($sheet) && !empty($creds);
   }
 
-  public static function maybe_initialize_options() {
-    $defaults = [
-      self::OPT_JSON_CREDS => '',
-      self::OPT_SHEET_ID   => self::DEFAULT_SHEET_ID,
-      self::OPT_GID_MAP    => [],
-      self::OPT_STATUS     => [
-        'valid'       => false,
-        'message'     => __('Google Sheets belum dikonfigurasi.', 'hcis-ysq'),
-        'last_checked'=> 0,
-      ],
-    ];
-
-    foreach ($defaults as $option => $default) {
-      if (get_option($option, null) === null) {
-        add_option($option, $default);
-      }
-    }
+  public static function get_sheet_id(): string {
+    return trim((string) get_option(self::OPT_SHEET_ID, ''));
   }
 
-  public static function get_tab_labels() {
-    $labels = [];
-    foreach (self::$tab_labels as $key => $label) {
-      $labels[$key] = __($label, 'hcis-ysq');
-    }
-    return $labels;
-  }
-
-  public static function save_settings($credentials_json, $sheet_id, array $gids) {
-    update_option(self::OPT_JSON_CREDS, $credentials_json);
-    update_option(self::OPT_SHEET_ID, $sheet_id ?: '');
-    update_option(self::OPT_GID_MAP, self::sanitize_gid_map_values($gids));
-
-    $status = self::validate_credentials($credentials_json);
-    self::store_status($status);
-
-    return $status;
-  }
-
-  public static function get_credentials_json() {
-    return trim((string) get_option(self::OPT_JSON_CREDS, ''));
-  }
-
-  public static function get_credentials() {
-    $json = self::get_credentials_json();
-    if ($json === '') {
-      return [];
+  public static function get_credentials(): array {
+    $raw = get_option(self::OPT_JSON_CREDS, '');
+    if (is_array($raw)) {
+      return $raw;
     }
 
-    $decoded = json_decode($json, true);
+    $decoded = json_decode((string) $raw, true);
     return is_array($decoded) ? $decoded : [];
   }
 
-  public static function get_sheet_id() {
-    $sheet_id = get_option(self::OPT_SHEET_ID, '');
-    if (!$sheet_id) {
-      $sheet_id = self::DEFAULT_SHEET_ID;
+  public static function get_gid(string $tab): string {
+    $config = self::TAB_MAP[$tab] ?? null;
+    if (!$config) {
+      return '';
     }
-    return $sheet_id;
+    $option = $config['gid_option'];
+    return trim((string) get_option($option, ''));
   }
 
-  public static function get_gid_map() {
-    $map = get_option(self::OPT_GID_MAP, []);
-    if (!is_array($map)) {
-      $map = [];
+  public static function get_tab_name(string $tab): string {
+    $config = self::TAB_MAP[$tab] ?? null;
+    if (!$config) {
+      return ucfirst($tab);
     }
-
-    $defaults = array_fill_keys(array_keys(self::$tab_labels), '');
-    return array_merge($defaults, array_intersect_key($map, $defaults));
+    return $config['title'];
   }
 
-  public static function get_gid($tab) {
-    $map = self::get_gid_map();
-    return isset($map[$tab]) ? (string) $map[$tab] : '';
+  public static function get_tab_range(string $tab): string {
+    $name = self::get_tab_name($tab);
+    $config = self::TAB_MAP[$tab] ?? null;
+    $end = $config ? ($config['range_end'] ?? 'Z') : 'Z';
+    return sprintf('%s!A:%s', $name, $end);
   }
 
-  public static function get_status() {
-    $status = get_option(self::OPT_STATUS, []);
-    if (!is_array($status)) {
-      $status = [];
+  public static function get_tabs(): array {
+    return self::TAB_MAP;
+  }
+
+  public static function get_tab_hash(string $tab): string {
+    return (string) get_option(self::TAB_HASH_PREFIX . $tab, '');
+  }
+
+  public static function set_tab_hash(string $tab, string $hash): void {
+    update_option(self::TAB_HASH_PREFIX . $tab, $hash, false);
+  }
+
+  public static function record_tab_metrics(string $tab, array $data): void {
+    $metrics = get_option(self::OPT_TAB_METRICS, []);
+    if (!is_array($metrics)) {
+      $metrics = [];
+    }
+    $metrics[$tab] = array_merge([
+      'last_sync' => current_time('mysql'),
+      'rows' => 0,
+      'applied' => 0,
+      'hash' => '',
+    ], $data);
+    update_option(self::OPT_TAB_METRICS, $metrics, false);
+  }
+
+  public static function get_tab_metrics(): array {
+    $metrics = get_option(self::OPT_TAB_METRICS, []);
+    return is_array($metrics) ? $metrics : [];
+  }
+
+  public static function register_rest_routes() {
+    register_rest_route('hcis/v1', '/sheets/(?P<tab>[a-z_\-]+)/?', [
+      'methods' => 'GET',
+      'callback' => [__CLASS__, 'rest_get_tab_data'],
+      'permission_callback' => function () {
+        return current_user_can('manage_hcis_portal') || current_user_can('manage_options');
+      },
+      'args' => [
+        'tab' => [
+          'validate_callback' => function ($param) {
+            return isset(self::TAB_MAP[$param]);
+          }
+        ],
+      ],
+    ]);
+  }
+
+  public static function rest_get_tab_data(WP_REST_Request $request) {
+    $tab = $request->get_param('tab');
+    if (!self::is_configured()) {
+      return new WP_Error('hcisysq_sheet_unconfigured', __('Google Sheet belum dikonfigurasi.', 'hcis-ysq'), ['status' => 400]);
     }
 
-    $defaults = [
-      'valid'        => false,
-      'message'      => __('Google Sheets belum dikonfigurasi.', 'hcis-ysq'),
-      'last_checked' => 0,
+    $class = self::repository_class_for($tab);
+    if (!$class || !class_exists($class)) {
+      return new WP_Error('hcisysq_repo_missing', __('Repository tidak ditemukan untuk tab ini.', 'hcis-ysq'), ['status' => 404]);
+    }
+
+    $api = new GoogleSheetsAPI();
+    if (!$api->authenticate(self::get_credentials())) {
+      return new WP_Error('hcisysq_sheet_auth', __('Autentikasi Google Sheet gagal.', 'hcis-ysq'), ['status' => 500]);
+    }
+
+    $repo = new $class($api, new SheetCache());
+    $data = $repo->all();
+
+    return new WP_REST_Response([
+      'tab' => $tab,
+      'count' => count($data),
+      'rows' => $data,
+    ]);
+  }
+
+  public static function repository_class_for(string $tab): ?string {
+    $map = [
+      'users' => '\\HCISYSQ\\Repositories\\UserRepository',
+      'profiles' => '\\HCISYSQ\\Repositories\\ProfileRepository',
+      'payroll' => '\\HCISYSQ\\Repositories\\PayrollRepository',
+      'keluarga' => '\\HCISYSQ\\Repositories\\KeluargaRepository',
+      'dokumen' => '\\HCISYSQ\\Repositories\\DokumenRepository',
+      'pendidikan' => '\\HCISYSQ\\Repositories\\PendidikanRepository',
+      'pelatihan' => '\\HCISYSQ\\Repositories\\PelatihanRepository',
     ];
-
-    return array_merge($defaults, $status);
-  }
-
-  public static function is_configured() {
-    $status = self::get_status();
-    return !empty(self::get_sheet_id()) && !empty(self::get_credentials_json()) && !empty($status['valid']);
-  }
-
-  public static function sanitize_credentials_field($value) {
-    if (is_array($value)) {
-      $value = wp_json_encode($value);
-    }
-
-    return trim((string) $value);
-  }
-
-  public static function sanitize_gid_option($value) {
-    return self::sanitize_gid_map_values(is_array($value) ? $value : []);
-  }
-
-  private static function sanitize_gid_map_values(array $gids) {
-    $allowed = array_fill_keys(array_keys(self::$tab_labels), '');
-    $sanitized = [];
-
-    foreach ($allowed as $key => $default) {
-      $sanitized[$key] = sanitize_text_field($gids[$key] ?? '');
-    }
-
-    return $sanitized;
-  }
-
-  private static function validate_credentials($credentials_json) {
-    $credentials_json = trim($credentials_json);
-    if ($credentials_json === '') {
-      return [
-        'valid'   => false,
-        'message' => __('Credential JSON kosong.', 'hcis-ysq'),
-      ];
-    }
-
-    $decoded = json_decode($credentials_json, true);
-    if (!is_array($decoded)) {
-      $error_message = json_last_error_msg();
-      return [
-        'valid'   => false,
-        'message' => sprintf(__('Credential JSON tidak valid: %s', 'hcis-ysq'), $error_message),
-      ];
-    }
-
-    foreach (self::REQUIRED_CREDENTIAL_KEYS as $key) {
-      if (empty($decoded[$key])) {
-        return [
-          'valid'   => false,
-          'message' => sprintf(__('Credential JSON tidak memiliki field %s.', 'hcis-ysq'), $key),
-        ];
-      }
-    }
-
-    if ($decoded['type'] !== 'service_account') {
-      return [
-        'valid'   => false,
-        'message' => __('Credential harus bertipe service_account.', 'hcis-ysq'),
-      ];
-    }
-
-    return [
-      'valid'   => true,
-      'message' => __('Credential JSON valid.', 'hcis-ysq'),
-    ];
-  }
-
-  private static function store_status(array $status) {
-    $payload = [
-      'valid'        => !empty($status['valid']),
-      'message'      => (string) ($status['message'] ?? ''),
-      'last_checked' => current_time('timestamp'),
-    ];
-
-    update_option(self::OPT_STATUS, $payload);
-
-    if (!$payload['valid']) {
-      hcisysq_log('GoogleSheetSettings validation failed: ' . $payload['message'], 'error');
-    } else {
-      hcisysq_log('GoogleSheetSettings validation success.', 'info');
-    }
+    return $map[$tab] ?? null;
   }
 }
