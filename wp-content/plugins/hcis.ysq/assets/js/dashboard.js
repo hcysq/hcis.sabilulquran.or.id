@@ -65,6 +65,10 @@
 
         isOpen = true;
         $root.addClass('is-sidebar-open');
+        $sidebar.addClass('is-open');
+        if ($overlay.length) {
+          $overlay.addClass('is-visible');
+        }
         if (shared.toggleBodyLock) {
           shared.toggleBodyLock(true);
         }
@@ -79,6 +83,10 @@
 
         isOpen = false;
         $root.removeClass('is-sidebar-open');
+        $sidebar.removeClass('is-open');
+        if ($overlay.length) {
+          $overlay.removeClass('is-visible');
+        }
         if (shared.toggleBodyLock) {
           shared.toggleBodyLock(false);
         }
