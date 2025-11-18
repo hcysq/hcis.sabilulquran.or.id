@@ -100,10 +100,27 @@ class View {
                   <input type="hidden" name="token" value="<?= esc_attr($token) ?>">
 
                   <label for="new_password">Password Baru <span class="req">*</span></label>
-                  <input id="new_password" type="password" name="new_password" required>
+                  <input
+                      id="new_password"
+                      type="password"
+                      name="new_password"
+                      required
+                      minlength="8"
+                      pattern="(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}"
+                      title="Minimal 8 karakter dengan huruf, angka, dan simbol"
+                  >
+                  <p class="input-hint">Minimal 8 karakter serta harus mengandung huruf, angka, dan simbol.</p>
 
                   <label for="confirm_password">Konfirmasi Password Baru <span class="req">*</span></label>
-                  <input id="confirm_password" type="password" name="confirm_password" required>
+                  <input
+                      id="confirm_password"
+                      type="password"
+                      name="confirm_password"
+                      required
+                      minlength="8"
+                      pattern="(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}"
+                      title="Minimal 8 karakter dengan huruf, angka, dan simbol"
+                  >
 
                   <?= Security::render_captcha_placeholder('registration'); ?>
                   <button type="submit" name="submit_new_password" class="btn-primary">Simpan Password Baru</button>
