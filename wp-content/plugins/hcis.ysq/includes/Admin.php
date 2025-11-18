@@ -108,6 +108,11 @@ class Admin {
     $default_sheet_id = GoogleSheetSettings::DEFAULT_SHEET_ID;
     $gid_keys = GoogleSheetSettings::get_tab_labels();
 
+    $wa_token_value = get_option('hcisysq_wa_token', '');
+    $admin_wa_value = get_option('hcisysq_admin_wa', '');
+    $wa_token_override = Config::describe_override('wa_token');
+    $admin_wa_override = Config::describe_override('admin_wa');
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       check_admin_referer('hcis_portal_settings');
 
@@ -115,6 +120,8 @@ class Admin {
         ? trim(wp_unslash($_POST['hcis_portal_credentials_json']))
         : '';
       $sheet_id = sanitize_text_field($_POST['hcis_portal_sheet_id'] ?? '');
+      $wa_token_input = sanitize_text_field(wp_unslash($_POST['hcis_portal_wa_token'] ?? ''));
+      $admin_wa_input = sanitize_text_field(wp_unslash($_POST['hcis_portal_admin_wa'] ?? ''));
 
       $gids = [];
       foreach ($gid_keys as $key => $label) {
@@ -128,6 +135,12 @@ class Admin {
       }
 
       $status_data = GoogleSheetSettings::save_settings($credentials_json, $sheet_id, $gids, $column_orders);
+
+      update_option('hcisysq_wa_token', $wa_token_input);
+      update_option('hcisysq_admin_wa', $admin_wa_input);
+
+      $wa_token_value = $wa_token_input;
+      $admin_wa_value = $admin_wa_input;
 
       if (!empty($status_data['valid'])) {
         $notice = '<div class="notice notice-success"><p>' . esc_html__('Settings saved.', 'hcis-ysq') . '</p></div>';
@@ -179,6 +192,26 @@ class Admin {
             <td>
               <input type="text" id="hcis_portal_sheet_id" name="hcis_portal_sheet_id" class="regular-text" style="width: 480px" value="<?php echo esc_attr($sheet_id_value ?: $default_sheet_id); ?>" placeholder="<?php echo esc_attr($default_sheet_id); ?>">
               <p class="description"><?php esc_html_e('ID Google Sheet utama.', 'hcis-ysq'); ?></p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_portal_wa_token"><?php esc_html_e('StarSender API Key', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_portal_wa_token" name="hcis_portal_wa_token" class="regular-text" style="width: 480px" value="<?php echo esc_attr($wa_token_value); ?>" placeholder="STARSENDER_API_KEY">
+              <p class="description"><?php esc_html_e('Digunakan untuk mengirim pesan WhatsApp melalui StarSender.', 'hcis-ysq'); ?></p>
+              <?php if ($wa_token_override): ?>
+                <p class="description"><em><?php echo wp_kses_post($wa_token_override); ?></em></p>
+              <?php endif; ?>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="hcis_portal_admin_wa"><?php esc_html_e('Admin WhatsApp Number', 'hcis-ysq'); ?></label></th>
+            <td>
+              <input type="text" id="hcis_portal_admin_wa" name="hcis_portal_admin_wa" class="regular-text" style="width: 320px" value="<?php echo esc_attr($admin_wa_value); ?>" placeholder="6285175201627">
+              <p class="description"><?php esc_html_e('Nomor admin yang menerima pesan "Lupa Password".', 'hcis-ysq'); ?></p>
+              <?php if ($admin_wa_override): ?>
+                <p class="description"><em><?php echo wp_kses_post($admin_wa_override); ?></em></p>
+              <?php endif; ?>
             </td>
           </tr>
           <?php foreach ($gid_keys as $key => $label): ?>
