@@ -11,6 +11,9 @@ class PasswordReset {
         // Create the custom password reset pages
         add_action('init', [__CLASS__, 'create_pages']);
 
+        // Provide backwards compatibility for the legacy slug
+        add_action('template_redirect', [__CLASS__, 'handle_legacy_reset_redirect'], 0);
+
         // Handle the form submission for requesting a reset
         add_action('template_redirect', [__CLASS__, 'handle_reset_request']);
         
@@ -39,10 +42,15 @@ class PasswordReset {
                 'post_type'     => 'page',
             ]);
         }
-        if (!get_page_by_path('reset-password')) {
+        $resetSlug = trim(defined('HCISYSQ_RESET_SLUG') ? HCISYSQ_RESET_SLUG : 'reset-password', '/');
+        if ($resetSlug === '') {
+            return;
+        }
+
+        if (!get_page_by_path($resetSlug)) {
             wp_insert_post([
-                'post_title'    => 'Reset Password',
-                'post_name'     => 'reset-password',
+                'post_title'    => 'Ganti Password',
+                'post_name'     => $resetSlug,
                 'post_content'  => '[hcis_reset_password_form]',
                 'post_status'   => 'publish',
                 'post_author'   => 1,
@@ -72,7 +80,12 @@ class PasswordReset {
     }
 
     public static function handle_password_reset() {
-        if (is_page('reset-password') && isset($_POST['submit_new_password'])) {
+        $resetSlug = trim(defined('HCISYSQ_RESET_SLUG') ? HCISYSQ_RESET_SLUG : 'reset-password', '/');
+        if ($resetSlug === '') {
+            return;
+        }
+
+        if (is_page($resetSlug) && isset($_POST['submit_new_password'])) {
             if (isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'hcis_reset_password')) {
                 $token = sanitize_text_field($_POST['token']);
                 $new_password = $_POST['new_password'];
@@ -80,7 +93,7 @@ class PasswordReset {
 
                 if ($new_password !== $confirm_password) {
                     set_transient('hcis_reset_message', ['error' => 'Password baru tidak cocok.'], 60);
-                    wp_redirect(site_url('/reset-password/?token=' . $token));
+                    wp_redirect(home_url('/' . $resetSlug . '/?token=' . rawurlencode($token)));
                     exit;
                 }
 
@@ -88,7 +101,7 @@ class PasswordReset {
 
                 if (is_wp_error($result)) {
                     set_transient('hcis_reset_message', ['error' => $result->get_error_message()], 60);
-                    wp_redirect(site_url('/reset-password/?token=' . $token));
+                    wp_redirect(home_url('/' . $resetSlug . '/?token=' . rawurlencode($token)));
                     exit;
                 } else {
                     // Redirect to login page with a success message
@@ -97,5 +110,34 @@ class PasswordReset {
                 }
             }
         }
+    }
+
+    public static function handle_legacy_reset_redirect() {
+        if (defined('HCISYSQ_RESET_SLUG') && HCISYSQ_RESET_SLUG === 'reset-password') {
+            return;
+        }
+
+        $legacySlug = 'reset-password';
+        $requested = '';
+
+        global $wp;
+        if (isset($wp->request)) {
+            $requested = trim($wp->request, '/');
+        } elseif (!empty($_SERVER['REQUEST_URI'])) {
+            $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+            $requested = trim($path ?? '', '/');
+        }
+
+        if (strcasecmp($requested, $legacySlug) !== 0) {
+            return;
+        }
+
+        $targetSlug = trim(defined('HCISYSQ_RESET_SLUG') ? HCISYSQ_RESET_SLUG : $legacySlug, '/');
+        if ($targetSlug === '') {
+            return;
+        }
+
+        wp_safe_redirect(home_url('/' . $targetSlug . '/'), 301);
+        exit;
     }
 }

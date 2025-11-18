@@ -55,7 +55,8 @@ class PasswordResetManager {
         );
 
         // Send the token to the user via WhatsApp
-        $reset_link = site_url('/reset-password/?token=' . $token);
+        $resetSlug = trim(defined('HCISYSQ_RESET_SLUG') ? HCISYSQ_RESET_SLUG : 'reset-password', '/');
+        $reset_link = home_url('/' . $resetSlug . '/?token=' . rawurlencode($token));
         
         $user_message = "Anda telah meminta reset password. Silakan klik link di bawah ini untuk melanjutkan. Link ini hanya berlaku selama 30 menit.\n\n" . $reset_link;
         
