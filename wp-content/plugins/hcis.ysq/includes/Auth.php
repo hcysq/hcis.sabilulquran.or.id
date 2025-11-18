@@ -293,42 +293,20 @@ class Auth {
     $account = trim(strval($account));
     $plain_pass = trim(strval($plain_pass));
 
-    hcisysq_log("Login attempt for account: {$account}");
-
     if ($account === '' || $plain_pass === '') {
       return ['ok' => false, 'msg' => 'Akun & Password wajib diisi'];
     }
 
     $u = self::get_user_by_nip($account);
     if (!$u) {
-      hcisysq_log("Login failed: User not found in sheet for account: {$account}");
       return ['ok'=>false, 'msg'=>'Akun tidak ditemukan'];
     }
-
-    hcisysq_log("User data found: " . json_encode($u));
-    hcisysq_log("Plain pass provided: '{$plain_pass}'");
 
     $passOk = false;
     $needsReset = false;
 
-    $isHashEmpty = empty($u->password);
-    hcisysq_log("Is password hash empty? " . ($isHashEmpty ? 'Yes' : 'No'));
-
-    if ($isHashEmpty) {
-        hcisysq_log("Password hash is empty. Checking against NIK as default password.");
-        if (!empty($u->nik)) {
-            hcisysq_log("Comparing plain pass with NIK: '{$u->nik}'");
-            $nikMatch = hash_equals($u->nik, $plain_pass);
-            hcisysq_log("NIK match result: " . ($nikMatch ? 'Success' : 'Fail'));
-            if ($nikMatch) {
-                $passOk = true;
-                $needsReset = true; // Force reset when using default password
-            }
-        } else {
-            hcisysq_log("NIK is empty for this user. Cannot use default password.");
-        }
-    } else {
-        hcisysq_log("Password hash is not empty. Verifying hash.");
+    // First, try to verify against the stored hash if it exists.
+    if (!empty($u->password)) {
         $hash = strval($u->password);
         $looksHashed = self::looks_like_password_hash($hash);
 
@@ -338,13 +316,19 @@ class Auth {
                 $needsReset = true;
             }
         } elseif (!$looksHashed && hash_equals($hash, $plain_pass)) {
+            // Handle legacy plain-text passwords
             $passOk = true;
             $needsReset = true;
         }
     }
 
+    // If password hash failed or was empty, try checking against NIK as a fallback.
+    if (!$passOk && !empty($u->nik) && hash_equals($u->nik, $plain_pass)) {
+        $passOk = true;
+        $needsReset = true; // Always force reset when logging in with NIK
+    }
+
     if (!$passOk) {
-      hcisysq_log("Login failed: Password validation failed for account: {$account}");
       return ['ok'=>false, 'msg'=>'Password salah.'];
     }
 
@@ -359,7 +343,6 @@ class Auth {
 
     self::store_session($payload);
 
-    hcisysq_log("Login success for account: {$account}");
     return [
       'ok'   => true,
       'user' => [

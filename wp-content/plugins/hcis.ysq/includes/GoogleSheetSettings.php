@@ -16,6 +16,7 @@ class GoogleSheetSettings {
   const OPT_TAB_METRICS = 'hcis_gs_tab_metrics';
   const OPT_STATUS = 'hcis_gs_settings_status';
   const TAB_HASH_PREFIX = 'hcis_gs_tab_hash_';
+  const OPT_TAB_COLUMN_ORDER_PREFIX = 'hcis_gs_tab_col_order_';
 
   private const TAB_MAP = [
     'users' => [
@@ -139,6 +140,15 @@ class GoogleSheetSettings {
     update_option(self::TAB_HASH_PREFIX . $tab, $hash, false);
   }
 
+  public static function get_tab_column_order(string $tab): array {
+    $option_name = self::OPT_TAB_COLUMN_ORDER_PREFIX . $tab;
+    $order_string = get_option($option_name, '');
+    if (empty($order_string)) {
+      return [];
+    }
+    return array_map('trim', explode(',', $order_string));
+  }
+
   public static function record_tab_metrics(string $tab, array $data): void {
     $metrics = get_option(self::OPT_TAB_METRICS, []);
     if (!is_array($metrics)) {
@@ -171,7 +181,7 @@ class GoogleSheetSettings {
     ], $status);
   }
 
-  public static function save_settings(string $credentials_json, string $sheet_id, array $gids): array {
+  public static function save_settings(string $credentials_json, string $sheet_id, array $gids, array $column_orders): array {
     $status = [
       'valid' => true,
       'message' => __('Kredensial valid.', 'hcis-ysq'),
@@ -209,6 +219,10 @@ class GoogleSheetSettings {
         $status['message'] = sprintf(__('GID %s tidak valid.', 'hcis-ysq'), $config['title']);
       }
       update_option($config['gid_option'], $gid_value, false);
+
+      // Save column order for each tab
+      $column_order_value = isset($column_orders[$slug]) ? trim((string) $column_orders[$slug]) : '';
+      update_option(self::OPT_TAB_COLUMN_ORDER_PREFIX . $slug, $column_order_value, false);
     }
 
     update_option(self::OPT_STATUS, $status, false);

@@ -48,6 +48,14 @@
             // Display the specific error message from the server
             const errorMessage = res.msg || 'Terjadi kesalahan. Silakan coba lagi.';
             $msg.text(errorMessage).removeClass('success').addClass('error').show();
+
+            // Log debug info if available
+            if (res.debug && Array.isArray(res.debug)) {
+              console.warn('HCISYSQ Login Debug Info:');
+              res.debug.forEach(function(log) {
+                console.log(log);
+              });
+            }
           }
         })
         .fail(function() {

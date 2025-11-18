@@ -121,7 +121,13 @@ class Admin {
         $gids[$key] = sanitize_text_field($_POST["hcis_portal_gid_{$key}"] ?? '');
       }
 
-      $status_data = GoogleSheetSettings::save_settings($credentials_json, $sheet_id, $gids);
+      // Retrieve column orders from POST
+      $column_orders = [];
+      foreach ($gid_keys as $key => $label) {
+        $column_orders[$key] = sanitize_text_field($_POST["hcis_portal_column_order_{$key}"] ?? '');
+      }
+
+      $status_data = GoogleSheetSettings::save_settings($credentials_json, $sheet_id, $gids, $column_orders);
 
       if (!empty($status_data['valid'])) {
         $notice = '<div class="notice notice-success"><p>' . esc_html__('Settings saved.', 'hcis-ysq') . '</p></div>';
@@ -184,8 +190,28 @@ class Admin {
               </td>
             </tr>
           <?php endforeach; ?>
+
+          <?php // New section for Column Order ?>
+          <?php
+            $column_orders_value = [];
+            foreach ($gid_keys as $key => $label) {
+                $column_orders_value[$key] = GoogleSheetSettings::get_tab_column_order($key);
+                // Convert array back to comma-separated string for display in textarea
+                $column_orders_value[$key] = implode(', ', $column_orders_value[$key]);
+            }
+          ?>
+          <?php foreach ($gid_keys as $key => $label): ?>
+            <tr>
+              <th scope="row"><label for="hcis_portal_column_order_<?php echo esc_attr($key); ?>"><?php echo esc_html(sprintf(__('Column Order for %s', 'hcis-ysq'), $label)); ?></label></th>
+              <td>
+                <textarea id="hcis_portal_column_order_<?php echo esc_attr($key); ?>" name="hcis_portal_column_order_<?php echo esc_attr($key); ?>" class="large-text code" rows="3" placeholder="NIP, Nama, Password Hash, No HP, Email, NIK"><?php echo esc_textarea($column_orders_value[$key] ?? ''); ?></textarea>
+                <p class="description"><?php esc_html_e('Masukkan urutan header kolom yang dipisahkan koma untuk tab ini (misalnya: NIP, Nama, Password Hash).', 'hcis-ysq'); ?></p>
+              </td>
+            </tr>
+          <?php endforeach; ?>
         </table>
         <p class="submit">
+          <input type="text" id="hcis-test-nip" name="hcis_test_nip" class="regular-text" placeholder="<?php esc_attr_e('NIP to Test (optional)', 'hcis-ysq'); ?>" style="width: 200px; margin-right: 10px;">
           <button type="submit" class="button button-primary"><?php esc_html_e('Simpan', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-test-connection" class="button"><?php esc_html_e('Test Connection', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-clear-cache" class="button"><?php esc_html_e('Clear Cache', 'hcis-ysq'); ?></button>
@@ -203,11 +229,25 @@ class Admin {
         wp_send_json_error(['message' => 'Unauthorized'], 403);
     }
 
+    $nip = sanitize_text_field($_POST['nip'] ?? '');
+    $response_data = [];
+
     try {
         // Use the modern, standardized service
         $service = new GoogleSheetsService();
         $title = $service->test_connection();
-        wp_send_json_success(['message' => 'Successfully connected to spreadsheet: ' . $title]);
+        $response_data['connection_status'] = 'Successfully connected to spreadsheet: ' . $title;
+
+        if (!empty($nip)) {
+            $repo = new \HCISYSQ\Repositories\UserRepository();
+            $user_data = $repo->find($nip);
+            if ($user_data) {
+                $response_data['user_data_for_nip'] = $user_data;
+            } else {
+                $response_data['user_data_for_nip'] = 'No user found for NIP: ' . $nip;
+            }
+        }
+        wp_send_json_success($response_data);
     } catch (\Exception $e) {
         wp_send_json_error(['message' => $e->getMessage()], 500);
     }

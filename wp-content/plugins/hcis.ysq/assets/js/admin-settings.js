@@ -3,7 +3,7 @@ jQuery(document).ready(function($) {
 
     function showNotice(message, isError = false) {
         noticeContainer
-            .text(message)
+            .html(message) // Use .html to allow for formatted messages
             .removeClass('notice-success notice-error')
             .addClass(isError ? 'notice-error' : 'notice-success')
             .show();
@@ -14,12 +14,19 @@ jQuery(document).ready(function($) {
         button.prop('disabled', true);
         noticeContainer.hide();
 
+        const nipToTest = $('#hcis-test-nip').val(); // Get NIP value
+
         $.post(hcis_admin.ajax_url, {
             action: 'hcis_test_connection',
-            _ajax_nonce: hcis_admin.nonce
+            _ajax_nonce: hcis_admin.nonce,
+            nip: nipToTest // Pass NIP
         }, function(response) {
             if (response.success) {
-                showNotice('Connection successful: ' + response.data.message);
+                let message = 'Connection successful: ' + response.data.connection_status;
+                if (response.data.user_data_for_nip) {
+                    message += '<br><br><strong>User Data for NIP:</strong><pre>' + JSON.stringify(response.data.user_data_for_nip, null, 2) + '</pre>';
+                }
+                showNotice(message);
             } else {
                 showNotice('Connection failed: ' + response.data.message, true);
             }
