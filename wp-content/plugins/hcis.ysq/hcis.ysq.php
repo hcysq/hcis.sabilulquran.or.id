@@ -308,6 +308,23 @@ if (!wp_next_scheduled('hcisysq_google_sheets_sync_cron')) {
   wp_schedule_event(time(), 'hcis_15_minutes', 'hcisysq_google_sheets_sync_cron');
 }
 
+// Dispatcher to run one tab per cron HTTP request
+add_action('hcisysq_google_sheets_sync_cron', function() {
+  if (!class_exists('HCISYSQ\\GoogleSheetSettings')) {
+    return;
+  }
+  $tabs = array_keys(HCISYSQ\GoogleSheetSettings::get_tabs());
+  if (empty($tabs)) {
+    return;
+  }
+  foreach ($tabs as $slug) {
+    if (wp_next_scheduled('hcisysq_google_sheets_sync_tab', [$slug])) {
+      return;
+    }
+  }
+  wp_schedule_single_event(time(), 'hcisysq_google_sheets_sync_tab', [$tabs[0]]);
+});
+
 // Register custom 15-minute schedule
 add_filter('cron_schedules', function($schedules) {
   if (!isset($schedules['hcis_15_minutes'])) {
