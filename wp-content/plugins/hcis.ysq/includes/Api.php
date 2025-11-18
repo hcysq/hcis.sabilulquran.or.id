@@ -270,9 +270,10 @@ class Api {
       wp_send_json_error(['message' => __('NIP wajib diisi.', 'hcisysq')], 400);
     }
 
-    global $wpdb;
-    $table = $wpdb->prefix . 'hcisysq_profiles';
-    $existing = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE nip = %s", $nip));
+    $existing = Profiles::find($nip);
+    if (is_wp_error($existing)) {
+      wp_send_json_error(['message' => $existing->get_error_message()], 500);
+    }
     if (!$existing) {
       wp_send_json_error(['message' => __('Data profil tidak ditemukan.', 'hcisysq')], 404);
     }
@@ -313,61 +314,14 @@ class Api {
       wp_send_json_error(['message' => __('Tidak ada perubahan data yang dikirim.', 'hcisysq')], 400);
     }
 
-    $updated = $wpdb->update(
-      $table,
-      $data,
-      ['nip' => $nip],
-      array_fill(0, count($data), '%s'),
-      ['%s']
-    );
-
-    if ($updated === false) {
-      wp_send_json_error(['message' => __('Gagal memperbarui data pegawai.', 'hcisysq')], 500);
+    $updated = Profiles::update_profile($nip, $data);
+    if (is_wp_error($updated)) {
+      wp_send_json_error(['message' => $updated->get_error_message()], 500);
     }
-
-    $profile = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE nip = %s", $nip));
-    $to_string = static function($value){
-      if ($value === null) {
-        return '';
-      }
-      return trim((string) $value);
-    };
-
-    if (!$profile) {
-      $normalizedFallback = ['nip' => $nip];
-      foreach ($allowedFields as $field) {
-        if (isset($data[$field])) {
-          $normalizedFallback[$field] = $to_string($data[$field]);
-        }
-      }
-      wp_send_json_success([
-        'message' => __('Profil pegawai berhasil diperbarui.', 'hcisysq'),
-        'profile' => $normalizedFallback,
-      ]);
-    }
-
-    $normalized = [
-      'id'            => isset($profile->id) ? (int) $profile->id : 0,
-      'nip'           => $to_string($profile->nip ?? $nip),
-      'nama'          => $to_string($profile->nama ?? ''),
-      'unit'          => $to_string($profile->unit ?? ''),
-      'jabatan'       => $to_string($profile->jabatan ?? ''),
-      'tempat_lahir'  => $to_string($profile->tempat_lahir ?? ''),
-      'tanggal_lahir' => $to_string($profile->tanggal_lahir ?? ''),
-      'alamat_ktp'    => $to_string($profile->alamat_ktp ?? ''),
-      'desa'          => $to_string($profile->desa ?? ''),
-      'kecamatan'     => $to_string($profile->kecamatan ?? ''),
-      'kota'          => $to_string($profile->kota ?? ''),
-      'kode_pos'      => $to_string($profile->kode_pos ?? ''),
-      'email'         => $to_string($profile->email ?? ''),
-      'hp'            => $to_string($profile->hp ?? ''),
-      'tmt'           => $to_string($profile->tmt ?? ''),
-      'updated_at'    => $to_string($profile->updated_at ?? ''),
-    ];
 
     wp_send_json_success([
       'message' => __('Profil pegawai berhasil diperbarui.', 'hcisysq'),
-      'profile' => $normalized,
+      'profile' => $updated,
     ]);
   }
 

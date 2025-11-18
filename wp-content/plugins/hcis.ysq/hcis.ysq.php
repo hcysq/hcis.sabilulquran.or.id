@@ -273,22 +273,6 @@ add_action('wp_ajax_nopriv_hcisysq_submit_training', function(){
 });
 
 /* =======================================================
- *  Cron (jika pakai import)
- * ======================================================= */
-add_action('hcisysq_profiles_cron', function(){
-  $url = \HCISYSQ\Profiles::get_csv_url();
-  if ($url) \HCISYSQ\Profiles::import_from_csv($url);
-});
-add_action('hcisysq_users_cron', function(){
-  $sheet_id = \HCISYSQ\Users::get_sheet_id();
-  if ($sheet_id) {
-    $tab_name = \HCISYSQ\Users::get_tab_name();
-    $url = \HCISYSQ\Users::build_csv_url($sheet_id, $tab_name);
-    \HCISYSQ\Users::import_from_csv($url);
-  }
-});
-
-/* =======================================================
  *  Session cleanup cron (hourly)
  * ======================================================= */
 add_action('hcisysq_session_cleanup_cron', function() {

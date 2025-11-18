@@ -107,19 +107,18 @@ class Tasks {
   }
 
   private static function get_employee_rows(){
-    global $wpdb;
-    $table = $wpdb->prefix . 'hcisysq_users';
-    $rows = $wpdb->get_results("SELECT nip, nama, unit FROM {$table} ORDER BY unit ASC, nama ASC", ARRAY_A);
-    if (!is_array($rows)) {
+    $profiles = Profiles::all();
+    if (is_wp_error($profiles) || empty($profiles)) {
       return [];
     }
-    return array_map(function($row){
+
+    return array_map(function($profile){
       return [
-        'nip'  => sanitize_text_field($row['nip'] ?? ''),
-        'nama' => sanitize_text_field($row['nama'] ?? ''),
-        'unit' => sanitize_text_field($row['unit'] ?? ''),
+        'nip'  => sanitize_text_field($profile['nip'] ?? ''),
+        'nama' => sanitize_text_field($profile['nama'] ?? ''),
+        'unit' => sanitize_text_field($profile['unit'] ?? ''),
       ];
-    }, $rows);
+    }, $profiles);
   }
 
   public static function get_unit_directory(){
