@@ -45,11 +45,8 @@ class GoogleSheetsSync {
     if (empty($payload)) {
       return;
     }
-    $api = self::makeApi();
-    if (!$api) {
-      return;
-    }
-    $repo = self::makeRepository('profiles', $api);
+    
+    $repo = self::makeRepository('profiles');
     if (!$repo) {
       return;
     }
@@ -193,12 +190,7 @@ class GoogleSheetsSync {
     }
 
     try {
-      $api = self::makeApi();
-      if (!$api) {
-        hcisysq_log('GoogleSheetsSync::sync_single_user - Authentication failed', 'ERROR');
-        return;
-      }
-      $repo = new UserRepository($api, new SheetCache());
+      $repo = new UserRepository(new SheetCache());
       $result = false;
 
       switch ($action) {
@@ -280,30 +272,25 @@ class GoogleSheetsSync {
     if (!$class || !class_exists($class)) {
       return null;
     }
-    $api = new GoogleSheetsAPI();
-    self::$prototype_repos[$tab] = new $class($api, new SheetCache());
+    self::$prototype_repos[$tab] = new $class(new SheetCache());
     return self::$prototype_repos[$tab];
   }
 
   protected static function makeApi(): ?GoogleSheetsAPI {
-    if (!GoogleSheetSettings::is_configured()) {
-      return null;
+    try {
+        return GoogleSheetsAPI::getInstance();
+    } catch (\Exception $e) {
+        hcisysq_log('GoogleSheetsSync::makeApi - Failed to get API instance: ' . $e->getMessage(), 'ERROR');
+        return null;
     }
-    $creds = GoogleSheetSettings::get_credentials();
-    $api = new GoogleSheetsAPI();
-    if (!$api->authenticate($creds)) {
-      hcisysq_log('GoogleSheetsSync::makeApi - Authentication failed', 'ERROR');
-      return null;
-    }
-    return $api;
   }
 
-  protected static function makeRepository(string $tab, GoogleSheetsAPI $api): ?AbstractSheetRepository {
+  protected static function makeRepository(string $tab): ?AbstractSheetRepository {
     $class = GoogleSheetSettings::repository_class_for($tab);
     if (!$class || !class_exists($class)) {
       return null;
     }
-    return new $class($api, new SheetCache());
+    return new $class(new SheetCache());
   }
 
   protected static function buildRepositories(GoogleSheetsAPI $api): array {

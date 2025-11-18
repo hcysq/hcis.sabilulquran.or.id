@@ -60,7 +60,7 @@ class View {
 
                 <?= Security::render_captcha_placeholder('registration'); ?>
                 <button type="submit" name="submit_reset_request" class="btn-primary">Kirim Permintaan</button>
-                <a class="link-forgot" href="<?= esc_url(wp_login_url()) ?>">Kembali ke Login</a>
+                <a class="link-forgot" href="<?= esc_url(home_url('/' . HCISYSQ_LOGIN_SLUG . '/')) ?>">Kembali ke Login</a>
                 <div class="msg" aria-live="polite">
                     <?php if ($message): ?>
                         <p class="<?= isset($message['error']) ? 'error' : 'success' ?>">
@@ -749,8 +749,11 @@ class View {
       }
     }
     $nipCandidates = array_values(array_unique($nipCandidates));
+
+    // Use the modern repository to fetch profile data
+    $profileRepo = new \HCISYSQ\Repositories\ProfileRepository();
     foreach ($nipCandidates as $candidate) {
-      $profileRow = Profiles::get_by_nip($candidate);
+      $profileRow = $profileRepo->find($candidate);
       if ($profileRow) {
         $profileData = $profileRow;
         break;
@@ -759,8 +762,9 @@ class View {
 
     $resolve = function(array $keys) use ($me, $profileData){
       foreach ($keys as $key) {
-        if ($profileData && isset($profileData->$key)) {
-          $value = $profileData->$key;
+        // Check profile data from repository (it's an array)
+        if ($profileData && isset($profileData[$key])) {
+          $value = $profileData[$key];
           if (is_scalar($value)) {
             $value = trim((string) $value);
           } else {
@@ -771,6 +775,7 @@ class View {
           }
         }
       }
+      // Fallback to WordPress user object
       foreach ($keys as $key) {
         if (!isset($me->$key)) {
           continue;

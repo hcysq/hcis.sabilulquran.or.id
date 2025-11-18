@@ -16,8 +16,8 @@ abstract class AbstractSheetRepository {
   protected $columns = [];
   protected $primaryKey = 'nip';
 
-  public function __construct(GoogleSheetsAPI $api, ?SheetCache $cache = null) {
-    $this->api = $api;
+  public function __construct(?SheetCache $cache = null) {
+    $this->api = GoogleSheetsAPI::getInstance();
     $this->cache = $cache ?? new SheetCache();
     $this->sheet_id = GoogleSheetSettings::get_sheet_id();
     $this->api->setSpreadsheetId($this->sheet_id);

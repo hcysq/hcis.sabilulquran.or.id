@@ -5,313 +5,176 @@ if (!defined("ABSPATH")) exit;
 
 use Google\Client;
 use Google\Service\Sheets;
-use Google\Service\Sheets\Spreadsheet;
+use Google\Service\Exception as GoogleServiceException;
 
 /**
- * Google Sheets API Wrapper
+ * Google Sheets API Wrapper (Singleton)
  *
- * Handles authentication, CRUD operations, and quota tracking
- * for real-time synchronization with Google Sheets
+ * Handles authentication, CRUD operations, and error handling
+ * for real-time synchronization with Google Sheets.
  *
  * @package HCISYSQ
  */
 class GoogleSheetsAPI {
 
-  private $client;
-  private $service;
-  private $spreadsheet_id;
-  private $authenticated = false;
+    private static $instance = null;
+    private $client;
+    private $service;
+    private $spreadsheet_id;
+    private $authenticated = false;
 
-  const QUOTA_LIMIT = 500;
-  const BATCH_SIZE = 50;
-
-  /**
-   * Authenticate with Google Service Account
-   */
-  public function authenticate($credentials) {
-    try {
-      $this->client = new Client();
-      $this->client->setAuthConfig($credentials);
-      $this->client->addScope(Sheets::SPREADSHEETS);
-
-      $this->service = new Sheets($this->client);
-      $this->authenticated = true;
-
-      hcisysq_log("Google Sheets API authenticated successfully");
-      return true;
-    } catch (\Exception $e) {
-      hcisysq_log("Google Sheets authentication failed: " . $e->getMessage(), "ERROR");
-      return false;
-    }
-  }
-
-  public function setSpreadsheetId($spreadsheet_id) {
-    $this->spreadsheet_id = $spreadsheet_id;
-  }
-
-  public function getService() {
-    return $this->service;
-  }
-
-  public function getSpreadsheet() {
-    if (!$this->authenticated || !$this->spreadsheet_id) {
-      return null;
+    /**
+     * Private constructor to prevent direct instantiation.
+     */
+    private function __construct() {
+        // The constructor is private to enforce the singleton pattern.
     }
 
-    try {
-      $quotaRecord = $this->recordQuotaUsage("getSpreadsheet");
-      if (!$quotaRecord["allowed"]) {
-        throw new \Exception("Quota limit exceeded");
-      }
-
-      return $this->service->spreadsheets->get($this->spreadsheet_id);
-    } catch (\Exception $e) {
-      hcisysq_log("Get spreadsheet failed: " . $e->getMessage(), "ERROR");
-      return null;
-    }
-  }
-
-  public function getRows($range) {
-    if (!$this->authenticated) {
-      return [];
+    /**
+     * Get the singleton instance of the API client.
+     *
+     * @return GoogleSheetsAPI
+     * @throws \Exception If authentication fails.
+     */
+    public static function getInstance(): GoogleSheetsAPI {
+        if (self::$instance === null) {
+            self::$instance = new self();
+            self::$instance->authenticate();
+        }
+        return self::$instance;
     }
 
-    try {
-      $quotaRecord = $this->recordQuotaUsage("getRows");
-      if (!$quotaRecord["allowed"]) {
-        throw new \Exception("Quota limit exceeded");
-      }
+    /**
+     * Authenticate with Google Service Account credentials from settings.
+     *
+     * @throws \Exception If credentials are not configured or are invalid.
+     */
+    private function authenticate() {
+        if ($this->authenticated) {
+            return;
+        }
 
-      $response = $this->service->spreadsheets_values->get(
-        $this->spreadsheet_id,
-        $range
-      );
+        $credentials = GoogleSheetSettings::get_credentials();
+        if (empty($credentials)) {
+            throw new \Exception('Google API credentials are not configured.');
+        }
 
-      $values = $response->getValues();
-      return $values ?? [];
-    } catch (\Exception $e) {
-      hcisysq_log("Get rows failed: " . $e->getMessage(), "ERROR");
-      return [];
-    }
-  }
+        try {
+            $this->client = new Client();
+            $this->client->setAuthConfig($credentials);
+            $this->client->addScope(Sheets::SPREADSHEETS);
 
-  public function appendRows($range, $values) {
-    if (!$this->authenticated || empty($values)) {
-      return false;
-    }
+            $this->service = new Sheets($this->client);
+            $this->authenticated = true;
+            
+            $this->setSpreadsheetId(GoogleSheetSettings::get_sheet_id());
 
-    try {
-      $quotaRecord = $this->recordQuotaUsage("appendRows");
-      if (!$quotaRecord["allowed"]) {
-        throw new \Exception("Quota limit exceeded");
-      }
-
-      $body = new Sheets\ValueRange([
-        "values" => $values
-      ]);
-
-      $params = [
-        "valueInputOption" => "RAW",
-        "insertDataOption" => "INSERT_ROWS"
-      ];
-
-      $result = $this->service->spreadsheets_values->append(
-        $this->spreadsheet_id,
-        $range,
-        $body,
-        $params
-      );
-
-      hcisysq_log("Appended " . count($values) . " rows to " . $range);
-      return true;
-    } catch (\Exception $e) {
-      hcisysq_log("Append rows failed: " . $e->getMessage(), "ERROR");
-      return false;
-    }
-  }
-
-  public function updateRows($range, $values) {
-    if (!$this->authenticated || empty($values)) {
-      return false;
+        } catch (\Exception $e) {
+            $this->authenticated = false;
+            throw new \Exception("Google Sheets authentication failed: " . $e->getMessage());
+        }
     }
 
-    try {
-      $quotaRecord = $this->recordQuotaUsage("updateRows");
-      if (!$quotaRecord["allowed"]) {
-        throw new \Exception("Quota limit exceeded");
-      }
-
-      $body = new Sheets\ValueRange([
-        "values" => $values
-      ]);
-
-      $params = [
-        "valueInputOption" => "RAW"
-      ];
-
-      $result = $this->service->spreadsheets_values->update(
-        $this->spreadsheet_id,
-        $range,
-        $body,
-        $params
-      );
-
-      hcisysq_log("Updated " . count($values) . " rows in " . $range);
-      return true;
-    } catch (\Exception $e) {
-      hcisysq_log("Update rows failed: " . $e->getMessage(), "ERROR");
-      return false;
-    }
-  }
-
-  public function deleteRows($sheet_name, $gid, $start_row, $end_row) {
-    if (!$this->authenticated) {
-      return false;
+    public function setSpreadsheetId($spreadsheet_id) {
+        $this->spreadsheet_id = $spreadsheet_id;
     }
 
-    try {
-      $quotaRecord = $this->recordQuotaUsage("deleteRows");
-      if (!$quotaRecord["allowed"]) {
-        throw new \Exception("Quota limit exceeded");
-      }
-
-      $request = new Sheets\Request([
-        "deleteRange" => new Sheets\DeleteRangeRequest([
-          "range" => new Sheets\GridRange([
-            "sheetId" => $gid,
-            "startRowIndex" => $start_row,
-            "endRowIndex" => $end_row + 1,
-          ]),
-          "shiftDimension" => "ROWS"
-        ])
-      ]);
-
-      $batch = new Sheets\BatchUpdateSpreadsheetRequest([
-        "requests" => [$request]
-      ]);
-
-      $this->service->spreadsheets->batchUpdate(
-        $this->spreadsheet_id,
-        $batch
-      );
-
-      hcisysq_log("Deleted rows " . $start_row . "-" . $end_row . " from " . $sheet_name);
-      return true;
-    } catch (\Exception $e) {
-      hcisysq_log("Delete rows failed: " . $e->getMessage(), "ERROR");
-      return false;
-    }
-  }
-
-  public function clearRange($range) {
-    if (!$this->authenticated) {
-      return false;
+    public function getService() {
+        return $this->service;
     }
 
-    try {
-      $quotaRecord = $this->recordQuotaUsage("clearRange");
-      if (!$quotaRecord["allowed"]) {
-        throw new \Exception("Quota limit exceeded");
-      }
+    /**
+     * @return \Google\Service\Sheets\Spreadsheet
+     * @throws GoogleServiceException
+     * @throws \Exception
+     */
+    public function getSpreadsheet() {
+        if (!$this->authenticated || !$this->spreadsheet_id) {
+            throw new \Exception("API not authenticated or Spreadsheet ID not set.");
+        }
 
-      $this->service->spreadsheets_values->clear(
-        $this->spreadsheet_id,
-        $range,
-        new Sheets\ClearValuesRequest()
-      );
-
-      hcisysq_log("Cleared range: " . $range);
-      return true;
-    } catch (\Exception $e) {
-      hcisysq_log("Clear range failed: " . $e->getMessage(), "ERROR");
-      return false;
-    }
-  }
-
-  public function batchUpdate($data) {
-    if (!$this->authenticated || empty($data)) {
-      return false;
+        try {
+            return $this->service->spreadsheets->get($this->spreadsheet_id);
+        } catch (GoogleServiceException $e) {
+            hcisysq_log("Get spreadsheet failed: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
+            throw $e; // Re-throw for the caller to handle
+        }
     }
 
-    try {
-      $quotaRecord = $this->recordQuotaUsage("batchUpdate");
-      if (!$quotaRecord["allowed"]) {
-        throw new \Exception("Quota limit exceeded");
-      }
+    public function getRows($range): array {
+        if (!$this->authenticated) {
+            return [];
+        }
 
-      $requests = [];
-      foreach ($data as $range => $values) {
-        $requests[] = new Sheets\ValueRange([
-          "range" => $range,
-          "values" => $values
-        ]);
-      }
-
-      $body = new Sheets\BatchUpdateValuesRequest([
-        "data" => $requests,
-        "valueInputOption" => "RAW"
-      ]);
-
-      $result = $this->service->spreadsheets_values->batchUpdate(
-        $this->spreadsheet_id,
-        $body
-      );
-
-      hcisysq_log("Batch updated " . count($requests) . " ranges");
-      return true;
-    } catch (\Exception $e) {
-      hcisysq_log("Batch update failed: " . $e->getMessage(), "ERROR");
-      return false;
-    }
-  }
-
-  private function recordQuotaUsage($operation) {
-    global $wpdb;
-
-    $current_timestamp = time();
-    $window_start = $current_timestamp - 100;
-
-    $count = $wpdb->get_var($wpdb->prepare(
-      "SELECT COUNT(*) FROM {$wpdb->options}
-       WHERE option_name LIKE %s AND option_value > %d",
-      "hcis_gs_quota_%",
-      $window_start
-    ));
-
-    $allowed = $count < self::QUOTA_LIMIT;
-
-    update_option(
-      "hcis_gs_quota_" . date("YmdHis", $current_timestamp),
-      $current_timestamp,
-      "no"
-    );
-
-    $metrics = get_option("hcis_gs_quota_metrics", []);
-    $metrics["operation"] = $operation;
-    $metrics["timestamp"] = $current_timestamp;
-    $metrics["usage_percent"] = round(($count / self::QUOTA_LIMIT) * 100, 2);
-    update_option("hcis_gs_quota_metrics", $metrics);
-
-    if (!$allowed) {
-      hcisysq_log("Quota limit approaching: " . $count . "/" . self::QUOTA_LIMIT, "WARNING");
+        try {
+            $response = $this->service->spreadsheets_values->get($this->spreadsheet_id, $range);
+            return $response->getValues() ?? [];
+        } catch (GoogleServiceException $e) {
+            hcisysq_log("Get rows failed for range {$range}: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
+            return []; // Return empty on error to prevent site crashes
+        }
     }
 
-    return [
-      "allowed" => $allowed,
-      "usage" => $count,
-      "limit" => self::QUOTA_LIMIT
-    ];
-  }
+    public function updateRows($range, $values): bool {
+        if (!$this->authenticated || empty($values)) {
+            return false;
+        }
 
-  public function getQuotaMetrics() {
-    return get_option("hcis_gs_quota_metrics", [
-      "operation" => "none",
-      "timestamp" => 0,
-      "usage_percent" => 0
-    ]);
-  }
+        try {
+            $body = new Sheets\ValueRange(["values" => $values]);
+            $params = ["valueInputOption" => "RAW"];
+            $this->service->spreadsheets_values->update($this->spreadsheet_id, $range, $body, $params);
+            return true;
+        } catch (GoogleServiceException $e) {
+            hcisysq_log("Update rows failed for range {$range}: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
+            return false;
+        }
+    }
+    
+    public function appendRows($range, $values): bool {
+        if (!$this->authenticated || empty($values)) {
+            return false;
+        }
 
-  public function isAuthenticated() {
-    return $this->authenticated;
-  }
+        try {
+            $body = new Sheets\ValueRange(["values" => $values]);
+            $params = ["valueInputOption" => "RAW", "insertDataOption" => "INSERT_ROWS"];
+            $this->service->spreadsheets_values->append($this->spreadsheet_id, $range, $body, $params);
+            return true;
+        } catch (GoogleServiceException $e) {
+            hcisysq_log("Append rows failed for range {$range}: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
+            return false;
+        }
+    }
+
+    public function deleteRows($gid, $start_row, $end_row): bool {
+        if (!$this->authenticated) {
+            return false;
+        }
+
+        try {
+            $request = new Sheets\Request([
+                "deleteDimension" => new Sheets\DeleteDimensionRequest([
+                    'range' => [
+                        'sheetId' => $gid,
+                        'dimension' => 'ROWS',
+                        'startIndex' => $start_row,
+                        'endIndex' => $end_row
+                    ]
+                ])
+            ]);
+
+            $batch = new Sheets\BatchUpdateSpreadsheetRequest(["requests" => [$request]]);
+            $this->service->spreadsheets->batchUpdate($this->spreadsheet_id, $batch);
+            return true;
+        } catch (GoogleServiceException $e) {
+            hcisysq_log("Delete rows failed for GID {$gid}: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
+            return false;
+        }
+    }
+
+    public function isAuthenticated(): bool {
+        return $this->authenticated;
+    }
 }
+

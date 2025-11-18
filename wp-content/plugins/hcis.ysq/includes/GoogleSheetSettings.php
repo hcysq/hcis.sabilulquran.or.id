@@ -244,12 +244,12 @@ class GoogleSheetSettings {
       return new WP_Error('hcisysq_repo_missing', __('Repository tidak ditemukan untuk tab ini.', 'hcis-ysq'), ['status' => 404]);
     }
 
-    $api = new GoogleSheetsAPI();
-    if (!$api->authenticate(self::get_credentials())) {
-      return new WP_Error('hcisysq_sheet_auth', __('Autentikasi Google Sheet gagal.', 'hcis-ysq'), ['status' => 500]);
+    try {
+        $repo = new $class(new SheetCache());
+    } catch (\Exception $e) {
+        return new WP_Error('hcisysq_sheet_auth', $e->getMessage(), ['status' => 500]);
     }
 
-    $repo = new $class($api, new SheetCache());
     $data = $repo->all();
 
     return new WP_REST_Response([

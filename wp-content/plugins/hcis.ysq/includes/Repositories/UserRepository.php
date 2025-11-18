@@ -15,6 +15,7 @@ class UserRepository extends AbstractSheetRepository {
     'password_hash' => 'Password Hash',
     'phone' => 'No HP',
     'email' => 'Email',
+    'nik' => 'NIK',
   ];
 
   public function create($user_id) {

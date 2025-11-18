@@ -15,16 +15,20 @@ class PasswordResetManager {
             return new WP_Error('validation_failed', 'NIP dan NIK wajib diisi.');
         }
 
-        $employees_table = $wpdb->prefix . 'ysq_employees';
-        $employee = $wpdb->get_row($wpdb->prepare(
-            "SELECT wp_user_id, phone_number FROM $employees_table WHERE employee_id_number = %s AND ktp_number = %s",
-            $nip,
-            $nik
-        ));
+        // 1. Fetch user from Google Sheets' "User" tab to validate NIK and get phone number
+        $user_repo = new \HCISYSQ\Repositories\UserRepository();
+        $user = $user_repo->find($nip);
 
-        if (!$employee || empty($employee->wp_user_id)) {
+        // 2. Validate user exists and the NIK matches
+        if (!$user || empty($user['nik']) || strcasecmp(trim($user['nik']), trim($nik)) !== 0) {
             return new WP_Error('validation_failed', 'Kombinasi NIP dan NIK tidak ditemukan.');
         }
+        
+        // 3. Check for phone number
+        if (empty($user['phone'])) {
+            return new WP_Error('phone_not_found', 'Nomor HP untuk pengguna ini tidak ditemukan di sistem.');
+        }
+        $phone_number = $user['phone'];
 
         // Generate a secure random token
         $token = bin2hex(random_bytes(32));
@@ -52,7 +56,6 @@ class PasswordResetManager {
 
         // Send the token to the user via WhatsApp
         $reset_link = site_url('/reset-password/?token=' . $token);
-        $phone_number = $employee->phone_number;
         
         $user_message = "Anda telah meminta reset password. Silakan klik link di bawah ini untuk melanjutkan. Link ini hanya berlaku selama 30 menit.\n\n" . $reset_link;
         
@@ -114,18 +117,22 @@ class PasswordResetManager {
 
         $nip = $validation['nip'];
 
-        // Get the WordPress user ID from the ysq_employees table
-        $employees_table = $wpdb->prefix . 'ysq_employees';
-        $employee = $wpdb->get_row($wpdb->prepare("SELECT wp_user_id FROM $employees_table WHERE employee_id_number = %s", $nip));
-
-        if (!$employee || empty($employee->wp_user_id)) {
-            return new WP_Error('user_not_found', 'User tidak ditemukan untuk NIP ini.');
+        // Hash the new password
+        $new_password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+        if (!$new_password_hash) {
+            return new WP_Error('hash_failed', 'Gagal memproses password baru.');
         }
 
-        $user_id = $employee->wp_user_id;
+        // Update the password hash in the Google Sheet
+        $user_repo = new \HCISYSQ\Repositories\UserRepository();
+        $success = $user_repo->updateByPrimary([
+            'nip' => $nip,
+            'password_hash' => $new_password_hash,
+        ]);
 
-        // Update the user's password
-        wp_set_password($new_password, $user_id);
+        if (!$success) {
+            return new WP_Error('update_failed', 'Gagal memperbarui password di sistem. Silakan coba lagi.');
+        }
 
         // Mark the token as used
         $token_hash = hash('sha256', $token);
@@ -136,14 +143,6 @@ class PasswordResetManager {
             ['%s'],
             ['%s']
         );
-
-        // Clear any flags that force a password reset
-        if (get_user_meta($user_id, 'needs_password_reset', true)) {
-            delete_user_meta($user_id, 'needs_password_reset');
-        }
-        if (get_user_meta($user_id, 'ysq_force_password_change', true)) {
-            delete_user_meta($user_id, 'ysq_force_password_change');
-        }
 
         return ['success' => true];
     }

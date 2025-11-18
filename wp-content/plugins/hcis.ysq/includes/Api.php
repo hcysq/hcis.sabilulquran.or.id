@@ -270,10 +270,9 @@ class Api {
       wp_send_json_error(['message' => __('NIP wajib diisi.', 'hcisysq')], 400);
     }
 
-    $existing = Profiles::find($nip);
-    if (is_wp_error($existing)) {
-      wp_send_json_error(['message' => $existing->get_error_message()], 500);
-    }
+    $repo = new \HCISYSQ\Repositories\ProfileRepository();
+    $existing = $repo->find($nip);
+
     if (!$existing) {
       wp_send_json_error(['message' => __('Data profil tidak ditemukan.', 'hcisysq')], 404);
     }
@@ -314,14 +313,20 @@ class Api {
       wp_send_json_error(['message' => __('Tidak ada perubahan data yang dikirim.', 'hcisysq')], 400);
     }
 
-    $updated = Profiles::update_profile($nip, $data);
-    if (is_wp_error($updated)) {
-      wp_send_json_error(['message' => $updated->get_error_message()], 500);
+    // Add the primary key to the data for the repository method
+    $data['nip'] = $nip;
+
+    $success = $repo->updateByPrimary($data);
+    if (!$success) {
+      wp_send_json_error(['message' => __('Gagal memperbarui profil di Google Sheet.', 'hcisysq')], 500);
     }
+
+    // Re-fetch the updated data to return it in the response
+    $updated_profile = $repo->find($nip);
 
     wp_send_json_success([
       'message' => __('Profil pegawai berhasil diperbarui.', 'hcisysq'),
-      'profile' => $updated,
+      'profile' => $updated_profile,
     ]);
   }
 
