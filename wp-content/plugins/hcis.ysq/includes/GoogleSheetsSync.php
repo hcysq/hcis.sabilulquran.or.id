@@ -22,7 +22,7 @@ class GoogleSheetsSync {
     add_action('hcisysq/training/submitted', [__CLASS__, 'on_training_submitted'], 10, 2);
 
     add_action('hcis_gs_batch_sync', [__CLASS__, 'processBatch']);
-    add_action('hcisysq_google_sheets_sync_cron', [__CLASS__, 'run_cron_sync']);
+    add_action('hcisysq_google_sheets_sync_tab', [__CLASS__, 'run_cron_sync'], 10, 1);
   }
 
   public static function on_user_created($user_id) {
@@ -125,7 +125,7 @@ class GoogleSheetsSync {
     }
   }
 
-  public static function run_cron_sync() {
+  public static function run_cron_sync($tab = null) {
     if (!GoogleSheetSettings::is_configured()) {
       hcisysq_log('GoogleSheetsSync::run_cron_sync - Settings not configured', 'WARNING');
       return;
@@ -136,23 +136,39 @@ class GoogleSheetsSync {
       if (!$api) {
         return;
       }
-      $repositories = self::buildRepositories($api);
-      foreach ($repositories as $slug => $repo) {
-        $rows = $repo->all();
-        $hash = md5(wp_json_encode($rows));
-        if ($hash === GoogleSheetSettings::get_tab_hash($slug)) {
-          continue;
-        }
-        $applied = $repo->syncToWordPress($rows);
-        GoogleSheetSettings::set_tab_hash($slug, $hash);
-        GoogleSheetSettings::record_tab_metrics($slug, [
-          'rows' => count($rows),
-          'applied' => $applied,
-          'hash' => $hash,
-        ]);
+      $tabSlugs = array_keys(GoogleSheetSettings::get_tabs());
+      if (empty($tabSlugs)) {
+        return;
       }
 
-      update_option('hcis_gs_last_sync', current_time('mysql'));
+      if ($tab === null) {
+        $repositories = self::buildRepositories($api);
+        foreach ($repositories as $slug => $repo) {
+          self::syncRepository($slug, $repo);
+        }
+        update_option('hcis_gs_last_sync', current_time('mysql'));
+        GoogleSheetMetrics::recordSuccess();
+        return;
+      }
+
+      if (!in_array($tab, $tabSlugs, true)) {
+        hcisysq_log('GoogleSheetsSync::run_cron_sync - Unknown tab: ' . $tab, 'WARNING');
+        return;
+      }
+
+      $repo = self::makeRepository($tab, $api);
+      if (!$repo) {
+        return;
+      }
+
+      self::syncRepository($tab, $repo);
+
+      $nextTab = self::nextTabSlug($tabSlugs, $tab);
+      if ($nextTab) {
+        wp_schedule_single_event(time(), 'hcisysq_google_sheets_sync_tab', [$nextTab]);
+      } else {
+        update_option('hcis_gs_last_sync', current_time('mysql'));
+      }
       GoogleSheetMetrics::recordSuccess();
     } catch (\Exception $e) {
       GoogleSheetMetrics::recordFailure();
@@ -299,5 +315,28 @@ class GoogleSheetsSync {
       }
     }
     return $repos;
+  }
+
+  protected static function syncRepository(string $slug, AbstractSheetRepository $repo): void {
+    $rows = $repo->all();
+    $hash = md5(wp_json_encode($rows));
+    if ($hash === GoogleSheetSettings::get_tab_hash($slug)) {
+      return;
+    }
+    $applied = $repo->syncToWordPress($rows);
+    GoogleSheetSettings::set_tab_hash($slug, $hash);
+    GoogleSheetSettings::record_tab_metrics($slug, [
+      'rows' => count($rows),
+      'applied' => $applied,
+      'hash' => $hash,
+    ]);
+  }
+
+  protected static function nextTabSlug(array $tabs, string $current): ?string {
+    $index = array_search($current, $tabs, true);
+    if ($index === false) {
+      return null;
+    }
+    return $tabs[$index + 1] ?? null;
   }
 }
