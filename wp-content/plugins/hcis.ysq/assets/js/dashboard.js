@@ -6,6 +6,7 @@
   }
 
   shared = shared || window.HCISYSQShared || {};
+  const MOBILE_BREAKPOINT = 960;
 
   const sidebarControllers = new WeakMap();
   let lastOpenedSidebar = null;
@@ -50,16 +51,30 @@
         return;
       }
 
-      let isOpen = $root.hasClass('is-sidebar-open');
+      const mediaQuery = window.matchMedia
+        ? window.matchMedia('(max-width: ' + MOBILE_BREAKPOINT + 'px)')
+        : null;
+      let isMobileViewport = mediaQuery ? mediaQuery.matches : window.innerWidth <= MOBILE_BREAKPOINT;
+      let isOpen = $sidebar.hasClass('is-open') || $root.hasClass('is-sidebar-open');
+      let isCollapsed = $root.hasClass('is-collapsed');
+      let desktopCollapsedState = isCollapsed;
       $root.data('sidebar-ready', true);
 
-      function syncState() {
-        $overlay.attr('aria-hidden', isOpen ? 'false' : 'true');
-        $toggle.attr('aria-expanded', isOpen ? 'true' : 'false');
+      function updateOverlay() {
+        const overlayVisible = isMobileViewport && isOpen;
+        $overlay.attr('aria-hidden', overlayVisible ? 'false' : 'true');
       }
 
-      function openSidebar() {
-        if (isOpen) {
+      function syncState() {
+        updateOverlay();
+        const isExpanded = isMobileViewport ? isOpen : !isCollapsed;
+        $toggle.attr('aria-expanded', isExpanded ? 'true' : 'false');
+      }
+
+      function setMobileOpen(nextState) {
+        const shouldOpen = !!nextState;
+        if (isOpen === shouldOpen) {
+          updateOverlay();
           return;
         }
 
@@ -70,10 +85,77 @@
           $overlay.addClass('is-visible');
         }
         if (shared.toggleBodyLock) {
-          shared.toggleBodyLock(true);
+          shared.toggleBodyLock(isMobileViewport && isOpen);
+        }
+        updateOverlay();
+      }
+
+      function setCollapsed(nextState, options) {
+        const shouldCollapse = !!nextState;
+        const preserveDesktopState = options && options.preserveDesktopState;
+        if (isCollapsed === shouldCollapse) {
+          return;
+        }
+
+        isCollapsed = shouldCollapse;
+        if (!preserveDesktopState && !isMobileViewport) {
+          desktopCollapsedState = isCollapsed;
+        }
+        $root.toggleClass('is-collapsed', isCollapsed);
+      }
+
+      function handleViewportChange(matches) {
+        const nextIsMobile = !!matches;
+        if (nextIsMobile === isMobileViewport) {
+          return;
+        }
+
+        isMobileViewport = nextIsMobile;
+        if (isMobileViewport) {
+          if (isCollapsed) {
+            setCollapsed(false, { preserveDesktopState: true });
+          }
+        } else {
+          setMobileOpen(false);
+          setCollapsed(desktopCollapsedState);
         }
         syncState();
-        lastOpenedSidebar = root;
+      }
+
+      if (mediaQuery) {
+        const mqListener = function(event) {
+          handleViewportChange(event.matches);
+        };
+        if (typeof mediaQuery.addEventListener === 'function') {
+          mediaQuery.addEventListener('change', mqListener);
+        } else if (typeof mediaQuery.addListener === 'function') {
+          mediaQuery.addListener(mqListener);
+        }
+      } else {
+        $(window).on('resize.hcisysqSidebar', function() {
+          handleViewportChange(window.innerWidth <= MOBILE_BREAKPOINT);
+        });
+      }
+
+      if (isMobileViewport && isCollapsed) {
+        setCollapsed(false, { preserveDesktopState: true });
+      }
+
+      function openSidebar() {
+        if (isMobileViewport) {
+          if (isOpen) {
+            return;
+          }
+          setMobileOpen(true);
+          syncState();
+          lastOpenedSidebar = root;
+          return;
+        }
+
+        if (isCollapsed) {
+          setCollapsed(false);
+          syncState();
+        }
       }
 
       function closeSidebarInternal() {
@@ -96,12 +178,25 @@
         syncState();
       }
 
-      function toggleSidebar() {
-        if (isOpen) {
-          closeSidebarInternal();
-        } else {
-          openSidebar();
+      function toggleCollapse() {
+        if (isMobileViewport) {
+          return;
         }
+        setCollapsed(!isCollapsed);
+        syncState();
+      }
+
+      function toggleSidebar() {
+        if (isMobileViewport) {
+          if (isOpen) {
+            closeSidebarInternal();
+          } else {
+            openSidebar();
+          }
+          return;
+        }
+
+        toggleCollapse();
       }
 
       $toggle.on('click', function(event) {
@@ -127,7 +222,7 @@
         close: closeSidebarInternal,
         open: openSidebar,
         isOpen: function() {
-          return isOpen;
+          return isMobileViewport ? isOpen : !isCollapsed;
         }
       });
 
