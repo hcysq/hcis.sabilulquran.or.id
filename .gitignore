@@ -13,6 +13,9 @@ wp-config.php
 .env.*
 
 # Vendor & node modules
+node_modules/
+vendor/
+
 
 # Sistem / OS
 .DS_Store
