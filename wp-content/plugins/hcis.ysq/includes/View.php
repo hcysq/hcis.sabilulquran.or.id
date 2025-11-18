@@ -661,25 +661,27 @@ class View {
           <section class="hcisysq-admin-view" data-view="settings">
             <article class="hcisysq-card">
               <h3 class="hcisysq-card-title">Keamanan &amp; Akses Administrator</h3>
-              <form id="hcisysq-admin-settings-form" class="hcisysq-form-grid">
-                <div class="form-group">
-                  <label for="hcisysq-admin-username">Username Administrator <span class="req">*</span></label>
-                  <input type="text" id="hcisysq-admin-username" name="username" value="<?= esc_attr($publicSettings['username']) ?>" required>
-                </div>
-                <div class="form-group">
-                  <label for="hcisysq-admin-display">Nama Tampilan</label>
-                  <input type="text" id="hcisysq-admin-display" name="display_name" value="<?= esc_attr($publicSettings['display_name']) ?>">
-                </div>
-                <div class="form-group">
-                  <label for="hcisysq-admin-password">Password Baru</label>
-                  <input type="password" id="hcisysq-admin-password" name="password" placeholder="Kosongkan jika tidak diubah" autocomplete="new-password">
-                </div>
-
-                <div class="form-actions">
-                  <button type="submit" class="btn-primary">Simpan Pengaturan</button>
-                  <div class="msg" data-role="settings-message"></div>
-                </div>
-              </form>
+              <p>Kelola kredensial admin melalui halaman <strong>Tools &rarr; Kredensial Admin</strong> di dasbor WordPress.</p>
+              <p>
+                <a class="btn-light" href="<?= esc_url(admin_url('tools.php?page=hcis-admin-credentials')) ?>">Buka Kredensial Admin</a>
+              </p>
+              <h4>Daftar Admin Aktif</h4>
+              <?php $adminAccounts = \HCISYSQ\AdminCredentials::get_accounts(); ?>
+              <?php if (empty($adminAccounts)): ?>
+                <p>Belum ada akun administrator yang tersimpan.</p>
+              <?php else: ?>
+                <ul class="hcisysq-admin-list">
+                  <?php foreach ($adminAccounts as $account): ?>
+                    <li>
+                      <strong><?= esc_html($account['display_name']); ?></strong>
+                      <span class="mono">(<?= esc_html($account['username']); ?>)</span>
+                      <?php if (!empty($account['whatsapp'])): ?>
+                        &middot; <span><?= esc_html($account['whatsapp']); ?></span>
+                      <?php endif; ?>
+                    </li>
+                  <?php endforeach; ?>
+                </ul>
+              <?php endif; ?>
             </article>
           </section>
 

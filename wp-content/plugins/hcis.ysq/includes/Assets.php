@@ -130,14 +130,9 @@ class Assets {
 
   private static function get_settings() {
     return [
-      'admin_wa' => Config::get('admin_wa', 'option'),
       'wa_token' => Config::get('wa_token', 'option'),
       'gas_url'  => home_url('/' . trim(HCISYSQ_FORM_SLUG, '/') . '/'),
     ];
-  }
-
-  public static function get_admin_wa() {
-    return Config::get('admin_wa');
   }
 
   public static function get_wa_token() {

@@ -211,12 +211,11 @@
 
 ### Plugin Settings (wp_options)
 ```
-hcisysq_admin_wa           → Admin WhatsApp number
 hcisysq_wa_token          → StarSender API key
 hcis_portal_sheet_id      → Google Sheets ID
 hcis_portal_gids          → Sheet GIDs (JSON)
 hcis_portal_credentials   → Google API credentials
-hcisysq_admin_settings    → Admin portal settings
+hcisysq_admin_accounts    → Admin credential store (JSON)
 ```
 
 ### Theme Customizer

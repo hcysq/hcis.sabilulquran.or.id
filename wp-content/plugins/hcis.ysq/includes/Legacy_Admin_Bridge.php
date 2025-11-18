@@ -79,37 +79,7 @@ class Legacy_Admin_Bridge {
   }
 
   private static function maybe_migrate_legacy_credentials() {
-    $legacy_username = get_option('ysq_admin_username', null);
-    $legacy_hash     = get_option('ysq_admin_password_hash', null);
-
-    if ($legacy_username === null && $legacy_hash === null) {
-      return;
-    }
-
-    $settings = Auth::get_admin_settings();
-    $dirty    = false;
-
-    if ($legacy_username !== null && $legacy_username !== false) {
-      $username = sanitize_user($legacy_username, true);
-      if ($username !== '' && strcasecmp($username, $settings['username']) !== 0) {
-        $settings['username'] = $username;
-        $dirty = true;
-      }
-    }
-
-    if ($legacy_hash !== null && $legacy_hash !== false && is_string($legacy_hash) && $legacy_hash !== '') {
-      if (!hash_equals($settings['password_hash'], $legacy_hash)) {
-        $settings['password_hash'] = $legacy_hash;
-        $dirty = true;
-      }
-    }
-
-    if ($dirty) {
-      update_option(Auth::ADMIN_OPTION, $settings, false);
-    }
-
-    delete_option('ysq_admin_username');
-    delete_option('ysq_admin_password_hash');
+    AdminCredentials::migrate_legacy_settings();
   }
 
   public static function handle_requests() {
@@ -416,7 +386,7 @@ class Legacy_Admin_Bridge {
       return null;
     }
 
-    $settings = Auth::get_admin_settings();
+    $settings = Auth::get_admin_settings($session['username'] ?? null);
     $username = $session['username'] !== '' ? $session['username'] : $settings['username'];
 
     return [
