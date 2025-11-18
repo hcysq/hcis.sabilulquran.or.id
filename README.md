@@ -67,3 +67,20 @@ Run the PHPUnit suite (redaction tests included) from the plugin root:
 ```
 
 The new tests ensure sensitive fields are masked before the logger or REST endpoint can expose them.
+
+## Google Sheets sync via WP-CLI
+
+The Google Sheets cron now dispatches one sheet tab at a time via the `hcisysq_google_sheets_sync_tab` hook. Ops teams can still
+force a full synchronization without waiting for loopback cron traffic by triggering the dispatcher and pending tab events from
+WP-CLI:
+
+```bash
+# Kick off the dispatcher if nothing is queued yet
+wp cron event run hcisysq_google_sheets_sync_cron --due-now
+
+# Process each tab sequentially; rerun until WP-CLI reports "Did nothing"
+wp cron event run hcisysq_google_sheets_sync_tab --due-now
+```
+
+Because each invocation only processes a single tab (`GoogleSheetSettings::get_tabs()` order), every cron request stays well
+under 10 seconds while still allowing a full refresh when needed.
