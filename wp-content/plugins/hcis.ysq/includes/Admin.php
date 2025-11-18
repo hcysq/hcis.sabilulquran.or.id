@@ -119,12 +119,14 @@ class Admin {
 
     $notice = '';
     $default_sheet_id = GoogleSheetSettings::DEFAULT_SHEET_ID;
-    $gid_keys = GoogleSheetSettings::get_tab_labels();
+    $tab_labels = GoogleSheetSettings::get_tab_labels();
 
     $wa_token_value = get_option('hcisysq_wa_token', '');
     $admin_wa_value = get_option('hcisysq_admin_wa', '');
     $wa_token_override = Config::describe_override('wa_token');
     $admin_wa_override = Config::describe_override('admin_wa');
+
+    $setup_key_config = GoogleSheetSettings::get_setup_key_config();
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       check_admin_referer('hcis_portal_settings');
@@ -136,24 +138,29 @@ class Admin {
       $wa_token_input = sanitize_text_field(wp_unslash($_POST['hcis_portal_wa_token'] ?? ''));
       $admin_wa_input = sanitize_text_field(wp_unslash($_POST['hcis_portal_admin_wa'] ?? ''));
 
-      $gids = [];
-      foreach ($gid_keys as $key => $label) {
-        $gids[$key] = sanitize_text_field($_POST["hcis_portal_gid_{$key}"] ?? '');
+      $setup_keys_input = [];
+      if (isset($_POST['hcis_portal_setup_keys']) && is_array($_POST['hcis_portal_setup_keys'])) {
+        foreach ($_POST['hcis_portal_setup_keys'] as $setup_key => $row) {
+          if (!is_array($row)) {
+            continue;
+          }
+          $setup_keys_input[$setup_key] = [
+            'tab' => sanitize_text_field($row['tab'] ?? ''),
+            'gid' => sanitize_text_field($row['gid'] ?? ''),
+            'header' => sanitize_text_field($row['header'] ?? ''),
+            'order' => isset($row['order']) ? (int) $row['order'] : '',
+          ];
+        }
       }
 
-      // Retrieve column orders from POST
-      $column_orders = [];
-      foreach ($gid_keys as $key => $label) {
-        $column_orders[$key] = sanitize_text_field($_POST["hcis_portal_column_order_{$key}"] ?? '');
-      }
-
-      $status_data = GoogleSheetSettings::save_settings($credentials_json, $sheet_id, $gids, $column_orders);
+      $status_data = GoogleSheetSettings::save_settings($credentials_json, $sheet_id, [], $setup_keys_input);
 
       update_option('hcisysq_wa_token', $wa_token_input);
       update_option('hcisysq_admin_wa', $admin_wa_input);
 
       $wa_token_value = $wa_token_input;
       $admin_wa_value = $admin_wa_input;
+      $setup_key_config = GoogleSheetSettings::get_setup_key_config();
 
       if (!empty($status_data['valid'])) {
         $notice = '<div class="notice notice-success"><p>' . esc_html__('Settings saved.', 'hcis-ysq') . '</p></div>';
@@ -165,7 +172,6 @@ class Admin {
 
     $credentials_value = GoogleSheetSettings::get_credentials_json();
     $sheet_id_value = GoogleSheetSettings::get_sheet_id() ?: $default_sheet_id;
-    $gids_value = GoogleSheetSettings::get_gid_map();
     $status_block = GoogleSheetSettings::get_status();
 
     ?>
@@ -227,34 +233,58 @@ class Admin {
               <?php endif; ?>
             </td>
           </tr>
-          <?php foreach ($gid_keys as $key => $label): ?>
-            <tr>
-              <th scope="row"><label for="hcis_portal_gid_<?php echo esc_attr($key); ?>"><?php echo esc_html(sprintf(__('GID %s', 'hcis-ysq'), $label)); ?></label></th>
-              <td>
-                <input type="text" id="hcis_portal_gid_<?php echo esc_attr($key); ?>" name="hcis_portal_gid_<?php echo esc_attr($key); ?>" class="regular-text" style="width: 220px" value="<?php echo esc_attr($gids_value[$key] ?? ''); ?>" placeholder="0">
-                <p class="description"><?php esc_html_e('Masukkan GID tab terkait di Google Sheet.', 'hcis-ysq'); ?></p>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-
-          <?php // New section for Column Order ?>
-          <?php
-            $column_orders_value = [];
-            foreach ($gid_keys as $key => $label) {
-                $column_orders_value[$key] = GoogleSheetSettings::get_tab_column_order($key);
-                // Convert array back to comma-separated string for display in textarea
-                $column_orders_value[$key] = implode(', ', $column_orders_value[$key]);
-            }
-          ?>
-          <?php foreach ($gid_keys as $key => $label): ?>
-            <tr>
-              <th scope="row"><label for="hcis_portal_column_order_<?php echo esc_attr($key); ?>"><?php echo esc_html(sprintf(__('Column Order for %s', 'hcis-ysq'), $label)); ?></label></th>
-              <td>
-                <textarea id="hcis_portal_column_order_<?php echo esc_attr($key); ?>" name="hcis_portal_column_order_<?php echo esc_attr($key); ?>" class="large-text code" rows="3" placeholder="NIP, Nama, Password Hash, No HP, Email, NIK"><?php echo esc_textarea($column_orders_value[$key] ?? ''); ?></textarea>
-                <p class="description"><?php esc_html_e('Masukkan urutan header kolom yang dipisahkan koma untuk tab ini (misalnya: NIP, Nama, Password Hash).', 'hcis-ysq'); ?></p>
-              </td>
-            </tr>
-          <?php endforeach; ?>
+          <tr>
+            <th scope="row"><?php esc_html_e('Google Sheet Setup Keys', 'hcis-ysq'); ?></th>
+            <td>
+              <p class="description"><?php esc_html_e('Atur tab, GID, dan header untuk setiap field yang digunakan sinkronisasi.', 'hcis-ysq'); ?></p>
+              <table class="widefat fixed striped" style="max-width: 1000px;">
+                <thead>
+                  <tr>
+                    <th><?php esc_html_e('Key', 'hcis-ysq'); ?></th>
+                    <th><?php esc_html_e('Tab', 'hcis-ysq'); ?></th>
+                    <th><?php esc_html_e('GID', 'hcis-ysq'); ?></th>
+                    <th><?php esc_html_e('Header', 'hcis-ysq'); ?></th>
+                    <th><?php esc_html_e('Order', 'hcis-ysq'); ?></th>
+                    <th><?php esc_html_e('Description', 'hcis-ysq'); ?></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($setup_key_config as $key => $config): ?>
+                    <tr>
+                      <td style="width: 200px;">
+                        <strong><?php echo esc_html($config['label'] ?? $key); ?></strong><br>
+                        <code><?php echo esc_html($key); ?></code>
+                      </td>
+                      <td style="width: 150px;">
+                        <select name="hcis_portal_setup_keys[<?php echo esc_attr($key); ?>][tab]">
+                          <?php foreach ($tab_labels as $slug => $label): ?>
+                            <option value="<?php echo esc_attr($slug); ?>" <?php selected($slug, $config['tab'] ?? ''); ?>><?php echo esc_html($label); ?></option>
+                          <?php endforeach; ?>
+                        </select>
+                      </td>
+                      <td style="width: 120px;">
+                        <input type="text" name="hcis_portal_setup_keys[<?php echo esc_attr($key); ?>][gid]" value="<?php echo esc_attr($config['gid'] ?? ''); ?>" class="regular-text" style="width: 110px;">
+                      </td>
+                      <td>
+                        <input type="text" name="hcis_portal_setup_keys[<?php echo esc_attr($key); ?>][header]" value="<?php echo esc_attr($config['header'] ?? ''); ?>" class="regular-text" style="width: 220px;">
+                      </td>
+                      <td style="width: 90px;">
+                        <input type="number" name="hcis_portal_setup_keys[<?php echo esc_attr($key); ?>][order]" value="<?php echo esc_attr((int) ($config['order'] ?? 0)); ?>" min="0" step="1" style="width: 80px;">
+                      </td>
+                      <td>
+                        <small>
+                          <?php echo esc_html($config['description'] ?? ''); ?>
+                          <?php if (!empty($config['requires_gid'])): ?>
+                            <br><strong><?php esc_html_e('GID wajib.', 'hcis-ysq'); ?></strong>
+                          <?php endif; ?>
+                        </small>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </td>
+          </tr>
         </table>
         <p class="submit">
           <input type="text" id="hcis-test-nip" name="hcis_test_nip" class="regular-text" placeholder="<?php esc_attr_e('NIP to Test (optional)', 'hcis-ysq'); ?>" style="width: 200px; margin-right: 10px;">
