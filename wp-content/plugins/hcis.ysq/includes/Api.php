@@ -238,12 +238,22 @@ class Api {
     self::check_nonce();
     self::require_admin();
 
-    $profiles = Profiles::all();
-    if (is_wp_error($profiles)) {
-      wp_send_json_error([
-        'message' => $profiles->get_error_message(),
-      ], 500);
+    if (!GoogleSheetSettings::is_configured()) {
+      wp_send_json_error(['message' => __('Google Sheet belum dikonfigurasi.', 'hcisysq')], 400);
     }
+
+    $api = new GoogleSheetsAPI();
+    if (!$api->authenticate(GoogleSheetSettings::get_credentials())) {
+      wp_send_json_error(['message' => __('Autentikasi Google Sheet gagal.', 'hcisysq')], 500);
+    }
+
+    $class = GoogleSheetSettings::repository_class_for('profiles');
+    if (!$class || !class_exists($class)) {
+      wp_send_json_error(['message' => __('Repository profil tidak tersedia.', 'hcisysq')], 500);
+    }
+
+    $repo = new $class($api, new SheetCache());
+    $profiles = $repo->all();
 
     wp_send_json_success([
       'profiles' => $profiles,
@@ -676,6 +686,8 @@ class Api {
     if ($sheet_result && empty($sheet_result['ok'])) {
       wp_send_json(['ok'=>false,'msg'=>$sheet_result['msg'] ?? 'Gagal mengirim data ke Google Sheet.']);
     }
+
+    do_action('hcisysq/training/submitted', $sheet_data, $me);
 
     wp_send_json(['ok'=>true]);
   }
