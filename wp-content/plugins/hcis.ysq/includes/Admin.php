@@ -286,32 +286,21 @@ class Admin {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       check_admin_referer('hcisysq_settings');
 
-      // Profil Pegawai CSV
-      if (isset($_POST['save_profiles']) || isset($_POST['import_profiles'])) {
-        $url = esc_url_raw($_POST['profiles_csv_url'] ?? '');
-        Profiles::set_csv_url($url);
-
-        if (isset($_POST['import_profiles']) && $url) {
-          $res = Profiles::import_from_csv($url);
-          $msg .= $res['ok']
-            ? "<strong>Import Profil:</strong> inserted {$res['inserted']}, updated {$res['updated']}.<br>"
-            : "<strong>Import Profil GAGAL:</strong> " . esc_html($res['msg']) . "<br>";
-        }
+      // Profil Pegawai Sheet Config
+      if (isset($_POST['save_profiles'])) {
+        $sheet_id = sanitize_text_field($_POST['profiles_sheet_id'] ?? '');
+        $tab_name = sanitize_text_field($_POST['profiles_tab_name'] ?? 'Profiles');
+        Profiles::set_sheet_config($sheet_id, $tab_name);
+        $msg .= "<strong>Profil Pegawai:</strong> konfigurasi sheet tersimpan.<br>";
       }
 
       // Users Google Sheet
-      if (isset($_POST['save_users']) || isset($_POST['import_users'])) {
+      if (isset($_POST['save_users'])) {
         $sheet_id = sanitize_text_field($_POST['users_sheet_id'] ?? '');
         $tab_name = sanitize_text_field($_POST['users_tab_name'] ?? 'User');
         Users::set_sheet_config($sheet_id, $tab_name);
-
-        if (isset($_POST['import_users']) && $sheet_id) {
-          $url = Users::build_csv_url($sheet_id, $tab_name);
-          $res = Users::import_from_csv($url);
-          $msg .= $res['ok']
-            ? "<strong>Import Users:</strong> inserted {$res['inserted']}, updated {$res['updated']}.<br>"
-            : "<strong>Import Users GAGAL:</strong> " . esc_html($res['msg']) . "<br>";
-        }
+        Users::flush_cache();
+        $msg .= "<strong>Users:</strong> konfigurasi sheet tersimpan.<br>";
       }
 
       // Training Sheet Config
@@ -375,7 +364,8 @@ class Admin {
       }
     }
 
-    $profiles_csv = esc_url(Profiles::get_csv_url());
+    $profiles_sheet_id = esc_attr(Profiles::get_sheet_id());
+    $profiles_tab_name = esc_attr(Profiles::get_tab_name());
     $users_sheet_id = esc_attr(Users::get_sheet_id());
     $users_tab_name = esc_attr(Users::get_tab_name());
     $training_sheet_id = esc_attr(Trainings::get_sheet_id());
@@ -398,30 +388,44 @@ class Admin {
     $captcha_secret_key = esc_attr($captcha_settings['secret_key']);
     $captcha_threshold = esc_attr($captcha_settings['threshold']);
     $captcha_forms = is_array($captcha_settings['enabled_forms']) ? $captcha_settings['enabled_forms'] : [];
+    $last_sync = get_option('hcis_gs_last_sync', '');
+    $last_error = get_option('hcis_gs_last_error', '');
     ?>
     <div class="wrap">
       <h1>HCIS.YSQ • Settings & Import</h1>
       <?php if ($msg): ?>
         <div class="notice notice-info"><p><?= $msg ?></p></div>
       <?php endif; ?>
+      <?php if ($last_error): ?>
+        <div class="notice notice-error"><p><strong>Status Google Sheets:</strong> <?= esc_html($last_error); ?></p></div>
+      <?php else: ?>
+        <div class="notice notice-success"><p><strong>Status Google Sheets:</strong> <?= $last_sync ? esc_html(sprintf(__('Terakhir berhasil pada %s', 'hcis-ysq'), $last_sync)) : esc_html__('Belum pernah sinkron.', 'hcis-ysq'); ?></p></div>
+      <?php endif; ?>
 
-      <!-- PROFIL PEGAWAI (CSV) -->
-      <h2>1. Profil Pegawai (CSV)</h2>
+      <!-- PROFIL PEGAWAI (Google Sheet) -->
+      <h2>1. Profil Pegawai (Google Sheet)</h2>
       <form method="post">
         <?php wp_nonce_field('hcisysq_settings'); ?>
         <table class="form-table">
           <tr>
-            <th scope="row"><label for="profiles_csv_url">CSV URL</label></th>
+            <th scope="row"><label for="profiles_sheet_id">Sheet ID</label></th>
             <td>
-              <input type="url" id="profiles_csv_url" name="profiles_csv_url" class="regular-text code" style="width: 600px"
-                     value="<?= $profiles_csv ?>" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?gid=…&single=true&output=csv">
-              <p class="description">URL: <code>https://docs.google.com/spreadsheets/d/e/2PACX-1vTlR2VUOcQfXRjZN4fNC-o4CvPTgd-ZlReqj_pfEfYGr5A87Wh6K2zU16iexLnfIh5djkrXzmVlk1w-/pub?gid=0&single=true&output=csv</code></p>
+              <input type="text" id="profiles_sheet_id" name="profiles_sheet_id" class="regular-text" style="width: 600px"
+                     value="<?= $profiles_sheet_id ?>" placeholder="14Uf7pjsFVURLmL5NWXlWhYvoILrwdiW11y3sVOLrLt4">
+              <p class="description"><?php esc_html_e('ID Google Sheet yang menyimpan data profil pegawai.', 'hcis-ysq'); ?></p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row"><label for="profiles_tab_name">Tab Name</label></th>
+            <td>
+              <input type="text" id="profiles_tab_name" name="profiles_tab_name" class="regular-text"
+                     value="<?= $profiles_tab_name ?>" placeholder="Profiles">
+              <p class="description"><?php esc_html_e('Nama tab di dalam sheet yang berisi kolom Profil (A:AF).', 'hcis-ysq'); ?></p>
             </td>
           </tr>
         </table>
         <p class="submit">
           <button type="submit" name="save_profiles" class="button button-primary">Simpan</button>
-          <button type="submit" name="import_profiles" class="button">Import Sekarang</button>
         </p>
       </form>
       <hr>
@@ -449,7 +453,6 @@ class Admin {
         </table>
         <p class="submit">
           <button type="submit" name="save_users" class="button button-primary">Simpan</button>
-          <button type="submit" name="import_users" class="button">Import Sekarang</button>
         </p>
       </form>
       <hr>
@@ -622,7 +625,7 @@ class Admin {
       </form>
 
       <hr>
-      <p><strong>Tips:</strong> Import otomatis dijalankan harian via WP-Cron (Profil & Users).</p>
+      <p><?php esc_html_e('Data Users & Profil kini ditarik otomatis dari Google Sheet. Periksa widget "Google Sheets Sync Status" di Dashboard untuk memantau kesehatan integrasi.', 'hcis-ysq'); ?></p>
     </div>
     <?php
   }

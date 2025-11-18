@@ -5,6 +5,7 @@ if (!defined('ABSPATH')) exit;
 
 use HCISYSQ\GoogleSheetsAPI;
 use HCISYSQ\SheetCache;
+use HCISYSQ\Users;
 
 class UserRepository {
 
@@ -47,6 +48,7 @@ class UserRepository {
     if ($result) {
       $this->cache->forget('users_all');
       $this->cache->forget('user_' . $nip);
+      Users::flush_cache();
       hcisysq_log('UserRepository::create - Synced: NIP=' . $nip);
     }
 
@@ -86,6 +88,7 @@ class UserRepository {
     if ($result) {
       $this->cache->forget('users_all');
       $this->cache->forget('user_' . $nip);
+      Users::flush_cache();
     }
 
     return $result;
@@ -109,6 +112,7 @@ class UserRepository {
     if ($result) {
       $this->cache->forget('users_all');
       $this->cache->forget('user_' . $nip);
+      Users::flush_cache();
     }
 
     return $result;
