@@ -78,7 +78,7 @@ class DatabaseHandler extends AbstractProcessingHandler {
   /**
    * Persist log record into the wp_hcisysq_logs table.
    */
-  protected function write(LogRecord $record): void {
+  protected function write(array $record): void {
     global $wpdb;
 
     if (!isset($wpdb)) {
@@ -92,18 +92,18 @@ class DatabaseHandler extends AbstractProcessingHandler {
       return;
     }
 
-    $context = $record->context ?? [];
+    $context = $record['context'] ?? [];
     $userId = isset($context['user_id']) ? intval($context['user_id']) : null;
     $ipAddress = isset($context['ip_address']) ? $this->sanitize($context['ip_address']) : null;
     $component = isset($context['component']) ? $this->sanitize($context['component']) : 'core';
     $stackTrace = isset($context['stack_trace']) ? $context['stack_trace'] : '';
     $requestId = isset($context['request_id']) ? substr($this->sanitize($context['request_id']), 0, 64) : '';
-    $severity = isset($context['severity']) ? strtoupper($context['severity']) : strtoupper($record->level->getName());
+    $severity = isset($context['severity']) ? strtoupper($context['severity']) : strtoupper($record['level_name']);
 
     $data = [
-      'level' => strtoupper($record->level->getName()),
+      'level' => strtoupper($record['level_name']),
       'severity' => $severity,
-      'message' => $record->message,
+      'message' => $record['message'],
       'context' => self::encode($context['context'] ?? []),
       'extra' => self::encode($context['extra'] ?? []),
       'stack_trace' => $stackTrace,
