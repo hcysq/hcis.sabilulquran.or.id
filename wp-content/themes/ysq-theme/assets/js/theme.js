@@ -31,6 +31,110 @@
     window.addEventListener('scroll', update, { passive: true });
   }
 
+  function sendLogoutRequest(config) {
+    if (!config || !config.ajaxUrl || !config.logoutNonce) {
+      return Promise.reject(new Error('Logout configuration is missing.'));
+    }
+
+    const formData = new FormData();
+    formData.append('action', 'hcisysq_logout');
+    formData.append('_wpnonce', config.logoutNonce);
+
+    const handleResponse = (status, text) => {
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (err) {
+        data = {};
+      }
+
+      if (status < 200 || status >= 300 || !data.ok) {
+        const error = new Error((data && data.msg) || 'Logout gagal.');
+        error.payload = data;
+        throw error;
+      }
+
+      return data;
+    };
+
+    if (window.fetch) {
+      return window
+        .fetch(config.ajaxUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then((response) => response.text().then((text) => handleResponse(response.status, text)));
+    }
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', config.ajaxUrl, true);
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) {
+          return;
+        }
+        try {
+          resolve(handleResponse(xhr.status, xhr.responseText));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      xhr.onerror = () => reject(new Error('Logout request failed.'));
+      xhr.send(formData);
+    });
+  }
+
+  function initLogoutButton() {
+    const button = document.querySelector('[data-hcisysq-logout]');
+    const config = window.ysqTheme || null;
+    if (!button || !config || !config.ajaxUrl || !config.logoutNonce) {
+      return;
+    }
+
+    const labels = {
+      default: (button.textContent || '').trim() || 'Keluar',
+      loading: button.getAttribute('data-logout-loading') || 'Keluar…',
+      error: button.getAttribute('data-logout-error') || 'Gagal. Coba lagi.',
+    };
+
+    function setLabel(value) {
+      button.textContent = value;
+    }
+
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      if (button.disabled) {
+        return;
+      }
+
+      button.disabled = true;
+      setLabel(labels.loading);
+
+      sendLogoutRequest(config)
+        .then((payload) => {
+          const redirect = (payload && payload.wp_logout_url) || config.logoutRedirect;
+          if (redirect) {
+            window.location.href = redirect;
+          } else {
+            window.location.reload();
+          }
+        })
+        .catch((err) => {
+          setLabel(labels.error);
+          button.disabled = false;
+          window.setTimeout(() => {
+            setLabel(labels.default);
+          }, 2000);
+          if (window.console && console.error) {
+            console.error(err);
+          }
+        });
+    });
+  }
+
   function initColorMode() {
     const root = document.documentElement;
     const toggle = document.querySelector('[data-color-mode-toggle]');
@@ -110,5 +214,6 @@
   ready(function () {
     initHeader();
     initColorMode();
+    initLogoutButton();
   });
 })();
