@@ -145,7 +145,8 @@ class UserRepository extends AbstractSheetRepository {
     return [
       'nip' => $nip,
       'nama' => $user->display_name,
-      'password_hash' => wp_hash_password($user->user_pass),
+      // WordPress already stores the bcrypt hash in user_pass; persist it as-is.
+      'password_hash' => $user->user_pass,
       'phone' => get_user_meta($user_id, 'phone', true) ?: '',
       'email' => $user->user_email,
     ];
