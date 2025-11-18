@@ -5,8 +5,8 @@
   align-items: center;
   justify-content: center;
   padding: 36px 16px;
-  background: #f5f7fb url('/wp-content/themes/ysq-theme/assets/bg.jpg') repeat;
-  background-size: 400px 400px;
+  background-color: rgba(255, 255, 255, 0.6);
+  background-color: color-mix(in srgb, var(--ysq-header-bg, #fff) 60%, transparent);
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
   color: #0f172a;
 }
