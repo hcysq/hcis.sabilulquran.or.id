@@ -1,6 +1,6 @@
 <?php
 
-namespace Hcis\Ysq\Includes;
+namespace HCISYSQ;
 
 class PasswordReset {
     public static function init() {

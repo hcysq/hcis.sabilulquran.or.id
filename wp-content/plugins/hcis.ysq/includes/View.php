@@ -81,7 +81,7 @@ class View {
       $message = get_transient('hcis_reset_message');
       delete_transient('hcis_reset_message');
       
-      $validation = \Hcis\Ysq\Includes\PasswordResetManager::validate_token($token);
+      $validation = \HCISYSQ\PasswordResetManager::validate_token($token);
       if (is_wp_error($validation)) {
           $error_message = $validation->get_error_message();
           return '<div class="hcisysq-auth-wrap"><div class="auth-card"><p>' . esc_html($error_message) . '</p><a href="' . esc_url(site_url('/lupa-password')) . '">Minta link baru</a></div></div>';

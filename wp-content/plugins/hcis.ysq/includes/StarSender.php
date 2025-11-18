@@ -1,5 +1,5 @@
 <?php
-namespace Hcis\Ysq\Includes;
+namespace HCISYSQ;
 
 if (!defined('ABSPATH')) exit;
 

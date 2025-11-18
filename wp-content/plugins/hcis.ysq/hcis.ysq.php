@@ -137,10 +137,10 @@ HCISYSQ\ProfileWizard::init();
 HCISYSQ\SessionMaintenance::init();
 
 // Initialize the new Password Reset flow
-if (class_exists('Hcis\Ysq\Includes\PasswordReset')) {
-    Hcis\Ysq\Includes\PasswordReset::init();
-    hcisysq_log('Password Reset module initialized');
+if (class_exists('HCISYSQ\PasswordReset')) {
+    HCISYSQ\PasswordReset::init();
 }
+
 
 // Initialize Google Sheets real-time sync hooks
 if (class_exists('HCISYSQ\GoogleSheetsSync')) {
