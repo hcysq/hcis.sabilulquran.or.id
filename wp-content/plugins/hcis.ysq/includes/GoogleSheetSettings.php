@@ -200,6 +200,34 @@ class GoogleSheetSettings {
   }
 
   public static function get_tab_column_order(string $tab): array {
+    $setup_keys = self::get_effective_setup_keys();
+    $headers = [];
+    foreach ($setup_keys as $config) {
+      if (($config['tab'] ?? '') !== $tab) {
+        continue;
+      }
+      $header = trim((string) ($config['header'] ?? ''));
+      if ($header === '') {
+        continue;
+      }
+      $headers[] = [
+        'order' => (int) ($config['order'] ?? 0),
+        'header' => $header,
+      ];
+    }
+
+    if (!empty($headers)) {
+      usort($headers, function ($a, $b) {
+        return $a['order'] <=> $b['order'];
+      });
+
+      $ordered_headers = array_map(static function ($row) {
+        return $row['header'];
+      }, $headers);
+
+      return array_values(array_unique($ordered_headers));
+    }
+
     $option_name = self::OPT_TAB_COLUMN_ORDER_PREFIX . $tab;
     $order_string = get_option($option_name, '');
     if (empty($order_string)) {
@@ -334,7 +362,7 @@ class GoogleSheetSettings {
     ], $status);
   }
 
-  public static function save_settings(string $credentials_json, string $sheet_id, array $gids, array $column_orders): array {
+  public static function save_settings(string $credentials_json, string $sheet_id, array $gids, array $setup_keys): array {
     $status = [
       'valid' => true,
       'message' => __('Kredensial valid.', 'hcis-ysq'),
@@ -372,11 +400,9 @@ class GoogleSheetSettings {
         $status['message'] = sprintf(__('GID %s tidak valid.', 'hcis-ysq'), $config['title']);
       }
       update_option($config['gid_option'], $gid_value, false);
-
-      // Save column order for each tab
-      $column_order_value = isset($column_orders[$slug]) ? trim((string) $column_orders[$slug]) : '';
-      update_option(self::OPT_TAB_COLUMN_ORDER_PREFIX . $slug, $column_order_value, false);
     }
+
+    self::persist_setup_keys($setup_keys);
 
     update_option(self::OPT_STATUS, $status, false);
 
