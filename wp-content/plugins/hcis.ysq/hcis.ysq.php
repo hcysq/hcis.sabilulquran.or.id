@@ -4,6 +4,7 @@
  * Description: Login NIP+HP, Dashboard Pegawai, Form Pelatihan dengan Google Sheets Integration + SSO ke Google Apps Script.
  * Version: 1.6
  * Author: samijaya
+ * Requires PHP: 7.4
  */
 
 if (!defined('ABSPATH')) exit;

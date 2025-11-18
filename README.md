@@ -2,6 +2,11 @@
 
 This plugin ships with a structured logging stack that captures every PHP warning, fatal error, and application event through a centralized PSR-3 logger.
 
+## Requirements
+
+- WordPress 6.x
+- PHP 7.4, 8.0, or 8.1+ (Monolog 2.x keeps backward compatibility with PHP 7.4+)
+
 ## Key components
 
 - **ErrorHandler** normalizes every log (timestamp, stack trace, IP address, user ID, component, and request ID) and automatically redacts sensitive fields such as `password`, `token`, or `secret` before persisting the entry.
