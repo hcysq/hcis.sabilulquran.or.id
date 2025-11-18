@@ -17,6 +17,7 @@ class GoogleSheetSettings {
   const OPT_STATUS = 'hcis_gs_settings_status';
   const TAB_HASH_PREFIX = 'hcis_gs_tab_hash_';
   const OPT_TAB_COLUMN_ORDER_PREFIX = 'hcis_gs_tab_col_order_';
+  const OPT_TAB_COLUMN_MAP_PREFIX = 'hcis_gs_tab_col_map_';
 
   private const TAB_MAP = [
     'users' => [
@@ -97,6 +98,64 @@ class GoogleSheetSettings {
     return trim((string) get_option($option, ''));
   }
 
+  public static function resolve_tab_gid(string $tab): string {
+    $tab = trim($tab);
+    if ($tab === '') {
+      return '';
+    }
+
+    // Preserve legacy manual override for the Users tab.
+    if ($tab === 'users') {
+      $users_gid = trim((string) get_option('hcis_gid_users', ''));
+      if ($users_gid !== '') {
+        return $users_gid;
+      }
+    }
+
+    $isLegacyMap = null;
+    $column_map = self::get_tab_column_map($tab, $isLegacyMap);
+    if (!$isLegacyMap && !empty($column_map)) {
+      $firstEntry = reset($column_map);
+      $candidate = isset($firstEntry['gid']) ? trim((string) $firstEntry['gid']) : '';
+      if ($candidate !== '') {
+        return $candidate;
+      }
+    }
+
+    $legacy_gid = self::get_gid($tab);
+    if ($legacy_gid !== '') {
+      return $legacy_gid;
+    }
+
+    if (!self::is_configured()) {
+      return '';
+    }
+
+    try {
+      $api = GoogleSheetsAPI::getInstance();
+      $api->setSpreadsheetId(self::get_sheet_id());
+      $spreadsheet = $api->getSpreadsheet();
+      $tabName = self::get_tab_name($tab);
+      $sheets = method_exists($spreadsheet, 'getSheets') ? $spreadsheet->getSheets() : [];
+      foreach ((array) $sheets as $sheet) {
+        $properties = method_exists($sheet, 'getProperties') ? $sheet->getProperties() : null;
+        if (!$properties) {
+          continue;
+        }
+        if ($properties->getTitle() === $tabName) {
+          $sheetId = (string) $properties->getSheetId();
+          if ($sheetId !== '') {
+            return $sheetId;
+          }
+        }
+      }
+    } catch (\Exception $e) {
+      hcisysq_log(sprintf('resolve_tab_gid failed for %s: %s', $tab, $e->getMessage()), 'warning');
+    }
+
+    return '';
+  }
+
   public static function get_gid_map(): array {
     $map = [];
     foreach (self::TAB_MAP as $slug => $config) {
@@ -147,6 +206,100 @@ class GoogleSheetSettings {
       return [];
     }
     return array_map('trim', explode(',', $order_string));
+  }
+
+  public static function get_tab_column_map(string $tab, ?bool &$is_legacy = null): array {
+    $option_name = self::OPT_TAB_COLUMN_MAP_PREFIX . $tab;
+    $raw = get_option($option_name, null);
+    if (is_string($raw) && $raw !== '') {
+      $decoded = json_decode($raw, true);
+      if (is_array($decoded)) {
+        $raw = $decoded;
+      }
+    }
+
+    if (!is_array($raw) || empty($raw)) {
+      $is_legacy = true;
+      return self::build_legacy_column_map($tab);
+    }
+
+    $is_legacy = false;
+    $map = [];
+    foreach ($raw as $index => $entry) {
+      $map[] = self::normalize_column_map_entry($entry, (int) $index);
+    }
+
+    usort($map, static function ($a, $b) {
+      return ($a['position'] ?? 0) <=> ($b['position'] ?? 0);
+    });
+
+    return $map;
+  }
+
+  private static function normalize_column_map_entry($entry, int $position): array {
+    $normalized = [
+      'setup_key' => '',
+      'label' => '',
+      'position' => $position,
+      'gid' => '',
+    ];
+
+    if (is_string($entry)) {
+      $normalized['label'] = trim($entry);
+      return $normalized;
+    }
+
+    if (!is_array($entry)) {
+      return $normalized;
+    }
+
+    foreach (['setup_key', 'key', 'internal_key', 'field'] as $keyField) {
+      if (!empty($entry[$keyField])) {
+        $normalized['setup_key'] = trim((string) $entry[$keyField]);
+        break;
+      }
+    }
+
+    foreach (['label', 'header', 'title', 'name'] as $labelField) {
+      if (!empty($entry[$labelField])) {
+        $normalized['label'] = trim((string) $entry[$labelField]);
+        break;
+      }
+    }
+
+    if (isset($entry['position'])) {
+      $normalized['position'] = (int) $entry['position'];
+    } elseif (isset($entry['order'])) {
+      $normalized['position'] = (int) $entry['order'];
+    }
+
+    foreach (['gid', 'sheetId', 'sheet_id'] as $gidField) {
+      if (!empty($entry[$gidField])) {
+        $normalized['gid'] = trim((string) $entry[$gidField]);
+        break;
+      }
+    }
+
+    return $normalized;
+  }
+
+  private static function build_legacy_column_map(string $tab): array {
+    $order = self::get_tab_column_order($tab);
+    if (empty($order)) {
+      return [];
+    }
+
+    $map = [];
+    foreach ($order as $index => $label) {
+      $map[] = [
+        'setup_key' => '',
+        'label' => trim((string) $label),
+        'position' => (int) $index,
+        'gid' => '',
+      ];
+    }
+
+    return $map;
   }
 
   public static function record_tab_metrics(string $tab, array $data): void {

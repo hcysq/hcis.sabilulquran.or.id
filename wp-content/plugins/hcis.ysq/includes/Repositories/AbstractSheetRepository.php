@@ -17,6 +17,7 @@ abstract class AbstractSheetRepository {
   protected $primaryKey = 'nip';
   protected $column_index_map = [];
   protected $sheet_headers = [];
+  protected $configured_columns = null;
 
   public function __construct(?SheetCache $cache = null) {
     $this->api = GoogleSheetsAPI::getInstance();
@@ -104,8 +105,14 @@ abstract class AbstractSheetRepository {
         if ($rowIndex === null) {
           continue;
         }
-        $gid = GoogleSheetSettings::get_gid($this->tab);
-        $success = $this->api->deleteRows(GoogleSheetSettings::get_tab_name($this->tab), $gid, $rowIndex, $rowIndex);
+        $gid = GoogleSheetSettings::resolve_tab_gid($this->tab);
+        if ($gid === '') {
+          hcisysq_log(sprintf('Unable to resolve GID for tab %s when deleting %s', $this->tab, $value), 'error');
+          return false;
+        }
+        $startIndex = max(0, (int) $rowIndex);
+        $endIndex = $startIndex + 1;
+        $success = $this->api->deleteRows($gid, $startIndex, $endIndex);
         if ($success) {
           $this->flushCache();
         }
@@ -138,21 +145,23 @@ abstract class AbstractSheetRepository {
 
   protected function buildRow(array $data): array {
     $row = [];
-    $configured_order = GoogleSheetSettings::get_tab_column_order($this->tab);
-    $default_columns_labels = array_values($this->columns);
-    $effective_column_labels = !empty($configured_order) ? $configured_order : $default_columns_labels;
+    $configured_columns = $this->getConfiguredColumns();
 
-    foreach ($effective_column_labels as $label) {
-        // Find the internal key corresponding to this label
-        $internal_key = array_search($label, $this->columns, true);
-        if ($internal_key !== false) {
-            $row[] = $data[$internal_key] ?? '';
-        } else {
-            // If a label in effective_column_labels doesn't have a corresponding internal_key,
-            // it means it's a column the user expects but the system doesn't explicitly handle.
-            // We can either skip it or add an empty string. Adding empty string for now.
-            $row[] = '';
-        }
+    foreach ($configured_columns as $column) {
+      $internalKey = $column['key'] ?? null;
+      $setupKey = $column['setup_key'] ?? null;
+      $valueKey = null;
+      if ($internalKey !== null && $internalKey !== '') {
+        $valueKey = $internalKey;
+      } elseif ($setupKey !== null && $setupKey !== '') {
+        $valueKey = $setupKey;
+      }
+
+      if ($valueKey !== null && array_key_exists($valueKey, $data)) {
+        $row[] = $data[$valueKey];
+      } else {
+        $row[] = '';
+      }
     }
     return $row;
   }
@@ -192,23 +201,37 @@ abstract class AbstractSheetRepository {
 
   protected function buildColumnIndexMap(): void {
     $this->column_index_map = [];
-    $configured_order = GoogleSheetSettings::get_tab_column_order($this->tab);
+    $configured_columns = $this->getConfiguredColumns();
 
-    // Get the default internal keys and their labels from the concrete repository
-    // This assumes $this->columns is already populated by the child class.
-    $default_columns_labels = array_values($this->columns); // e.g., ['NIP', 'Nama', 'Password Hash', ...]
+    foreach ($configured_columns as $column) {
+      $label = $column['label'] ?? '';
+      if ($label === '') {
+        continue;
+      }
 
-    $effective_column_labels = !empty($configured_order) ? $configured_order : $default_columns_labels;
+      $sheet_column_index = array_search($label, $this->sheet_headers, true);
+      if ($sheet_column_index === false) {
+        continue;
+      }
 
-    foreach ($effective_column_labels as $internal_key_label) {
-        $sheet_column_index = array_search($internal_key_label, $this->sheet_headers, true);
-        if ($sheet_column_index !== false) {
-            // Find the internal key that corresponds to this label
-            $internal_key = array_search($internal_key_label, $this->columns, true);
-            if ($internal_key !== false) {
-                $this->column_index_map[$internal_key] = $sheet_column_index;
-            }
+      $internal_key = $column['key'] ?? null;
+      if ($internal_key === null || $internal_key === '') {
+        $setupKey = $column['setup_key'] ?? null;
+        if ($setupKey !== null && array_key_exists($setupKey, $this->columns)) {
+          $internal_key = $setupKey;
+        } else {
+          $matching = array_search($label, $this->columns, true);
+          if ($matching !== false) {
+            $internal_key = $matching;
+          }
         }
+      }
+
+      if ($internal_key === null || $internal_key === '') {
+        continue;
+      }
+
+      $this->column_index_map[$internal_key] = $sheet_column_index;
     }
   }
 
@@ -228,6 +251,73 @@ abstract class AbstractSheetRepository {
 
   protected function flushCache(): void {
     $this->cache->forget($this->cacheKey('all'));
+  }
+
+  protected function getConfiguredColumns(): array {
+    if ($this->configured_columns !== null) {
+      return $this->configured_columns;
+    }
+
+    $isLegacyMap = null;
+    $configured_map = GoogleSheetSettings::get_tab_column_map($this->tab, $isLegacyMap);
+    $configured = [];
+    $present_keys = [];
+
+    foreach ($configured_map as $entry) {
+      $label = isset($entry['label']) ? trim((string) $entry['label']) : '';
+      $setupKey = isset($entry['setup_key']) ? trim((string) $entry['setup_key']) : '';
+      $internalKey = $setupKey !== '' && array_key_exists($setupKey, $this->columns) ? $setupKey : null;
+
+      if ($internalKey === null && $label !== '') {
+        $matching = array_search($label, $this->columns, true);
+        if ($matching !== false) {
+          $internalKey = $matching;
+        }
+      }
+
+      $configured[] = [
+        'key' => $internalKey,
+        'setup_key' => $setupKey,
+        'label' => $label !== '' ? $label : ($internalKey !== null ? $this->columns[$internalKey] : ''),
+        'optional' => false,
+        'position' => $entry['position'] ?? count($configured),
+      ];
+
+      if ($internalKey !== null) {
+        $present_keys[] = $internalKey;
+      }
+    }
+
+    foreach ($this->columns as $internal => $label) {
+      if (in_array($internal, $present_keys, true)) {
+        continue;
+      }
+      $configured[] = [
+        'key' => $internal,
+        'setup_key' => $internal,
+        'label' => $label,
+        'optional' => true,
+        'position' => count($configured),
+      ];
+    }
+
+    if (empty($configured)) {
+      foreach ($this->columns as $internal => $label) {
+        $configured[] = [
+          'key' => $internal,
+          'setup_key' => $internal,
+          'label' => $label,
+          'optional' => true,
+          'position' => count($configured),
+        ];
+      }
+    }
+
+    usort($configured, static function ($a, $b) {
+      return ($a['position'] ?? 0) <=> ($b['position'] ?? 0);
+    });
+
+    return $this->configured_columns = $configured;
   }
 
   protected function findEmployeeIdByNip(string $nip): ?int {
