@@ -145,22 +145,21 @@ class View {
                           <button type="button" class="eye" data-toggle="new_password">lihat</button>
                       </div>
                       <p class="input-hint">Minimal 8 karakter serta harus mengandung huruf, angka, dan simbol.</p>
+                      <p class="field-error" data-role="password-error" aria-live="polite"></p>
                   </div>
 
                   <div class="form-group">
                       <label for="confirm_password" class="login-label">Konfirmasi Password Baru <span class="req">*</span></label>
-                      <div class="pw-row">
-                          <input
-                              id="confirm_password"
-                              type="password"
-                              name="confirm_password"
-                              required
-                              minlength="8"
-                              pattern="(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}"
-                              title="Minimal 8 karakter dengan huruf, angka, dan simbol"
-                          >
-                          <button type="button" class="eye" data-toggle="confirm_password">lihat</button>
-                      </div>
+                      <input
+                          id="confirm_password"
+                          type="password"
+                          name="confirm_password"
+                          required
+                          minlength="8"
+                          pattern="(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}"
+                          title="Minimal 8 karakter dengan huruf, angka, dan simbol"
+                      >
+                      <p class="field-error" data-role="confirm-password-error" aria-live="polite"></p>
                   </div>
 
                   <div class="form-group">
@@ -168,7 +167,7 @@ class View {
                   </div>
 
                   <div class="reset-actions">
-                      <button type="submit" name="submit_new_password" class="btn-primary login-button">Simpan</button>
+                      <button type="submit" name="submit_new_password" class="btn-primary login-button" disabled>Simpan</button>
                       <?php if ($showSkip): ?>
                           <button type="submit" name="skip_password_reset" value="1" class="btn-ghost" formnovalidate>Nanti Saja</button>
                       <?php endif; ?>

@@ -74,6 +74,30 @@
   gap: 8px;
 }
 
+.input-hint {
+  font-size: 10px;
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.field-error {
+  min-height: 12px;
+  font-size: 10px;
+  color: #dc2626;
+}
+
+.form-group.error .login-label,
+.form-group.error label,
+.form-group.error .input-hint {
+  color: #dc2626;
+}
+
+.form-group.error input,
+.form-group.error textarea,
+.form-group.error select {
+  border-color: rgba(220, 38, 38, 0.8);
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
+}
+
 .auth-form label,
 .login-label {
   display: block;
@@ -172,6 +196,14 @@
   letter-spacing: 0.02em;
   box-shadow: 0 10px 24px rgba(16, 46, 76, 0.24);
   transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.auth-form .btn-primary:disabled,
+.reset-actions .btn-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  font-style: italic;
+  pointer-events: none;
 }
 
 .auth-form .btn-primary:hover,

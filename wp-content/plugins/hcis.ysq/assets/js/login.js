@@ -92,9 +92,64 @@
     });
   }
 
+  function initResetForm() {
+    const $form = $('#hcisysq-reset-password-form');
+    if (!$form.length) {
+      return;
+    }
+
+    const passwordPattern = /(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}/;
+    const $password = $form.find('#new_password');
+    const $confirm = $form.find('#confirm_password');
+    const $submit = $form.find('button[name="submit_new_password"]');
+    const $passwordError = $form.find('[data-role="password-error"]');
+    const $confirmError = $form.find('[data-role="confirm-password-error"]');
+
+    function setFieldState($input, $errorElement, message) {
+      const $group = $input.closest('.form-group');
+      if (message) {
+        $group.addClass('error');
+        $errorElement.text(message);
+      } else {
+        $group.removeClass('error');
+        $errorElement.empty();
+      }
+    }
+
+    function validateForm() {
+      const passwordVal = $password.val().trim();
+      const confirmVal = $confirm.val().trim();
+
+      let passwordError = '';
+      let confirmError = '';
+
+      if (!passwordVal) {
+        passwordError = 'Password baru wajib diisi.';
+      } else if (!passwordPattern.test(passwordVal)) {
+        passwordError = 'Gunakan minimal 8 karakter dengan huruf, angka, dan simbol.';
+      }
+
+      if (!confirmVal) {
+        confirmError = 'Konfirmasi password wajib diisi.';
+      } else if (passwordVal && passwordVal !== confirmVal) {
+        confirmError = 'Konfirmasi password tidak cocok.';
+      }
+
+      setFieldState($password, $passwordError, passwordError);
+      setFieldState($confirm, $confirmError, confirmError);
+
+      const isValid = !passwordError && !confirmError;
+      $submit.prop('disabled', !isValid);
+    }
+
+    $password.on('input', validateForm);
+    $confirm.on('input', validateForm);
+    validateForm();
+  }
+
   $(document).ready(function() {
     initLoginForm();
-    initPasswordToggleButtons();
+    initResetForm();
   });
 
 })(jQuery, window.hcisysq);
