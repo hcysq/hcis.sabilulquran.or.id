@@ -5,12 +5,6 @@ if (!defined('ABSPATH')) exit;
 
 class Config {
   private const MAP = [
-    'admin_wa' => [
-      'option'    => 'hcisysq_admin_wa',
-      'constants' => ['HCISYSQ_SS_HC'],
-      'env'       => ['HCISYSQ_ADMIN_WA', 'HCISYSQ_SS_HC'],
-      'label'     => 'Admin WhatsApp',
-    ],
     'wa_token' => [
       'option'    => 'hcisysq_wa_token',
       'constants' => ['HCISYSQ_SS_KEY'],

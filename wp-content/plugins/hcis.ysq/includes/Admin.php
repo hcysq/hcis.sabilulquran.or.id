@@ -41,7 +41,7 @@ class Admin {
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('hcis-admin-ajax-nonce'),
             'wa_test'  => [
-                'target_number' => get_option('hcisysq_admin_wa') ?: '6285175201627',
+                'target_number' => AdminCredentials::get_primary_whatsapp(),
                 'success_text'  => __('Pesan tes WhatsApp berhasil dikirim ke %s.', 'hcis-ysq'),
                 'error_text'    => __('Gagal mengirim pesan tes WhatsApp. Silakan coba lagi.', 'hcis-ysq'),
             ],
@@ -55,15 +55,16 @@ class Admin {
     }
 
     $api_key = get_option('hcisysq_wa_token');
-    $admin_phone = get_option('hcisysq_admin_wa');
+    $hasContacts = AdminCredentials::has_whatsapp_contact();
 
-    if (empty($api_key) || empty($admin_phone)) {
+    if (empty($api_key) || !$hasContacts) {
         $settings_url = admin_url('options-general.php?page=hcisysq-settings');
+        $credentials_url = admin_url('tools.php?page=hcis-admin-credentials');
         ?>
         <div class="notice notice-warning is-dismissible">
             <p>
-                <strong>Peringatan HCIS.YSQ:</strong> Pengaturan WhatsApp (API Key dan Nomor Admin) belum lengkap. Fitur "Lupa Password" tidak akan berfungsi dengan benar.
-                <a href="<?= esc_url($settings_url); ?>">Lengkapi pengaturan sekarang</a>.
+                <strong>Peringatan HCIS.YSQ:</strong> Pengaturan WhatsApp (API Key dan minimal satu nomor admin) belum lengkap. Fitur "Lupa Password" tidak akan berfungsi dengan benar.
+                <a href="<?= esc_url($settings_url); ?>">Isi token</a> atau kelola <a href="<?= esc_url($credentials_url); ?>">Kredensial Admin</a>.
             </p>
         </div>
         <?php
@@ -100,6 +101,14 @@ class Admin {
       'hcis-admin-portal-settings',
       [__CLASS__, 'render_portal_settings_page']
     );
+
+    add_management_page(
+      __('Kredensial Admin', 'hcis-ysq'),
+      __('Kredensial Admin', 'hcis-ysq'),
+      'manage_options',
+      'hcis-admin-credentials',
+      [__CLASS__, 'render_admin_credentials_page']
+    );
   }
 
   /**
@@ -122,9 +131,9 @@ class Admin {
     $gid_keys = GoogleSheetSettings::get_tab_labels();
 
     $wa_token_value = get_option('hcisysq_wa_token', '');
-    $admin_wa_value = get_option('hcisysq_admin_wa', '');
     $wa_token_override = Config::describe_override('wa_token');
-    $admin_wa_override = Config::describe_override('admin_wa');
+    $adminContacts = AdminCredentials::get_whatsapp_numbers();
+    $credentialsUrl = admin_url('tools.php?page=hcis-admin-credentials');
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       check_admin_referer('hcis_portal_settings');
@@ -134,7 +143,6 @@ class Admin {
         : '';
       $sheet_id = sanitize_text_field($_POST['hcis_portal_sheet_id'] ?? '');
       $wa_token_input = sanitize_text_field(wp_unslash($_POST['hcis_portal_wa_token'] ?? ''));
-      $admin_wa_input = sanitize_text_field(wp_unslash($_POST['hcis_portal_admin_wa'] ?? ''));
 
       $gids = [];
       foreach ($gid_keys as $key => $label) {
@@ -150,10 +158,7 @@ class Admin {
       $status_data = GoogleSheetSettings::save_settings($credentials_json, $sheet_id, $gids, $column_orders);
 
       update_option('hcisysq_wa_token', $wa_token_input);
-      update_option('hcisysq_admin_wa', $admin_wa_input);
-
       $wa_token_value = $wa_token_input;
-      $admin_wa_value = $admin_wa_input;
 
       if (!empty($status_data['valid'])) {
         $notice = '<div class="notice notice-success"><p>' . esc_html__('Settings saved.', 'hcis-ysq') . '</p></div>';
@@ -218,13 +223,20 @@ class Admin {
             </td>
           </tr>
           <tr>
-            <th scope="row"><label for="hcis_portal_admin_wa"><?php esc_html_e('Admin WhatsApp Number', 'hcis-ysq'); ?></label></th>
+            <th scope="row"><?php esc_html_e('Kontak Admin', 'hcis-ysq'); ?></th>
             <td>
-              <input type="text" id="hcis_portal_admin_wa" name="hcis_portal_admin_wa" class="regular-text" style="width: 320px" value="<?php echo esc_attr($admin_wa_value); ?>" placeholder="6285175201627">
-              <p class="description"><?php esc_html_e('Nomor admin yang menerima pesan "Lupa Password".', 'hcis-ysq'); ?></p>
-              <?php if ($admin_wa_override): ?>
-                <p class="description"><em><?php echo wp_kses_post($admin_wa_override); ?></em></p>
+              <?php if (empty($adminContacts)): ?>
+                <p><?php esc_html_e('Belum ada nomor WhatsApp admin yang terdaftar.', 'hcis-ysq'); ?></p>
+              <?php else: ?>
+                <ul>
+                  <?php foreach ($adminContacts as $contact): ?>
+                    <li><?php echo esc_html($contact); ?></li>
+                  <?php endforeach; ?>
+                </ul>
               <?php endif; ?>
+              <p class="description">
+                <a href="<?php echo esc_url($credentialsUrl); ?>"><?php esc_html_e('Kelola kredensial & nomor admin melalui halaman Tools &rarr; Kredensial Admin.', 'hcis-ysq'); ?></a>
+              </p>
             </td>
           </tr>
           <?php foreach ($gid_keys as $key => $label): ?>
@@ -322,6 +334,166 @@ class Admin {
     }
   }
 
+  public static function render_admin_credentials_page() {
+    if (!current_user_can('manage_options')) {
+      wp_die(__('Anda tidak memiliki izin untuk mengakses halaman ini.', 'hcis-ysq'));
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      check_admin_referer('hcis_admin_credentials');
+      $action = sanitize_key($_POST['hcis_admin_action'] ?? '');
+      $message = '';
+      $type = 'success';
+
+      switch ($action) {
+        case 'add':
+          $username = sanitize_user($_POST['username'] ?? '', true);
+          $display = sanitize_text_field($_POST['display_name'] ?? $username);
+          $whatsapp = sanitize_text_field($_POST['whatsapp'] ?? '');
+          $password = trim((string)($_POST['password'] ?? ''));
+          if ($password === '') {
+            $message = __('Password wajib diisi untuk akun baru.', 'hcis-ysq');
+            $type = 'error';
+            break;
+          }
+          $result = AdminCredentials::add_account([
+            'username'     => $username,
+            'display_name' => $display,
+            'whatsapp'     => $whatsapp,
+          ], $password);
+          if (is_wp_error($result)) {
+            $message = $result->get_error_message();
+            $type = 'error';
+          } else {
+            $message = __('Akun administrator berhasil ditambahkan.', 'hcis-ysq');
+          }
+          break;
+        case 'update':
+          $accountId = sanitize_text_field($_POST['account_id'] ?? '');
+          $username = sanitize_user($_POST['username'] ?? '', true);
+          $display = sanitize_text_field($_POST['display_name'] ?? '');
+          $whatsapp = sanitize_text_field($_POST['whatsapp'] ?? '');
+          $password = trim((string)($_POST['password'] ?? ''));
+          $result = AdminCredentials::update_account($accountId, [
+            'username'     => $username,
+            'display_name' => $display,
+            'whatsapp'     => $whatsapp,
+          ], $password !== '' ? $password : null);
+          if (is_wp_error($result)) {
+            $message = $result->get_error_message();
+            $type = 'error';
+          } else {
+            $message = __('Akun administrator diperbarui.', 'hcis-ysq');
+          }
+          break;
+        case 'delete':
+          $accountId = sanitize_text_field($_POST['account_id'] ?? '');
+          $result = AdminCredentials::delete_account($accountId);
+          if (is_wp_error($result)) {
+            $message = $result->get_error_message();
+            $type = 'error';
+          } else {
+            $message = __('Akun administrator dihapus.', 'hcis-ysq');
+          }
+          break;
+        default:
+          $message = __('Aksi tidak dikenali.', 'hcis-ysq');
+          $type = 'error';
+      }
+
+      $redirect = add_query_arg([
+        'page' => 'hcis-admin-credentials',
+        'hcis_admin_notice' => rawurlencode($message),
+        'hcis_admin_notice_type' => $type,
+      ], admin_url('tools.php'));
+      wp_safe_redirect($redirect);
+      exit;
+    }
+
+    $noticeRaw = isset($_GET['hcis_admin_notice']) ? wp_unslash($_GET['hcis_admin_notice']) : '';
+    $notice = $noticeRaw !== '' ? sanitize_text_field(rawurldecode($noticeRaw)) : '';
+    $noticeType = isset($_GET['hcis_admin_notice_type']) ? sanitize_key($_GET['hcis_admin_notice_type']) : 'success';
+    $accounts = AdminCredentials::get_accounts();
+    $canAdd = count($accounts) < AdminCredentials::MAX_ACCOUNTS;
+
+    ?>
+    <div class="wrap">
+      <h1><?php esc_html_e('Kredensial Admin', 'hcis-ysq'); ?></h1>
+      <p><?php esc_html_e('Tambahkan hingga tiga akun administrator. Setiap perubahan akan otomatis disinkronkan dengan pengguna WordPress berperan HCIS Admin.', 'hcis-ysq'); ?></p>
+
+      <?php if ($notice): ?>
+        <div class="notice notice-<?php echo $noticeType === 'error' ? 'error' : 'success'; ?> is-dismissible">
+          <p><?php echo esc_html($notice); ?></p>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($canAdd): ?>
+        <h2><?php esc_html_e('Tambah Akun Baru', 'hcis-ysq'); ?></h2>
+        <form method="post" class="card">
+          <?php wp_nonce_field('hcis_admin_credentials'); ?>
+          <table class="form-table" role="presentation">
+            <tr>
+              <th scope="row"><label for="hcis-admin-new-username"><?php esc_html_e('Username', 'hcis-ysq'); ?></label></th>
+              <td><input type="text" id="hcis-admin-new-username" name="username" class="regular-text" required></td>
+            </tr>
+            <tr>
+              <th scope="row"><label for="hcis-admin-new-display"><?php esc_html_e('Nama Tampilan', 'hcis-ysq'); ?></label></th>
+              <td><input type="text" id="hcis-admin-new-display" name="display_name" class="regular-text"></td>
+            </tr>
+            <tr>
+              <th scope="row"><label for="hcis-admin-new-wa"><?php esc_html_e('Nomor WhatsApp', 'hcis-ysq'); ?></label></th>
+              <td><input type="text" id="hcis-admin-new-wa" name="whatsapp" class="regular-text" placeholder="628xxxxxxxxxx"></td>
+            </tr>
+            <tr>
+              <th scope="row"><label for="hcis-admin-new-pass"><?php esc_html_e('Password', 'hcis-ysq'); ?></label></th>
+              <td><input type="password" id="hcis-admin-new-pass" name="password" class="regular-text" required></td>
+            </tr>
+          </table>
+          <p class="submit">
+            <button type="submit" name="hcis_admin_action" value="add" class="button button-primary"><?php esc_html_e('Tambah Akun', 'hcis-ysq'); ?></button>
+          </p>
+        </form>
+      <?php else: ?>
+        <p><em><?php printf(esc_html__('Maksimal %d akun sudah terpakai.', 'hcis-ysq'), AdminCredentials::MAX_ACCOUNTS); ?></em></p>
+      <?php endif; ?>
+
+      <h2><?php esc_html_e('Daftar Akun', 'hcis-ysq'); ?></h2>
+      <?php if (empty($accounts)): ?>
+        <p><?php esc_html_e('Belum ada akun administrator.', 'hcis-ysq'); ?></p>
+      <?php else: ?>
+        <?php foreach ($accounts as $account): ?>
+          <form method="post" class="card">
+            <?php wp_nonce_field('hcis_admin_credentials'); ?>
+            <input type="hidden" name="account_id" value="<?php echo esc_attr($account['id']); ?>">
+            <table class="form-table" role="presentation">
+              <tr>
+                <th scope="row"><label><?php esc_html_e('Username', 'hcis-ysq'); ?></label></th>
+                <td><input type="text" name="username" class="regular-text" value="<?php echo esc_attr($account['username']); ?>" required></td>
+              </tr>
+              <tr>
+                <th scope="row"><label><?php esc_html_e('Nama Tampilan', 'hcis-ysq'); ?></label></th>
+                <td><input type="text" name="display_name" class="regular-text" value="<?php echo esc_attr($account['display_name']); ?>"></td>
+              </tr>
+              <tr>
+                <th scope="row"><label><?php esc_html_e('Nomor WhatsApp', 'hcis-ysq'); ?></label></th>
+                <td><input type="text" name="whatsapp" class="regular-text" value="<?php echo esc_attr($account['whatsapp']); ?>"></td>
+              </tr>
+              <tr>
+                <th scope="row"><label><?php esc_html_e('Password Baru', 'hcis-ysq'); ?></label></th>
+                <td><input type="password" name="password" class="regular-text" placeholder="<?php esc_attr_e('Biarkan kosong jika tidak diubah', 'hcis-ysq'); ?>"></td>
+              </tr>
+            </table>
+            <p class="submit">
+              <button type="submit" name="hcis_admin_action" value="update" class="button button-primary"><?php esc_html_e('Simpan Perubahan', 'hcis-ysq'); ?></button>
+              <button type="submit" name="hcis_admin_action" value="delete" class="button button-link-delete" onclick="return confirm('<?php esc_attr_e('Hapus akun ini?', 'hcis-ysq'); ?>');"><?php esc_html_e('Hapus', 'hcis-ysq'); ?></button>
+            </p>
+          </form>
+        <?php endforeach; ?>
+      <?php endif; ?>
+    </div>
+    <?php
+  }
+
   public static function ajax_clear_cache() {
     check_ajax_referer('hcis-admin-ajax-nonce');
 
@@ -347,8 +519,12 @@ class Admin {
         wp_send_json_error(['message' => 'Unauthorized'], 403);
     }
 
-    $default_number = '6285175201627';
-    $destination = get_option('hcisysq_admin_wa') ?: $default_number;
+    $destination = AdminCredentials::get_primary_whatsapp();
+    if ($destination === '') {
+        wp_send_json_error([
+            'message' => __('Tambahkan minimal satu nomor admin sebelum menguji koneksi WhatsApp.', 'hcis-ysq'),
+        ], 400);
+    }
     $timestamp = wp_date(get_option('date_format') . ' ' . get_option('time_format'));
 
     $message = sprintf(

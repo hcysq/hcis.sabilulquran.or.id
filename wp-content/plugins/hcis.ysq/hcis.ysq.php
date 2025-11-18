@@ -116,6 +116,7 @@ add_action('init', ['HCISYSQ\\Installer', 'maybe_ensure_login_page'], 1);
  * ======================================================= */
 HCISYSQ\Config::init();
 HCISYSQ\Security::init();
+HCISYSQ\AdminCredentials::init();
 
 // Initialize error handling with structured logging (must be first)
 if (class_exists('HCISYSQ\ErrorHandler')) {
