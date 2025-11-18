@@ -57,4 +57,33 @@ jQuery(document).ready(function($) {
             button.prop('disabled', false);
         });
     });
+
+    $('#hcis-test-wa-connection').on('click', function() {
+        const button = $(this);
+        button.prop('disabled', true);
+        noticeContainer.hide();
+
+        $.post(hcis_admin.ajax_url, {
+            action: 'hcis_test_wa_connection',
+            _ajax_nonce: hcis_admin.nonce
+        }, function(response) {
+            const destination = (response.data && response.data.destination) || hcis_admin.wa_test.target_number;
+
+            if (response.success) {
+                const template = hcis_admin.wa_test.success_text || '';
+                const message = template ? template.replace('%s', destination) : response.data.message;
+                showNotice(message || response.data.message);
+            } else {
+                const errorText = (response.data && response.data.message) || hcis_admin.wa_test.error_text;
+                showNotice(errorText, true);
+            }
+        }).fail(function(xhr) {
+            const failMessage = (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message)
+                ? xhr.responseJSON.data.message
+                : hcis_admin.wa_test.error_text;
+            showNotice(failMessage, true);
+        }).always(function() {
+            button.prop('disabled', false);
+        });
+    });
 });
