@@ -747,28 +747,28 @@ class GoogleSheetSettings {
 
   protected static function normalize_setup_keys(array $setup_keys): array {
     $definitions = self::get_setup_key_definitions();
+    $current = self::get_setup_key_config();
     $normalized = [];
 
     foreach ($definitions as $key => $definition) {
-      $raw = $setup_keys[$key] ?? [];
-      $tab = isset($raw['tab']) ? sanitize_key($raw['tab']) : ($definition['tab'] ?? '');
+      $incoming = isset($setup_keys[$key]) && is_array($setup_keys[$key]) ? $setup_keys[$key] : [];
+      $existing = $current[$key] ?? $definition;
+
+      $tab = isset($incoming['tab']) ? sanitize_key($incoming['tab']) : ($existing['tab'] ?? $definition['tab']);
       if (!isset(self::TAB_MAP[$tab])) {
         $tab = $definition['tab'];
       }
-      $header = isset($raw['header']) ? sanitize_text_field($raw['header']) : ($definition['header'] ?? '');
-      if ($header === '') {
-        $header = $definition['header'];
-      }
-      $order = isset($raw['order']) ? absint($raw['order']) : 0;
-      if ($order === 0) {
-        $order = (int) ($definition['order'] ?? 0);
-      }
 
-      $normalized[$key] = [
+      $header = isset($incoming['header']) ? trim((string) $incoming['header']) : ($existing['header'] ?? $definition['header']);
+      $order = isset($incoming['order']) ? (int) $incoming['order'] : (int) ($existing['order'] ?? $definition['order']);
+      $gid = isset($incoming['gid']) ? trim((string) $incoming['gid']) : ($existing['gid'] ?? ($definition['gid'] ?? ''));
+
+      $normalized[$key] = array_merge($definition, [
         'tab' => $tab,
-        'header' => $header,
-        'order' => $order,
-      ];
+        'gid' => $gid,
+        'header' => ($header !== '') ? $header : $definition['header'],
+        'order' => $order > 0 ? $order : (int) ($definition['order'] ?? 0),
+      ]);
     }
 
     return $normalized;
@@ -987,32 +987,6 @@ class GoogleSheetSettings {
       'pelatihan' => '\\HCISYSQ\\Repositories\\PelatihanRepository',
     ];
     return $map[$tab] ?? null;
-  }
-
-  private static function normalize_setup_keys(array $payload): array {
-    $current = self::get_setup_key_config();
-    $definitions = self::get_setup_key_definitions();
-    foreach ($definitions as $key => $definition) {
-      $incoming = isset($payload[$key]) && is_array($payload[$key]) ? $payload[$key] : [];
-      $tab = isset($incoming['tab']) ? sanitize_key($incoming['tab']) : ($current[$key]['tab'] ?? $definition['tab']);
-      if (!isset(self::TAB_MAP[$tab])) {
-        $tab = $definition['tab'];
-      }
-      $header = isset($incoming['header']) ? trim((string) $incoming['header']) : ($current[$key]['header'] ?? $definition['header']);
-      $order = isset($incoming['order']) ? (int) $incoming['order'] : (int) ($current[$key]['order'] ?? $definition['order']);
-      $gid = isset($incoming['gid']) ? trim((string) $incoming['gid']) : ($current[$key]['gid'] ?? $definition['gid'] ?? '');
-      $current[$key] = array_merge($definition, [
-        'tab' => $tab,
-        'gid' => $gid,
-        'header' => $header !== '' ? $header : $definition['header'],
-        'order' => $order > 0 ? $order : (int) $definition['order'],
-      ]);
-    }
-    return $current;
-  }
-
-  private static function persist_setup_keys(array $config): void {
-    update_option(self::OPT_SETUP_KEYS, wp_json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), false);
   }
 
   private static function sync_tab_gid_options(array $tab_gid_map): void {
