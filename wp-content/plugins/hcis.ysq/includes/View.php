@@ -23,7 +23,7 @@ class View {
           <label for="hcisysq-pw">Password <span class="req">*</span></label>
           <div class="pw-row">
             <input id="hcisysq-pw" type="password" name="pw" placeholder="Masukkan password Anda" autocomplete="current-password" required>
-            <button type="button" id="hcisysq-eye" class="eye">lihat</button>
+            <button type="button" id="hcisysq-eye" class="eye" data-toggle="hcisysq-pw">lihat</button>
           </div>
 
           <?= Security::render_captcha_placeholder('login'); ?>
@@ -132,29 +132,35 @@ class View {
 
                   <div class="form-group">
                       <label for="new_password" class="login-label">Password Baru <span class="req">*</span></label>
-                      <input
-                          id="new_password"
-                          type="password"
-                          name="new_password"
-                          required
-                          minlength="8"
-                          pattern="(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}"
-                          title="Minimal 8 karakter dengan huruf, angka, dan simbol"
-                      >
+                      <div class="pw-row">
+                          <input
+                              id="new_password"
+                              type="password"
+                              name="new_password"
+                              required
+                              minlength="8"
+                              pattern="(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}"
+                              title="Minimal 8 karakter dengan huruf, angka, dan simbol"
+                          >
+                          <button type="button" class="eye" data-toggle="new_password">lihat</button>
+                      </div>
                       <p class="input-hint">Minimal 8 karakter serta harus mengandung huruf, angka, dan simbol.</p>
                   </div>
 
                   <div class="form-group">
                       <label for="confirm_password" class="login-label">Konfirmasi Password Baru <span class="req">*</span></label>
-                      <input
-                          id="confirm_password"
-                          type="password"
-                          name="confirm_password"
-                          required
-                          minlength="8"
-                          pattern="(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}"
-                          title="Minimal 8 karakter dengan huruf, angka, dan simbol"
-                      >
+                      <div class="pw-row">
+                          <input
+                              id="confirm_password"
+                              type="password"
+                              name="confirm_password"
+                              required
+                              minlength="8"
+                              pattern="(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}"
+                              title="Minimal 8 karakter dengan huruf, angka, dan simbol"
+                          >
+                          <button type="button" class="eye" data-toggle="confirm_password">lihat</button>
+                      </div>
                   </div>
 
                   <div class="form-group">
