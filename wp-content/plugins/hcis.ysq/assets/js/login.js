@@ -11,7 +11,6 @@
     const $submitBtn = $form.find('button[type="submit"]');
     const $nipInput = $form.find('input[name="nip"]');
     const $pwInput = $form.find('input[name="pw"]');
-    const $eyeBtn = $form.find('#hcisysq-eye');
 
     $form.on('submit', function(e) {
       e.preventDefault();
@@ -65,18 +64,37 @@
           $submitBtn.prop('disabled', false).text('Masuk');
         });
     });
+  }
 
-    if ($eyeBtn.length) {
-      $eyeBtn.on('click', function() {
-        const isPassword = $pwInput.attr('type') === 'password';
-        $pwInput.attr('type', isPassword ? 'text' : 'password');
-        $(this).text(isPassword ? 'sembunyi' : 'lihat');
-      });
+  function initPasswordToggleButtons() {
+    const $forms = $('#hcisysq-login-form, #hcisysq-reset-password-form');
+    if (!$forms.length) {
+      return;
     }
+
+    $forms.find('button.eye[data-toggle]').each(function() {
+      const $btn = $(this);
+      const targetId = $btn.data('toggle');
+      if (!targetId) {
+        return;
+      }
+
+      const $input = $('#' + targetId);
+      if (!$input.length) {
+        return;
+      }
+
+      $btn.on('click', function() {
+        const isPassword = $input.attr('type') === 'password';
+        $input.attr('type', isPassword ? 'text' : 'password');
+        $btn.text(isPassword ? 'sembunyi' : 'lihat');
+      });
+    });
   }
 
   $(document).ready(function() {
     initLoginForm();
+    initPasswordToggleButtons();
   });
 
 })(jQuery, window.hcisysq);
