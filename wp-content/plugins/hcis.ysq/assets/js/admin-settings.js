@@ -1,12 +1,30 @@
 jQuery(document).ready(function($) {
     const noticeContainer = $('#hcis-admin-notice');
 
-    function showNotice(message, isError = false) {
+    function showNotice(content, isError = false) {
+        const contents = Array.isArray(content) ? content : [content];
+
         noticeContainer
-            .html(message) // Use .html to allow for formatted messages
             .removeClass('notice-success notice-error')
             .addClass(isError ? 'notice-error' : 'notice-success')
-            .show();
+            .hide()
+            .empty();
+
+        contents.forEach(function(item) {
+            if (!item && item !== 0) {
+                return;
+            }
+
+            if (item instanceof jQuery) {
+                noticeContainer.append(item);
+            } else if (item instanceof window.Element) {
+                noticeContainer.append(item);
+            } else {
+                noticeContainer.append($('<p>').text(String(item)));
+            }
+        });
+
+        noticeContainer.show();
     }
 
     $('#hcis-test-connection').on('click', function() {
@@ -22,13 +40,51 @@ jQuery(document).ready(function($) {
             nip: nipToTest // Pass NIP
         }, function(response) {
             if (response.success) {
-                let message = 'Connection successful: ' + response.data.connection_status;
-                if (response.data.user_data_for_nip) {
-                    message += '<br><br><strong>User Data for NIP:</strong><pre>' + JSON.stringify(response.data.user_data_for_nip, null, 2) + '</pre>';
+                const contentBlocks = [];
+                const hasConnectionStatus = response.data && response.data.connection_status;
+                const connectionStatus = hasConnectionStatus ? response.data.connection_status : 'Connection established.';
+                contentBlocks.push($('<p>').text('Connection successful: ' + connectionStatus));
+
+                const userData = response.data ? response.data.user_data_for_nip : null;
+                if (userData && $.isPlainObject(userData)) {
+                    const labels = {
+                        nip: 'NIP',
+                        nama: 'Nama',
+                        nik: 'NIK',
+                        phone: 'Phone',
+                        email: 'Email'
+                    };
+                    const list = $('<ul>').addClass('hcis-admin-user-list');
+                    let hasEntries = false;
+
+                    Object.keys(labels).forEach(function(key) {
+                        if (!userData[key]) {
+                            return;
+                        }
+
+                        hasEntries = true;
+                        const listItem = $('<li>');
+                        listItem.append($('<strong>').text(labels[key] + ': '));
+                        listItem.append($('<span>').text(userData[key]));
+                        list.append(listItem);
+                    });
+
+                    if (hasEntries) {
+                        const userBlock = $('<div>').addClass('hcis-admin-user-details');
+                        userBlock.append($('<p>').text('User Data for NIP:'));
+                        userBlock.append(list);
+                        contentBlocks.push(userBlock);
+                    }
+                } else if (typeof userData === 'string') {
+                    contentBlocks.push($('<p>').text(userData));
                 }
-                showNotice(message);
+
+                showNotice(contentBlocks);
             } else {
-                showNotice('Connection failed: ' + response.data.message, true);
+                const errorMessage = (response.data && response.data.message)
+                    ? 'Connection failed: ' + response.data.message
+                    : 'Connection failed.';
+                showNotice(errorMessage, true);
             }
         }).fail(function() {
             showNotice('An unexpected error occurred.', true);
