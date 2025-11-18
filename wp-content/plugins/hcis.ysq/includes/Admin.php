@@ -342,7 +342,8 @@ class Admin {
   public static function ajax_test_wa_connection() {
     check_ajax_referer('hcis-admin-ajax-nonce');
 
-    if (!current_user_can('manage_hcis_portal')) {
+    // Accept either capability so legacy admins using the settings page aren't blocked.
+    if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) {
         wp_send_json_error(['message' => 'Unauthorized'], 403);
     }
 
