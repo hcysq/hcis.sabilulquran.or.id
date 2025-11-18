@@ -142,6 +142,26 @@ class PasswordResetManager {
         return ['success' => true, 'nip' => $reset_request->nip];
     }
 
+    public static function validate_new_password($password) {
+        if (strlen($password) < 8) {
+            return new WP_Error('password_too_short', 'Password minimal harus terdiri dari 8 karakter.');
+        }
+
+        if (!preg_match('/[A-Za-z]/', $password)) {
+            return new WP_Error('password_missing_letter', 'Password harus mengandung huruf.');
+        }
+
+        if (!preg_match('/\d/', $password)) {
+            return new WP_Error('password_missing_digit', 'Password harus mengandung angka.');
+        }
+
+        if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+            return new WP_Error('password_missing_symbol', 'Password harus mengandung simbol (mis. !@#$%).');
+        }
+
+        return ['success' => true];
+    }
+
     public static function complete_reset($token, $new_password) {
         global $wpdb;
 
@@ -152,6 +172,11 @@ class PasswordResetManager {
 
         if (empty($new_password)) {
             return new WP_Error('password_empty', 'Password tidak boleh kosong.');
+        }
+
+        $password_requirements = self::validate_new_password($new_password);
+        if (is_wp_error($password_requirements)) {
+            return $password_requirements;
         }
 
         $nip = $validation['nip'];
