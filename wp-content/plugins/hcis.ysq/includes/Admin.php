@@ -225,7 +225,10 @@ class Admin {
   public static function ajax_test_connection() {
     check_ajax_referer('hcis-admin-ajax-nonce');
 
-    if (!current_user_can('manage_hcis_portal')) {
+    // Accept either the custom portal capability or the default manage_options so the
+    // legacy settings page (options-general.php?page=hcisysq-settings) keeps working
+    // for administrators who never received the new role.
+    if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) {
         wp_send_json_error(['message' => 'Unauthorized'], 403);
     }
 
@@ -256,7 +259,9 @@ class Admin {
   public static function ajax_clear_cache() {
     check_ajax_referer('hcis-admin-ajax-nonce');
 
-    if (!current_user_can('manage_hcis_portal')) {
+    // Accept either capability so existing admins without the custom role can still
+    // use the legacy settings page's AJAX actions.
+    if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) {
         wp_send_json_error(['message' => 'Unauthorized'], 403);
     }
 
