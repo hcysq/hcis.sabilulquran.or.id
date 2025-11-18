@@ -16,7 +16,7 @@ class PelatihanRepository extends AbstractSheetRepository {
     'sertifikat' => 'Link Sertifikat',
   ];
 
-  public function syncToWordPress(array $rows): int {
+  public function syncToWordPress(array $rows): array {
     global $wpdb;
     $table = $wpdb->prefix . 'ysq_training_history';
     $this->ensureColumns($table);
@@ -31,6 +31,7 @@ class PelatihanRepository extends AbstractSheetRepository {
     }
 
     $synced = 0;
+    $failed = 0;
     foreach ($grouped as $nip => $entries) {
       $employeeId = $this->findEmployeeIdByNip($nip);
       if (!$employeeId) {
@@ -55,11 +56,16 @@ class PelatihanRepository extends AbstractSheetRepository {
         $formats = ['%d','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s'];
         if ($wpdb->insert($table, $data, $formats) !== false) {
           $synced++;
+        } else {
+          $failed++;
         }
       }
     }
 
-    return $synced;
+    return [
+      'synced' => $synced,
+      'failed' => $failed,
+    ];
   }
 
   protected function ensureColumns(string $table): void {

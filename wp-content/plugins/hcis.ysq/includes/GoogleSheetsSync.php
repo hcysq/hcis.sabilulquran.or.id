@@ -311,10 +311,15 @@ class GoogleSheetsSync {
       return;
     }
     $applied = $repo->syncToWordPress($rows);
+    $applied_stats = is_array($applied) ? $applied : [
+      'synced' => (int) $applied,
+      'failed' => 0,
+    ];
     GoogleSheetSettings::set_tab_hash($slug, $hash);
     GoogleSheetSettings::record_tab_metrics($slug, [
       'rows' => count($rows),
-      'applied' => $applied,
+      'applied' => $applied_stats['synced'] ?? 0,
+      'failed' => $applied_stats['failed'] ?? 0,
       'hash' => $hash,
     ]);
   }

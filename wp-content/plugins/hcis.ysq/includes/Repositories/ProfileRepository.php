@@ -23,10 +23,11 @@ class ProfileRepository extends AbstractSheetRepository {
     'tmt' => 'TMT',
   ];
 
-  public function syncToWordPress(array $rows): int {
+  public function syncToWordPress(array $rows): array {
     global $wpdb;
     $table = $wpdb->prefix . 'hcisysq_profiles';
     $synced = 0;
+    $failed = 0;
 
     foreach ($rows as $row) {
       $nip = $row['nip'] ?? '';
@@ -55,9 +56,14 @@ class ProfileRepository extends AbstractSheetRepository {
       $result = $wpdb->replace($table, $data, $formats);
       if ($result !== false) {
         $synced++;
+      } else {
+        $failed++;
       }
     }
 
-    return $synced;
+    return [
+      'synced' => $synced,
+      'failed' => $failed,
+    ];
   }
 }

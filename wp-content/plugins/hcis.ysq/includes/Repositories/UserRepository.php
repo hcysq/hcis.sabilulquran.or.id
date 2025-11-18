@@ -96,10 +96,11 @@ class UserRepository extends AbstractSheetRepository {
     return $synced;
   }
 
-  public function syncToWordPress(array $rows): int {
+  public function syncToWordPress(array $rows): array {
     global $wpdb;
     $table = $wpdb->prefix . 'hcisysq_users';
     $synced = 0;
+    $failed = 0;
 
     foreach ($rows as $row) {
       $nip = $row['nip'] ?? '';
@@ -116,7 +117,19 @@ class UserRepository extends AbstractSheetRepository {
         'updated_at' => current_time('mysql'),
       ];
       $formats = array_fill(0, count($data), '%s');
-      $wpdb->replace($table, $data, $formats);
+      $upserted = $wpdb->replace($table, $data, $formats);
+      if ($upserted === false) {
+        $failed++;
+        hcisysq_log(
+          sprintf(
+            'UserRepository::syncToWordPress - Failed to upsert %s: %s',
+            $nip,
+            $wpdb->last_error ?: 'unknown error'
+          ),
+          'ERROR'
+        );
+        continue;
+      }
 
       $users = get_users([
         'meta_key' => 'nip',
@@ -126,20 +139,43 @@ class UserRepository extends AbstractSheetRepository {
       ]);
       if (!empty($users)) {
         $wpUser = $users[0];
-        wp_update_user([
+        $update_result = wp_update_user([
           'ID' => $wpUser->ID,
           'display_name' => $row['nama'] ?? $wpUser->display_name,
         ]);
+        if (is_wp_error($update_result)) {
+          $failed++;
+          hcisysq_log(
+            sprintf(
+              'UserRepository::syncToWordPress - Failed to update WordPress profile for %s: %s',
+              $nip,
+              $update_result->get_error_message()
+            ),
+            'ERROR'
+          );
+          continue;
+        }
         update_user_meta($wpUser->ID, 'phone', $row['phone'] ?? '');
         update_user_meta($wpUser->ID, 'nip', $nip);
         if (!empty($row['email'])) {
           update_user_meta($wpUser->ID, 'email', $row['email']);
         }
+        hcisysq_log(
+          sprintf(
+            'UserRepository::syncToWordPress - Updated WordPress profile for %s (user_id: %d)',
+            $nip,
+            $wpUser->ID
+          ),
+          'INFO'
+        );
         $synced++;
       }
     }
 
-    return $synced;
+    return [
+      'synced' => $synced,
+      'failed' => $failed,
+    ];
   }
 
   private function buildSheetRow($user_id, $user, $nip): array {

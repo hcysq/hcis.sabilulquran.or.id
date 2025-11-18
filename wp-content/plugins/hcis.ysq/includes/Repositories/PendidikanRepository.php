@@ -16,7 +16,7 @@ class PendidikanRepository extends AbstractSheetRepository {
     'nilai' => 'Nilai/IPK',
   ];
 
-  public function syncToWordPress(array $rows): int {
+  public function syncToWordPress(array $rows): array {
     global $wpdb;
     $table = $wpdb->prefix . 'ysq_education_history';
     $grouped = [];
@@ -30,6 +30,7 @@ class PendidikanRepository extends AbstractSheetRepository {
     }
 
     $synced = 0;
+    $failed = 0;
     foreach ($grouped as $nip => $entries) {
       $employeeId = $this->findEmployeeIdByNip($nip);
       if (!$employeeId) {
@@ -47,10 +48,15 @@ class PendidikanRepository extends AbstractSheetRepository {
         $formats = ['%d', '%s', '%s', '%s', '%s'];
         if ($wpdb->insert($table, $data, $formats) !== false) {
           $synced++;
+        } else {
+          $failed++;
         }
       }
     }
 
-    return $synced;
+    return [
+      'synced' => $synced,
+      'failed' => $failed,
+    ];
   }
 }
