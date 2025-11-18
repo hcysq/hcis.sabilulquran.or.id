@@ -429,21 +429,31 @@ class Auth {
       if ($nip) {
         $user = self::get_user_by_nip($nip);
         if ($user) {
-          $needsReset = !empty($payload['needs_password_reset']);
-          if (!$needsReset && !empty($user->password) && !self::looks_like_password_hash($user->password)) {
-            $needsReset = true;
+          $skipGranted = !empty($payload['reset_skip_granted']);
+          $needsResetSession = !empty($payload['needs_password_reset']);
+          $calculatedNeedsReset = $needsResetSession;
+
+          if (!$calculatedNeedsReset && !empty($user->password) && !self::looks_like_password_hash($user->password)) {
+            $calculatedNeedsReset = true;
           }
 
           if (!empty($user->password) && self::looks_like_password_hash($user->password)) {
-            if (!$needsReset) {
-              $needsReset = self::is_password_based_on_phone($user->password, $user->no_hp ?? '');
+            if (!$calculatedNeedsReset) {
+              $calculatedNeedsReset = self::is_password_based_on_phone($user->password, $user->no_hp ?? '');
             }
           }
 
-          if ($needsReset === false && !empty($payload['needs_password_reset'])) {
+          if ($calculatedNeedsReset === false && !empty($payload['needs_password_reset'])) {
             self::update_current_session(['needs_password_reset' => false]);
-          } elseif ($needsReset === true && empty($payload['needs_password_reset'])) {
+          } elseif ($calculatedNeedsReset === true && empty($payload['needs_password_reset'])) {
             self::update_current_session(['needs_password_reset' => true]);
+          }
+
+          $needsReset = $calculatedNeedsReset;
+          if ($skipGranted && $calculatedNeedsReset) {
+            $needsReset = false;
+          } elseif ($skipGranted && !$calculatedNeedsReset) {
+            self::update_current_session(['reset_skip_granted' => false]);
           }
 
           return [
