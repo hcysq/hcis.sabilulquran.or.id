@@ -14,7 +14,14 @@ class Admin {
 
   public static function enqueue_assets($hook) {
     // Only load on our specific admin pages.
-    if ($hook !== 'toplevel_page_hcis-admin-portal' && $hook !== 'hcis-admin-portal_page_hcis-admin-portal-settings') {
+    $allowed_hooks = [
+        'toplevel_page_hcis-admin-portal',
+        'hcis-admin-portal_page_hcis-admin-portal',
+        'hcis-admin-portal_page_hcis-admin-portal-settings',
+        'settings_page_hcisysq-settings',
+    ];
+
+    if (!in_array($hook, $allowed_hooks, true)) {
         return;
     }
 
