@@ -54,19 +54,25 @@ class Auth {
 
   private static function store_session(array $payload){
     $payload = array_merge(['type' => 'user'], $payload);
-    
+
+    $token = null;
+
     // Try database storage first
     if (SessionHandler::verify_table_exists()) {
       $token = SessionHandler::create($payload, 12 * HOUR_IN_SECONDS);
+      if (!$token) {
+        hcisysq_log('Auth::store_session() - SessionHandler::create() failed to persist session', 'error');
+        return false;
+      }
     } else {
       // Fallback to transient if table doesn't exist (backward compatibility)
       $token = wp_generate_uuid4();
-      set_transient('hcisysq_sess_' . $token, $payload, 12 * HOUR_IN_SECONDS);
+      $stored = set_transient('hcisysq_sess_' . $token, $payload, 12 * HOUR_IN_SECONDS);
+      if (!$stored) {
+        hcisysq_log('Auth::store_session() - Failed to persist transient fallback session', 'error');
+        return false;
+      }
       hcisysq_log('SessionHandler table not found, falling back to transient storage');
-    }
-
-    if (!$token) {
-      return false;
     }
 
     $domain = self::determine_cookie_domain();
@@ -331,7 +337,10 @@ class Auth {
       $payload['needs_password_reset'] = true;
     }
 
-    self::store_session($payload);
+    $sessionToken = self::store_session($payload);
+    if ($sessionToken === false) {
+      return ['ok' => false, 'msg' => 'Sesi tidak dapat dibuat. Coba lagi nanti.'];
+    }
 
     return [
       'ok'   => true,
