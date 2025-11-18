@@ -4,9 +4,6 @@ namespace HCISYSQ;
 if (!defined('ABSPATH')) exit;
 
 class Admin {
-  const OPTION_PORTAL_CREDENTIALS = 'hcis_portal_credentials_json';
-  const OPTION_PORTAL_SHEET_ID = 'hcis_portal_sheet_id';
-  const OPTION_PORTAL_GIDS = 'hcis_portal_gids';
 
   public static function init() {
     add_action('admin_notices', [__CLASS__, 'check_required_settings']);
@@ -102,16 +99,8 @@ class Admin {
     if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) return;
 
     $notice = '';
-    $default_sheet_id = '110MjkBJbBzFayIUZcA3ZhKuno8y5OcWEnn04TDVHW-Y';
-    $gid_keys = [
-      'users' => __('Users', 'hcis-ysq'),
-      'profiles' => __('Profiles', 'hcis-ysq'),
-      'payroll' => __('Payroll', 'hcis-ysq'),
-      'keluarga' => __('Keluarga', 'hcis-ysq'),
-      'dokumen' => __('Dokumen', 'hcis-ysq'),
-      'pendidikan' => __('Pendidikan', 'hcis-ysq'),
-      'pelatihan' => __('Pelatihan', 'hcis-ysq'),
-    ];
+    $default_sheet_id = GoogleSheetSettings::DEFAULT_SHEET_ID;
+    $gid_keys = GoogleSheetSettings::get_tab_labels();
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       check_admin_referer('hcis_portal_settings');
@@ -126,25 +115,41 @@ class Admin {
         $gids[$key] = sanitize_text_field($_POST["hcis_portal_gid_{$key}"] ?? '');
       }
 
-      update_option(self::OPTION_PORTAL_CREDENTIALS, $credentials_json);
-      update_option(self::OPTION_PORTAL_SHEET_ID, $sheet_id);
-      update_option(self::OPTION_PORTAL_GIDS, $gids);
+      $status_data = GoogleSheetSettings::save_settings($credentials_json, $sheet_id, $gids);
 
-      $notice = '<div class="notice notice-success"><p>' . esc_html__('Settings saved.', 'hcis-ysq') . '</p></div>';
+      if (!empty($status_data['valid'])) {
+        $notice = '<div class="notice notice-success"><p>' . esc_html__('Settings saved.', 'hcis-ysq') . '</p></div>';
+      } else {
+        $message = esc_html($status_data['message'] ?? __('Credential JSON tidak valid.', 'hcis-ysq'));
+        $notice = '<div class="notice notice-error"><p>' . esc_html__('Settings saved but credential is invalid:', 'hcis-ysq') . ' ' . $message . '</p></div>';
+      }
     }
 
-    $credentials_value = get_option(self::OPTION_PORTAL_CREDENTIALS, '');
-    $sheet_id_value = get_option(self::OPTION_PORTAL_SHEET_ID, $default_sheet_id);
-    $gids_value = get_option(self::OPTION_PORTAL_GIDS, []);
-    if (!is_array($gids_value)) {
-      $gids_value = [];
-    }
+    $credentials_value = GoogleSheetSettings::get_credentials_json();
+    $sheet_id_value = GoogleSheetSettings::get_sheet_id() ?: $default_sheet_id;
+    $gids_value = GoogleSheetSettings::get_gid_map();
+    $status_block = GoogleSheetSettings::get_status();
 
     ?>
     <div class="wrap">
       <h1><?= esc_html__('Portal HCIS Settings', 'hcis-ysq'); ?></h1>
       <?php if ($notice): ?>
         <?= wp_kses_post($notice); ?>
+      <?php endif; ?>
+
+      <?php if (!empty($status_block['message'])): ?>
+        <?php
+          $status_class = !empty($status_block['valid']) ? 'notice-success' : 'notice-warning';
+          $checked_at = !empty($status_block['last_checked'])
+            ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $status_block['last_checked'])
+            : '';
+        ?>
+        <div class="notice <?= esc_attr($status_class); ?>">
+          <p><?= esc_html($status_block['message']); ?></p>
+          <?php if ($checked_at): ?>
+            <p><em><?= esc_html(sprintf(__('Terakhir dicek: %s', 'hcis-ysq'), $checked_at)); ?></em></p>
+          <?php endif; ?>
+        </div>
       <?php endif; ?>
 
       <form method="post">
