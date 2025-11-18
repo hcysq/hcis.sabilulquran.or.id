@@ -1051,6 +1051,7 @@ class View {
       'background'     => '#2f7e20',
       'gap'            => 32,
       'letter_spacing' => 0.0,
+      'duplicates'     => 2,
     ];
     $tickerOptions = $tickerDefaults;
     if (is_array($rawTickerOptions)) {
@@ -1088,6 +1089,14 @@ class View {
     $tickerBackground = isset($tickerOptions['background']) ? sanitize_hex_color($tickerOptions['background']) : '';
     if (!$tickerBackground) {
       $tickerBackground = '#2f7e20';
+    }
+
+    $tickerDuplicates = absint($tickerOptions['duplicates']);
+    if ($tickerDuplicates < 1) {
+      $tickerDuplicates = 1;
+    }
+    if ($tickerDuplicates > 6) {
+      $tickerDuplicates = 6;
     }
 
     $rawTicker = get_option('hcisysq_home_marquee_text', '');
@@ -1140,6 +1149,7 @@ class View {
     $tickerGapAttr = (string) $tickerGap;
     $tickerLetterAttr = $format_number($tickerLetter);
     $tickerSpeedAttr = $format_number($tickerSpeed);
+    $tickerDuplicatesAttr = (string) $tickerDuplicates;
     $tickerHiddenAttr = empty($tickerItems) ? ' hidden="hidden"' : '';
 
     ob_start(); ?>
@@ -1211,6 +1221,7 @@ class View {
               data-letter="<?= esc_attr($tickerLetterAttr) ?>"
               data-bg="<?= esc_attr($tickerBackground) ?>"
               data-speed="<?= esc_attr($tickerSpeedAttr) ?>"
+              data-duplicates="<?= esc_attr($tickerDuplicatesAttr) ?>"
               aria-live="polite"
               <?= $tickerHiddenAttr ?>
             >
