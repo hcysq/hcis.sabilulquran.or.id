@@ -150,7 +150,7 @@
 }
 
 .site-footer {
-  background: #e2e8f0;
+  background: var(--ysq-header-bg, #fff);
   margin-top: 48px;
   padding: 48px 16px 0;
   --footer-title-row-height: auto;
@@ -175,10 +175,10 @@
   --footer-col2-content-font-weight: 400;
   --footer-col3-content-font-weight: 400;
   --footer-col4-content-font-weight: 400;
-  --footer-col1-text-color: #333333;
-  --footer-col2-text-color: #333333;
-  --footer-col3-text-color: #333333;
-  --footer-col4-text-color: #333333;
+  --footer-col1-text-color: #0f172a;
+  --footer-col2-text-color: #0f172a;
+  --footer-col3-text-color: #0f172a;
+  --footer-col4-text-color: #0f172a;
 }
 
 .footer-container {
