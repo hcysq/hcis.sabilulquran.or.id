@@ -9,6 +9,8 @@
 namespace HCISYSQ\Tests\Integration;
 
 use HCISYSQ\Auth;
+use HCISYSQ\Installer;
+use HCISYSQ\Repositories\UserRepository;
 use HCISYSQ\SessionHandler;
 
 /**
@@ -255,6 +257,60 @@ class SessionPersistenceTest extends \WP_UnitTestCase {
     
     $transient_data = get_transient($transient_key);
     $this->assertIsArray($transient_data);
+  }
+
+  public function test_login_requires_session_failure_message() {
+    global $wpdb;
+
+    $table = $wpdb->prefix . 'hcisysq_sessions';
+    $wpdb->query("DROP TABLE IF EXISTS $table");
+    SessionHandler::verify_table_exists();
+
+    $password = 'secret123';
+    UserRepository::set_test_users([
+      'FAIL001' => [
+        'nip' => 'FAIL001',
+        'nama' => 'Failure Case',
+        'password_hash' => password_hash($password, PASSWORD_BCRYPT),
+        'phone' => '08123456789',
+        'nik' => '1234567890',
+        'row_index' => 0,
+      ],
+    ]);
+
+    $previous_cache_state = wp_using_ext_object_cache(true);
+    $original_cache = $GLOBALS['wp_object_cache'] ?? null;
+    $GLOBALS['wp_object_cache'] = new class {
+      public function set($key, $data, $group = 'default', $expire = 0) {
+        return false;
+      }
+      public function delete($key, $group = 'default') {
+        return true;
+      }
+      public function get($key, $group = 'default', $force = false, &$found = null) {
+        $found = false;
+        return false;
+      }
+      public function add($key, $data, $group = 'default', $expire = 0) {
+        return false;
+      }
+    };
+
+    try {
+      $result = Auth::login('FAIL001', $password);
+      $this->assertIsArray($result);
+      $this->assertFalse($result['ok']);
+      $this->assertStringContainsString('Sesi', $result['msg']);
+    } finally {
+      if ($original_cache) {
+        $GLOBALS['wp_object_cache'] = $original_cache;
+      } else {
+        unset($GLOBALS['wp_object_cache']);
+      }
+      wp_using_ext_object_cache($previous_cache_state);
+      Installer::activate();
+      SessionHandler::verify_table_exists();
+    }
   }
 
   /**

@@ -25,8 +25,8 @@ function _manually_load_plugin() {
 
 tests_add_filter('muplugins_loaded', '_manually_load_plugin');
 
+define('HCISYSQ_TEST_STUB_USER_REPOSITORY', true);
+require_once dirname(__FILE__) . '/stubs/class-user-repository-stub.php';
+
 // Start up the WP testing environment
 require $_tests_dir . '/includes/bootstrap.php';
-
-// Include test helpers
-require_once dirname(__FILE__) . '/helpers/class-test-helper.php';
