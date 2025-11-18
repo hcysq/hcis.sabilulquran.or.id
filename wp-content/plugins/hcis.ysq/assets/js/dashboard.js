@@ -78,9 +78,12 @@
           return;
         }
 
-        isOpen = shouldOpen;
-        $root.toggleClass('is-sidebar-open', isOpen);
-        $sidebar.toggleClass('is-open', isOpen);
+        isOpen = true;
+        $root.addClass('is-sidebar-open');
+        $sidebar.addClass('is-open');
+        if ($overlay.length) {
+          $overlay.addClass('is-visible');
+        }
         if (shared.toggleBodyLock) {
           shared.toggleBodyLock(isMobileViewport && isOpen);
         }
@@ -160,7 +163,15 @@
           return;
         }
 
-        setMobileOpen(false);
+        isOpen = false;
+        $root.removeClass('is-sidebar-open');
+        $sidebar.removeClass('is-open');
+        if ($overlay.length) {
+          $overlay.removeClass('is-visible');
+        }
+        if (shared.toggleBodyLock) {
+          shared.toggleBodyLock(false);
+        }
         if (lastOpenedSidebar === root) {
           lastOpenedSidebar = null;
         }
