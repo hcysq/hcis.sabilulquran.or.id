@@ -241,8 +241,27 @@ class Admin {
         if (!empty($nip)) {
             $repo = new \HCISYSQ\Repositories\UserRepository();
             $user_data = $repo->find($nip);
-            if ($user_data) {
-                $response_data['user_data_for_nip'] = $user_data;
+
+            if ($user_data && is_array($user_data)) {
+                $allowed_keys = ['nip', 'nama', 'nik', 'phone', 'email'];
+                $sanitized_user_data = [];
+
+                foreach ($allowed_keys as $key) {
+                    if (!array_key_exists($key, $user_data)) {
+                        continue;
+                    }
+
+                    $value = $user_data[$key];
+                    if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
+                        $sanitized_user_data[$key] = sanitize_text_field((string) $value);
+                    }
+                }
+
+                if (!empty($sanitized_user_data)) {
+                    $response_data['user_data_for_nip'] = $sanitized_user_data;
+                } else {
+                    $response_data['user_data_for_nip'] = 'No public user data available for NIP: ' . $nip;
+                }
             } else {
                 $response_data['user_data_for_nip'] = 'No user found for NIP: ' . $nip;
             }
