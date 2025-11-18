@@ -429,6 +429,13 @@
       const gap = parseFloat($ticker.attr('data-gap'));
       const letterSpacing = parseFloat($ticker.attr('data-letter'));
       const background = $ticker.attr('data-bg');
+      const duplicatesAttr = parseInt($ticker.attr('data-duplicates'), 10);
+      let duplicates = Number.isNaN(duplicatesAttr) ? 1 : duplicatesAttr;
+      if (duplicates < 1) {
+        duplicates = 1;
+      } else if (duplicates > 6) {
+        duplicates = 6;
+      }
 
       if (background) {
         $ticker.css('backgroundColor', background);
@@ -442,18 +449,24 @@
       }
 
       const speed = parseFloat($ticker.attr('data-speed'));
+      const baseDuration = 40;
       if (!Number.isNaN(speed) && speed > 0) {
-        const duration = Math.max(4 / speed, 2);
+        const duration = Math.min(Math.max(baseDuration / speed, 8), 80);
         $track.css('animationDuration', duration + 's');
+      } else {
+        $track.css('animationDuration', baseDuration + 's');
       }
 
       $track.empty();
-      cleaned.forEach(function(text) {
-        $('<span class="hcisysq-running__item"></span>').text(text).appendTo($track);
-      });
-
-      if (cleaned.length === 1) {
-        $('<span class="hcisysq-running__item" aria-hidden="true"></span>').text(cleaned[0]).appendTo($track);
+      const loops = Math.max(duplicates, 2);
+      for (let loopIndex = 0; loopIndex < loops; loopIndex++) {
+        cleaned.forEach(function(text) {
+          const $item = $('<span class="hcisysq-running__item"></span>').text(text);
+          if (loopIndex > 0) {
+            $item.attr('aria-hidden', 'true');
+          }
+          $track.append($item);
+        });
       }
 
       $ticker.removeAttr('hidden');

@@ -40,21 +40,39 @@
     const $gap = $('#hcisysq-marquee-gap');
     const $letter = $('#hcisysq-marquee-letter');
     const $background = $('#hcisysq-marquee-background');
+    const $speed = $('#hcisysq-marquee-speed');
+    const $duplicates = $('#hcisysq-marquee-duplicates');
 
     function renderPreview() {
       const items = cleanPreviewText($textarea.val());
       $track.empty();
 
-      if (!items.length) {
+      const hasItems = items.length > 0;
+      if (!hasItems) {
         $('<span class="hcisysq-live-preview__empty"></span>')
           .text('Belum ada konten untuk ditampilkan.')
           .appendTo($track);
       } else {
-        items.forEach(function(item) {
-          $('<span class="hcisysq-live-preview__item"></span>')
-            .text(item)
-            .appendTo($track);
-        });
+        let duplicatesValue = parseInt($duplicates.val(), 10);
+        if (Number.isNaN(duplicatesValue)) {
+          duplicatesValue = 1;
+        }
+        if (duplicatesValue < 1) {
+          duplicatesValue = 1;
+        } else if (duplicatesValue > 6) {
+          duplicatesValue = 6;
+        }
+
+        const loops = Math.max(duplicatesValue, 2);
+        for (let loopIndex = 0; loopIndex < loops; loopIndex++) {
+          items.forEach(function(item) {
+            const $item = $('<span class="hcisysq-live-preview__item"></span>').text(item);
+            if (loopIndex > 0) {
+              $item.attr('aria-hidden', 'true');
+            }
+            $track.append($item);
+          });
+        }
       }
 
       const bg = $background.val();
@@ -65,11 +83,29 @@
       const gapValue = parseFloat($gap.val());
       if (!Number.isNaN(gapValue)) {
         $track.css('gap', gapValue + 'px');
+        $track.css('columnGap', gapValue + 'px');
       }
 
       const letterValue = parseFloat($letter.val());
       if (!Number.isNaN(letterValue)) {
         $track.css('letterSpacing', letterValue + 'px');
+      }
+
+      const speedValue = parseFloat($speed.val());
+      const baseDuration = 40;
+      const duration = !Number.isNaN(speedValue) && speedValue > 0
+        ? Math.min(Math.max(baseDuration / speedValue, 8), 80)
+        : baseDuration;
+
+      if (hasItems) {
+        $track.css('display', 'inline-flex');
+        $track.css('alignItems', 'center');
+        $track.css('paddingLeft', '100%');
+        $track.css('animation', 'ysq-ticker ' + duration + 's linear infinite');
+        $wrapper.css('overflow', 'hidden');
+      } else {
+        $track.css('animation', 'none');
+        $track.css('paddingLeft', '');
       }
     }
 
@@ -77,6 +113,8 @@
     $gap.on('input change', renderPreview);
     $letter.on('input change', renderPreview);
     $background.on('change', renderPreview);
+    $speed.on('change', renderPreview);
+    $duplicates.on('change', renderPreview);
 
     renderPreview();
   }
