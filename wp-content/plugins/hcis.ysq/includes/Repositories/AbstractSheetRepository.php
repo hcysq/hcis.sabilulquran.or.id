@@ -138,7 +138,7 @@ abstract class AbstractSheetRepository {
 
   protected function buildRow(array $data): array {
     $row = [];
-    $configured_order = GoogleSheetSettings::get_tab_column_order($this->tab);
+    $configured_order = GoogleSheetSettings::get_tab_column_map($this->tab);
     $default_columns_labels = array_values($this->columns);
     $effective_column_labels = !empty($configured_order) ? $configured_order : $default_columns_labels;
 
@@ -192,7 +192,7 @@ abstract class AbstractSheetRepository {
 
   protected function buildColumnIndexMap(): void {
     $this->column_index_map = [];
-    $configured_order = GoogleSheetSettings::get_tab_column_order($this->tab);
+    $configured_order = GoogleSheetSettings::get_tab_column_map($this->tab);
 
     // Get the default internal keys and their labels from the concrete repository
     // This assumes $this->columns is already populated by the child class.

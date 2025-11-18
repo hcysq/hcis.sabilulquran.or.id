@@ -139,6 +139,8 @@ class Admin {
     $adminContacts = AdminCredentials::get_whatsapp_numbers();
     $credentialsUrl = admin_url('tools.php?page=hcis-admin-credentials');
 
+    $setup_key_config = GoogleSheetSettings::get_setup_key_config();
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       check_admin_referer('hcis_portal_settings');
 
@@ -183,7 +185,6 @@ class Admin {
 
     $credentials_value = GoogleSheetSettings::get_credentials_json();
     $sheet_id_value = GoogleSheetSettings::get_sheet_id() ?: $default_sheet_id;
-    $gids_value = GoogleSheetSettings::get_gid_map();
     $status_block = GoogleSheetSettings::get_status();
     $setup_key_rows = GoogleSheetSettings::get_effective_setup_keys();
 
