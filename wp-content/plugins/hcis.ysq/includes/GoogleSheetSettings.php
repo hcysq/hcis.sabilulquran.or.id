@@ -9,9 +9,12 @@ use WP_Error;
 
 class GoogleSheetSettings {
 
+  const DEFAULT_SHEET_ID = '1HCISYSQ_DEFAULT_SHEET_ID_SAMPLE000000000';
+
   const OPT_JSON_CREDS = 'hcis_google_json_creds';
   const OPT_SHEET_ID = 'hcis_google_sheet_id';
   const OPT_TAB_METRICS = 'hcis_gs_tab_metrics';
+  const OPT_STATUS = 'hcis_gs_settings_status';
   const TAB_HASH_PREFIX = 'hcis_gs_tab_hash_';
 
   private const TAB_MAP = [
@@ -76,6 +79,14 @@ class GoogleSheetSettings {
     return is_array($decoded) ? $decoded : [];
   }
 
+  public static function get_credentials_json(): string {
+    $raw = get_option(self::OPT_JSON_CREDS, '');
+    if (is_array($raw)) {
+      return wp_json_encode($raw, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+    return (string) $raw;
+  }
+
   public static function get_gid(string $tab): string {
     $config = self::TAB_MAP[$tab] ?? null;
     if (!$config) {
@@ -85,12 +96,28 @@ class GoogleSheetSettings {
     return trim((string) get_option($option, ''));
   }
 
+  public static function get_gid_map(): array {
+    $map = [];
+    foreach (self::TAB_MAP as $slug => $config) {
+      $map[$slug] = trim((string) get_option($config['gid_option'], ''));
+    }
+    return $map;
+  }
+
   public static function get_tab_name(string $tab): string {
     $config = self::TAB_MAP[$tab] ?? null;
     if (!$config) {
       return ucfirst($tab);
     }
     return $config['title'];
+  }
+
+  public static function get_tab_labels(): array {
+    $labels = [];
+    foreach (self::TAB_MAP as $slug => $config) {
+      $labels[$slug] = $config['title'] ?? ucfirst($slug);
+    }
+    return $labels;
   }
 
   public static function get_tab_range(string $tab): string {
@@ -129,6 +156,64 @@ class GoogleSheetSettings {
   public static function get_tab_metrics(): array {
     $metrics = get_option(self::OPT_TAB_METRICS, []);
     return is_array($metrics) ? $metrics : [];
+  }
+
+  public static function get_status(): array {
+    $status = get_option(self::OPT_STATUS, []);
+    if (!is_array($status)) {
+      $status = [];
+    }
+
+    return array_merge([
+      'valid' => false,
+      'message' => '',
+      'last_checked' => 0,
+    ], $status);
+  }
+
+  public static function save_settings(string $credentials_json, string $sheet_id, array $gids): array {
+    $status = [
+      'valid' => true,
+      'message' => __('Kredensial valid.', 'hcis-ysq'),
+      'last_checked' => time(),
+    ];
+
+    $credentials_json = trim($credentials_json);
+    $sheet_id = trim($sheet_id);
+
+    if ($sheet_id === '') {
+      $sheet_id = self::DEFAULT_SHEET_ID;
+    }
+
+    update_option(self::OPT_SHEET_ID, $sheet_id, false);
+    update_option(self::OPT_JSON_CREDS, $credentials_json, false);
+
+    if ($credentials_json === '') {
+      $status['valid'] = false;
+      $status['message'] = __('Credential JSON kosong.', 'hcis-ysq');
+    } else {
+      $decoded = json_decode($credentials_json, true);
+      if (!is_array($decoded)) {
+        $status['valid'] = false;
+        $status['message'] = __('Credential JSON tidak valid.', 'hcis-ysq');
+      } elseif (empty($decoded['type']) || empty($decoded['client_email'])) {
+        $status['valid'] = false;
+        $status['message'] = __('Credential JSON tidak lengkap.', 'hcis-ysq');
+      }
+    }
+
+    foreach (self::TAB_MAP as $slug => $config) {
+      $gid_value = isset($gids[$slug]) ? trim((string) $gids[$slug]) : '';
+      if ($gid_value !== '' && !preg_match('/^-?\d+$/', $gid_value)) {
+        $status['valid'] = false;
+        $status['message'] = sprintf(__('GID %s tidak valid.', 'hcis-ysq'), $config['title']);
+      }
+      update_option($config['gid_option'], $gid_value, false);
+    }
+
+    update_option(self::OPT_STATUS, $status, false);
+
+    return $status;
   }
 
   public static function register_rest_routes() {
