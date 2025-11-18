@@ -9,6 +9,7 @@ class Admin {
     add_action('admin_notices', [__CLASS__, 'check_required_settings']);
     add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_assets']);
     add_action('wp_ajax_hcis_test_connection', [__CLASS__, 'ajax_test_connection']);
+    add_action('wp_ajax_hcis_test_wa_connection', [__CLASS__, 'ajax_test_wa_connection']);
     add_action('wp_ajax_hcis_clear_cache', [__CLASS__, 'ajax_clear_cache']);
   }
 
@@ -39,6 +40,11 @@ class Admin {
         [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('hcis-admin-ajax-nonce'),
+            'wa_test'  => [
+                'target_number' => get_option('hcisysq_admin_wa') ?: '6285175201627',
+                'success_text'  => __('Pesan tes WhatsApp berhasil dikirim ke %s.', 'hcis-ysq'),
+                'error_text'    => __('Gagal mengirim pesan tes WhatsApp. Silakan coba lagi.', 'hcis-ysq'),
+            ],
         ]
     );
   }
@@ -255,6 +261,7 @@ class Admin {
           <button type="submit" class="button button-primary"><?php esc_html_e('Simpan', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-test-connection" class="button"><?php esc_html_e('Test Connection', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-clear-cache" class="button"><?php esc_html_e('Clear Cache', 'hcis-ysq'); ?></button>
+          <button type="button" id="hcis-test-wa-connection" class="button"><?php esc_html_e('Test WA Connection', 'hcis-ysq'); ?></button>
         </p>
       </form>
       <div id="hcis-admin-notice" class="notice" style="display: none; margin-top: 1rem;"></div>
@@ -311,5 +318,38 @@ class Admin {
     } catch (\Exception $e) {
         wp_send_json_error(['message' => 'An error occurred while clearing the cache: ' . $e->getMessage()], 500);
     }
+  }
+
+  public static function ajax_test_wa_connection() {
+    check_ajax_referer('hcis-admin-ajax-nonce');
+
+    if (!current_user_can('manage_hcis_portal')) {
+        wp_send_json_error(['message' => 'Unauthorized'], 403);
+    }
+
+    $default_number = '6285175201627';
+    $destination = get_option('hcisysq_admin_wa') ?: $default_number;
+    $timestamp = wp_date(get_option('date_format') . ' ' . get_option('time_format'));
+
+    $message = sprintf(
+        __('Tes koneksi HCIS.YSQ: koneksi WA sudah terhubung ke nomor WA %1$s pada %2$s.', 'hcis-ysq'),
+        $destination,
+        $timestamp
+    );
+
+    $result = StarSender::send($destination, $message);
+
+    if (is_wp_error($result)) {
+        hcisysq_log(sprintf('Test WA connection failed for %s: %s', $destination, $result->get_error_message()), 'error');
+        wp_send_json_error([
+            'message' => $result->get_error_message(),
+            'destination' => $destination,
+        ], 500);
+    }
+
+    wp_send_json_success([
+        'message' => __('Pesan tes WhatsApp berhasil dikirim.', 'hcis-ysq'),
+        'destination' => $destination,
+    ]);
   }
 }
