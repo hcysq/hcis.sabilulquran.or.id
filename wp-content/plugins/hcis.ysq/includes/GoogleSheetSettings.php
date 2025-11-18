@@ -708,6 +708,150 @@ class GoogleSheetSettings {
     return self::get_tab_column_map($tab);
   }
 
+  public static function get_setup_key_definitions(): array {
+    return [
+      'employee_id_number' => [
+        'label' => 'employee_id_number',
+        'plugin' => __('Dashboard Profil', 'hcis-ysq'),
+        'description' => __('Ditampilkan di Dashboard → Profil sebagai NIP utama pegawai.', 'hcis-ysq'),
+        'default_tab' => 'users',
+        'default_header' => 'NIP',
+        'default_order' => 1,
+      ],
+      'full_name' => [
+        'label' => 'full_name',
+        'plugin' => __('Portal HCIS', 'hcis-ysq'),
+        'description' => __('Nama lengkap yang digunakan di kartu profil dan halaman depan portal.', 'hcis-ysq'),
+        'default_tab' => 'users',
+        'default_header' => 'Nama',
+        'default_order' => 2,
+      ],
+      'phone_number' => [
+        'label' => 'phone_number',
+        'plugin' => __('WhatsApp & Login', 'hcis-ysq'),
+        'description' => __('Nomor HP yang dipakai login dan pengiriman OTP WhatsApp.', 'hcis-ysq'),
+        'default_tab' => 'users',
+        'default_header' => 'No HP',
+        'default_order' => 3,
+      ],
+      'email' => [
+        'label' => 'email',
+        'plugin' => __('WordPress User', 'hcis-ysq'),
+        'description' => __('Email akun WordPress serta kontak resmi pegawai.', 'hcis-ysq'),
+        'default_tab' => 'users',
+        'default_header' => 'Email',
+        'default_order' => 4,
+      ],
+      'password_hash' => [
+        'label' => 'password_hash',
+        'plugin' => __('Portal Login', 'hcis-ysq'),
+        'description' => __('Hash password yang disinkronisasi dengan akun WordPress.', 'hcis-ysq'),
+        'default_tab' => 'users',
+        'default_header' => 'Password Hash',
+        'default_order' => 5,
+      ],
+      'nik' => [
+        'label' => 'nik',
+        'plugin' => __('Dashboard Profil', 'hcis-ysq'),
+        'description' => __('Nomor induk kependudukan yang tampil di detail profil.', 'hcis-ysq'),
+        'default_tab' => 'users',
+        'default_header' => 'NIK',
+        'default_order' => 6,
+      ],
+    ];
+  }
+
+  public static function get_setup_key_settings(): array {
+    $stored = get_option(self::OPT_SETUP_KEYS, []);
+    return is_array($stored) ? $stored : [];
+  }
+
+  public static function get_effective_setup_keys(): array {
+    $definitions = self::get_setup_key_definitions();
+    $stored = self::get_setup_key_settings();
+    $effective = [];
+
+    foreach ($definitions as $key => $definition) {
+      $saved = is_array($stored[$key] ?? null) ? $stored[$key] : [];
+      $effective[$key] = array_merge($definition, [
+        'tab' => isset($saved['tab']) ? sanitize_key($saved['tab']) : $definition['default_tab'],
+        'header' => isset($saved['header']) ? sanitize_text_field($saved['header']) : $definition['default_header'],
+        'order' => isset($saved['order']) ? absint($saved['order']) : (int) $definition['default_order'],
+      ]);
+      if (!isset(self::TAB_MAP[$effective[$key]['tab']])) {
+        $effective[$key]['tab'] = $definition['default_tab'];
+      }
+      if ($effective[$key]['header'] === '') {
+        $effective[$key]['header'] = $definition['default_header'];
+      }
+      if ($effective[$key]['order'] === 0) {
+        $effective[$key]['order'] = (int) $definition['default_order'];
+      }
+    }
+
+    return $effective;
+  }
+
+  protected static function normalize_setup_keys(array $setup_keys): array {
+    $definitions = self::get_setup_key_definitions();
+    $normalized = [];
+
+    foreach ($definitions as $key => $definition) {
+      $raw = $setup_keys[$key] ?? [];
+      $tab = isset($raw['tab']) ? sanitize_key($raw['tab']) : $definition['default_tab'];
+      if (!isset(self::TAB_MAP[$tab])) {
+        $tab = $definition['default_tab'];
+      }
+      $header = isset($raw['header']) ? sanitize_text_field($raw['header']) : $definition['default_header'];
+      if ($header === '') {
+        $header = $definition['default_header'];
+      }
+      $order = isset($raw['order']) ? absint($raw['order']) : 0;
+      if ($order === 0) {
+        $order = (int) $definition['default_order'];
+      }
+
+      $normalized[$key] = [
+        'tab' => $tab,
+        'header' => $header,
+        'order' => $order,
+      ];
+    }
+
+    return $normalized;
+  }
+
+  protected static function persist_setup_keys(array $setup_keys): void {
+    $normalized = self::normalize_setup_keys($setup_keys);
+    update_option(self::OPT_SETUP_KEYS, $normalized, false);
+
+    $grouped = [];
+    foreach ($normalized as $config) {
+      $tab = $config['tab'];
+      if (!isset($grouped[$tab])) {
+        $grouped[$tab] = [];
+      }
+      $grouped[$tab][] = $config;
+    }
+
+    foreach (self::TAB_MAP as $slug => $config) {
+      $headers = $grouped[$slug] ?? [];
+      if (empty($headers)) {
+        continue;
+      }
+
+      usort($headers, function ($a, $b) {
+        return $a['order'] <=> $b['order'];
+      });
+
+      $labels = array_map(static function ($row) {
+        return $row['header'];
+      }, $headers);
+
+      update_option(self::OPT_TAB_COLUMN_ORDER_PREFIX . $slug, implode(', ', $labels), false);
+    }
+  }
+
   public static function record_tab_metrics(string $tab, array $data): void {
     $metrics = get_option(self::OPT_TAB_METRICS, []);
     if (!is_array($metrics)) {

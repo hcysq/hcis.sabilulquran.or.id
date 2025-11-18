@@ -72,14 +72,30 @@ class StarSender {
      * @return bool|WP_Error True on success, WP_Error on failure.
      */
     public static function sendToAdmin($text) {
-        $admin_phone = get_option('hcisysq_admin_wa'); // Correct option name from Admin.php
+        $numbers = AdminCredentials::get_whatsapp_numbers();
 
-        if (empty($admin_phone)) {
-            hcisysq_log('StarSender Admin Error: Admin phone number is not set.', 'warning');
+        if (empty($numbers)) {
+            hcisysq_log('StarSender Admin Error: Admin phone numbers are not set.', 'warning');
             return false; // Don't treat as a critical error
         }
 
-        return self::send($admin_phone, "[HCIS Notification]\n" . $text);
+        $success = false;
+        $last_error = null;
+
+        foreach ($numbers as $number) {
+            $result = self::send($number, "[HCIS Notification]\n" . $text);
+            if (is_wp_error($result)) {
+                $last_error = $result;
+                continue;
+            }
+            $success = true;
+        }
+
+        if ($success) {
+            return true;
+        }
+
+        return $last_error ?: false;
     }
 
     /**

@@ -4,7 +4,7 @@ namespace HCISYSQ;
 if (!defined('ABSPATH')) exit;
 
 class Auth {
-  const ADMIN_OPTION = 'hcisysq_admin_settings';
+  const ADMIN_OPTION = AdminCredentials::OPTION;
   const DEFAULT_ADMIN_USERNAME = 'administrator';
   const DEFAULT_ADMIN_DISPLAY = 'Administrator';
   const DEFAULT_ADMIN_HASH = '$2y$12$7fBX0IxS.xqxJUVNYKDkEeMvHD8ecsBfSV6zCMf3vYmMAT6Bxfk5e';
@@ -157,85 +157,103 @@ class Auth {
     return $user;
   }
 
-  public static function get_admin_settings(){
-    $stored = get_option(self::ADMIN_OPTION, []);
-    if (!is_array($stored)) $stored = [];
+  public static function get_admin_settings($username = null){
+    $accounts = AdminCredentials::get_accounts();
+    $selected = null;
 
-    $defaults = [
-      'username'      => self::DEFAULT_ADMIN_USERNAME,
-      'display_name'  => self::DEFAULT_ADMIN_DISPLAY,
-      'password_hash' => self::DEFAULT_ADMIN_HASH,
-    ];
-
-    $raw = wp_parse_args($stored, $defaults);
-    $dirty = false;
-
-    $username = $raw['username'] ? sanitize_user($raw['username'], true) : self::DEFAULT_ADMIN_USERNAME;
-    if ($username === '') {
-      $username = self::DEFAULT_ADMIN_USERNAME;
-      $dirty = true;
+    if ($username) {
+      $selected = AdminCredentials::find_account_by_username($username, $accounts);
     }
 
-    $displayName = $raw['display_name'] ? sanitize_text_field($raw['display_name']) : self::DEFAULT_ADMIN_DISPLAY;
-    if ($displayName === '') {
-      $displayName = self::DEFAULT_ADMIN_DISPLAY;
-      $dirty = true;
-    }
-
-    $storedHashRaw = isset($raw['password_hash']) ? strval($raw['password_hash']) : '';
-    $storedHash = trim($storedHashRaw);
-
-    if ($storedHash === '' || in_array($storedHash, self::LEGACY_ADMIN_HASHES, true)) {
-      $passwordHash = self::DEFAULT_ADMIN_HASH;
-      if ($storedHash !== self::DEFAULT_ADMIN_HASH) {
-        $dirty = true;
-      }
-    } else {
-      $passwordHash = $storedHash;
-      if ($storedHashRaw !== $storedHash) {
-        $dirty = true;
+    if (!$selected && is_user_logged_in()) {
+      $wpUser = wp_get_current_user();
+      if ($wpUser && $wpUser->exists()) {
+        $selected = AdminCredentials::find_account_by_username($wpUser->user_login, $accounts);
       }
     }
 
-    $settings = [
-      'username'      => $username,
-      'display_name'  => $displayName,
-      'password_hash' => $passwordHash,
-    ];
-
-    if ($dirty || $stored !== $settings) {
-      update_option(self::ADMIN_OPTION, $settings, false);
+    if (!$selected && !empty($accounts)) {
+      $selected = $accounts[0];
     }
 
-    return $settings;
+    if (!$selected) {
+      return [
+        'id'            => '',
+        'username'      => self::DEFAULT_ADMIN_USERNAME,
+        'display_name'  => self::DEFAULT_ADMIN_DISPLAY,
+        'password_hash' => self::DEFAULT_ADMIN_HASH,
+        'whatsapp'      => '',
+        'user_id'       => 0,
+      ];
+    }
+
+    return $selected;
   }
 
   public static function save_admin_settings(array $settings){
-    $current = self::get_admin_settings();
-
-    if (!empty($settings['username'])) {
-      $username = sanitize_user($settings['username'], true);
-      if ($username !== '') {
-        $current['username'] = $username;
+    $accounts = AdminCredentials::get_accounts();
+    if (empty($accounts)) {
+      $seedPassword = !empty($settings['password']) ? $settings['password'] : wp_generate_password(20, true, true);
+      $username = !empty($settings['username']) ? sanitize_user($settings['username'], true) : self::DEFAULT_ADMIN_USERNAME;
+      if ($username === '') {
+        $username = self::DEFAULT_ADMIN_USERNAME;
       }
+      $display = !empty($settings['display_name']) ? sanitize_text_field($settings['display_name']) : $username;
+      AdminCredentials::add_account([
+        'username'     => $username,
+        'display_name' => $display,
+        'whatsapp'     => $settings['whatsapp'] ?? '',
+      ], $seedPassword);
+      $accounts = AdminCredentials::get_accounts();
     }
 
-    if (!empty($settings['display_name'])) {
-      $display = sanitize_text_field($settings['display_name']);
-      if ($display !== '') {
-        $current['display_name'] = $display;
+    $target = null;
+    if (!empty($settings['account_id'])) {
+      $target = AdminCredentials::find_account_by_id($settings['account_id'], $accounts);
+    }
+    if (!$target && is_user_logged_in()) {
+      $wpUser = wp_get_current_user();
+      if ($wpUser && $wpUser->exists()) {
+        $target = AdminCredentials::find_account_by_username($wpUser->user_login, $accounts);
       }
     }
+    if (!$target) {
+      $target = $accounts[0];
+    }
 
+    $payload = [];
+    if (array_key_exists('username', $settings)) {
+      $payload['username'] = $settings['username'];
+    }
+    if (array_key_exists('display_name', $settings)) {
+      $payload['display_name'] = $settings['display_name'];
+    }
+    if (array_key_exists('whatsapp', $settings)) {
+      $payload['whatsapp'] = $settings['whatsapp'];
+    }
+
+    $plain = null;
     if (!empty($settings['password'])) {
-      $current['password_hash'] = password_hash($settings['password'], PASSWORD_DEFAULT);
+      $plain = $settings['password'];
     }
 
-    update_option(self::ADMIN_OPTION, $current, false);
-    return $current;
+    $updated = AdminCredentials::update_account($target['id'], $payload, $plain);
+    if (is_wp_error($updated)) {
+      return $target;
+    }
+
+    return $updated;
   }
 
   public static function get_admin_public_settings(){
+    $currentAdmin = self::current_admin();
+    if ($currentAdmin) {
+      return [
+        'username'     => $currentAdmin['username'],
+        'display_name' => $currentAdmin['display_name'],
+      ];
+    }
+
     $settings = self::get_admin_settings();
     return [
       'username'     => $settings['username'],
@@ -382,23 +400,23 @@ class Auth {
   }
   private static function build_admin_identity($username = null, $displayName = null, ?array $settings = null){
     if (!$settings) {
-      $settings = self::get_admin_settings();
+      $settings = self::get_admin_settings($username);
     }
 
-    $username = $username ? sanitize_user($username, true) : '';
-    if ($username === '') {
-      $username = $settings['username'];
+    $resolvedUsername = $username ? sanitize_user($username, true) : '';
+    if ($resolvedUsername === '') {
+      $resolvedUsername = $settings['username'];
     }
 
-    $displayName = $displayName ? sanitize_text_field($displayName) : '';
-    if ($displayName === '') {
-      $displayName = $settings['display_name'];
+    $resolvedDisplay = $displayName ? sanitize_text_field($displayName) : '';
+    if ($resolvedDisplay === '') {
+      $resolvedDisplay = $settings['display_name'];
     }
 
     return [
       'type'         => 'admin',
-      'username'     => $username,
-      'display_name' => $displayName,
+      'username'     => $resolvedUsername,
+      'display_name' => $resolvedDisplay,
       'settings'     => $settings,
     ];
   }
@@ -415,9 +433,9 @@ class Auth {
     if ($payload) {
       $type = $payload['type'] ?? 'user';
       if ($type === 'admin') {
-        $settings    = self::get_admin_settings();
         $username    = $payload['username'] ?? null;
         $displayName = $payload['display_name'] ?? null;
+        $settings    = self::get_admin_settings($username);
         return self::build_admin_identity($username, $displayName, $settings);
       }
 
@@ -484,6 +502,7 @@ class Auth {
           'type'         => 'admin',
           'username'     => $wpUser->user_login,
           'display_name' => $wpUser->display_name,
+          'settings'     => self::get_admin_settings($wpUser->user_login),
         ];
       }
     }
