@@ -710,6 +710,12 @@ class GoogleSheetSettings {
 
   public static function get_setup_key_settings(): array {
     $stored = get_option(self::OPT_SETUP_KEYS, []);
+    if (is_string($stored)) {
+      $decoded = json_decode($stored, true);
+      if (is_array($decoded)) {
+        return $decoded;
+      }
+    }
     return is_array($stored) ? $stored : [];
   }
 
@@ -743,66 +749,6 @@ class GoogleSheetSettings {
     }
 
     return $effective;
-  }
-
-  protected static function normalize_setup_keys(array $setup_keys): array {
-    $definitions = self::get_setup_key_definitions();
-    $normalized = [];
-
-    foreach ($definitions as $key => $definition) {
-      $raw = $setup_keys[$key] ?? [];
-      $tab = isset($raw['tab']) ? sanitize_key($raw['tab']) : ($definition['tab'] ?? '');
-      if (!isset(self::TAB_MAP[$tab])) {
-        $tab = $definition['tab'];
-      }
-      $header = isset($raw['header']) ? sanitize_text_field($raw['header']) : ($definition['header'] ?? '');
-      if ($header === '') {
-        $header = $definition['header'];
-      }
-      $order = isset($raw['order']) ? absint($raw['order']) : 0;
-      if ($order === 0) {
-        $order = (int) ($definition['order'] ?? 0);
-      }
-
-      $normalized[$key] = [
-        'tab' => $tab,
-        'header' => $header,
-        'order' => $order,
-      ];
-    }
-
-    return $normalized;
-  }
-
-  protected static function persist_setup_keys(array $setup_keys): void {
-    $normalized = self::normalize_setup_keys($setup_keys);
-    update_option(self::OPT_SETUP_KEYS, $normalized, false);
-
-    $grouped = [];
-    foreach ($normalized as $config) {
-      $tab = $config['tab'];
-      if (!isset($grouped[$tab])) {
-        $grouped[$tab] = [];
-      }
-      $grouped[$tab][] = $config;
-    }
-
-    foreach (self::TAB_MAP as $slug => $config) {
-      $headers = $grouped[$slug] ?? [];
-      if (empty($headers)) {
-        continue;
-      }
-
-      usort($headers, function ($a, $b) {
-        return $a['order'] <=> $b['order'];
-      });
-
-      $labels = array_map(static function ($row) {
-        return $row['header'];
-      }, $headers);
-
-      update_option(self::OPT_TAB_COLUMN_ORDER_PREFIX . $slug, implode(', ', $labels), false);
-    }
   }
 
   public static function record_tab_metrics(string $tab, array $data): void {
@@ -1012,7 +958,39 @@ class GoogleSheetSettings {
   }
 
   private static function persist_setup_keys(array $config): void {
-    update_option(self::OPT_SETUP_KEYS, wp_json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), false);
+    update_option(self::OPT_SETUP_KEYS, $config, false);
+
+    $grouped = [];
+    foreach ($config as $entry) {
+      $tab = isset($entry['tab']) ? sanitize_key($entry['tab']) : '';
+      if (!isset(self::TAB_MAP[$tab])) {
+        continue;
+      }
+      if (!isset($grouped[$tab])) {
+        $grouped[$tab] = [];
+      }
+      $grouped[$tab][] = [
+        'header' => isset($entry['header']) ? trim((string) $entry['header']) : '',
+        'order' => isset($entry['order']) ? (int) $entry['order'] : 0,
+      ];
+    }
+
+    foreach (self::TAB_MAP as $slug => $tab_config) {
+      $headers = $grouped[$slug] ?? [];
+      if (empty($headers)) {
+        continue;
+      }
+
+      usort($headers, function ($a, $b) {
+        return $a['order'] <=> $b['order'];
+      });
+
+      $labels = array_map(static function ($row) {
+        return $row['header'];
+      }, $headers);
+
+      update_option(self::OPT_TAB_COLUMN_ORDER_PREFIX . $slug, implode(', ', $labels), false);
+    }
   }
 
   private static function sync_tab_gid_options(array $tab_gid_map): void {
