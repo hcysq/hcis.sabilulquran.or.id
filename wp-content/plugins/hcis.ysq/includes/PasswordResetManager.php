@@ -6,7 +6,45 @@ use WP_Error;
 
 class PasswordResetManager {
 
-    private static $table_name = 'wp_hcisysq_password_resets';
+    private static $user_repository = null;
+    private static $star_sender_class = StarSender::class;
+
+    public static function set_user_repository($repository): void {
+        self::$user_repository = $repository;
+    }
+
+    public static function set_star_sender_class(?string $class): void {
+        self::$star_sender_class = $class ?: StarSender::class;
+    }
+
+    public static function reset_testing_overrides(): void {
+        self::$user_repository = null;
+        self::$star_sender_class = StarSender::class;
+    }
+
+    private static function get_user_repository() {
+        if (self::$user_repository) {
+            return self::$user_repository;
+        }
+
+        return new \HCISYSQ\Repositories\UserRepository();
+    }
+
+    private static function get_table_name(): string {
+        global $wpdb;
+
+        return $wpdb->prefix . 'hcisysq_password_resets';
+    }
+
+    private static function call_star_sender(string $method, ...$args) {
+        $class = self::get_star_sender_class();
+
+        return forward_static_call([$class, $method], ...$args);
+    }
+
+    private static function get_star_sender_class(): string {
+        return self::$star_sender_class ?: StarSender::class;
+    }
 
     public static function create_reset_request($nip, $nik) {
         global $wpdb;
@@ -16,7 +54,7 @@ class PasswordResetManager {
         }
 
         // 1. Fetch user from Google Sheets' "User" tab to validate NIK and get phone number
-        $user_repo = new \HCISYSQ\Repositories\UserRepository();
+        $user_repo = self::get_user_repository();
         $user = $user_repo->find($nip);
 
         // 2. Validate user exists and the NIK matches
@@ -41,7 +79,7 @@ class PasswordResetManager {
 
         // Store the token hash in the database
         $wpdb->insert(
-            self::$table_name,
+            self::get_table_name(),
             [
                 'nip'        => $nip,
                 'token_hash' => $token_hash,
@@ -60,7 +98,7 @@ class PasswordResetManager {
         
         $user_message = "Anda telah meminta reset password. Silakan klik link di bawah ini untuk melanjutkan. Link ini hanya berlaku selama 30 menit.\n\n" . $reset_link;
         
-        $send_result = StarSender::send($phone_number, $user_message);
+        $send_result = self::call_star_sender('send', $phone_number, $user_message);
 
         if (is_wp_error($send_result)) {
             // If sending fails, we should probably log it but not necessarily block the user.
@@ -69,7 +107,7 @@ class PasswordResetManager {
         }
 
         // Notify admin
-        StarSender::sendToAdmin("User dengan NIP $nip telah meminta reset password.");
+        self::call_star_sender('sendToAdmin', "User dengan NIP $nip telah meminta reset password.");
 
         return ['success' => true, 'message' => 'Jika data valid, link reset password akan dikirimkan ke nomor WhatsApp Anda yang terdaftar.'];
     }
@@ -84,7 +122,7 @@ class PasswordResetManager {
         $token_hash = hash('sha256', $token);
 
         $reset_request = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM " . self::$table_name . " WHERE token_hash = %s",
+            "SELECT * FROM " . self::get_table_name() . " WHERE token_hash = %s",
             $token_hash
         ));
 
@@ -125,7 +163,7 @@ class PasswordResetManager {
         }
 
         // Update the password hash in the Google Sheet
-        $user_repo = new \HCISYSQ\Repositories\UserRepository();
+        $user_repo = self::get_user_repository();
         $success = $user_repo->updateByPrimary([
             'nip' => $nip,
             'password_hash' => $new_password_hash,
@@ -138,7 +176,7 @@ class PasswordResetManager {
         // Mark the token as used
         $token_hash = hash('sha256', $token);
         $wpdb->update(
-            self::$table_name,
+            self::get_table_name(),
             ['used_at' => current_time('mysql')],
             ['token_hash' => $token_hash],
             ['%s'],
@@ -150,7 +188,7 @@ class PasswordResetManager {
 
     public static function create_table() {
         global $wpdb;
-        $table_name = self::$table_name;
+        $table_name = self::get_table_name();
         $charset_collate = $wpdb->get_charset_collate();
 
         $sql = "CREATE TABLE $table_name (

@@ -170,6 +170,8 @@ class Installer {
       ) $engine $charset;",
     ];
 
+    self::maybe_migrate_password_reset_table();
+
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     foreach ($tables as $sql) {
       dbDelta($sql);
@@ -189,6 +191,36 @@ class Installer {
     self::ensure_login_page();
 
     flush_rewrite_rules();
+  }
+
+  protected static function maybe_migrate_password_reset_table(): void {
+    global $wpdb;
+
+    if ($wpdb->prefix === 'wp_') {
+      return;
+    }
+
+    $legacy_table = 'wp_hcisysq_password_resets';
+    $target_table = $wpdb->prefix . 'hcisysq_password_resets';
+
+    $legacy_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $legacy_table));
+    if ($legacy_exists !== $legacy_table) {
+      return;
+    }
+
+    $target_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $target_table));
+    if ($target_exists === $target_table) {
+      return;
+    }
+
+    $rename_sql = sprintf(
+      'RENAME TABLE `%s` TO `%s`',
+      esc_sql($legacy_table),
+      esc_sql($target_table)
+    );
+
+    $wpdb->query($rename_sql);
+    hcisysq_log(sprintf('Migrated password reset table to match prefix %s', $wpdb->prefix));
   }
 
   public static function deactivate(){
