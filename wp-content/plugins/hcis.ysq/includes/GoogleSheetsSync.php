@@ -44,7 +44,7 @@ class GoogleSheetsSync {
       }
 
       $api = new GoogleSheetsAPI();
-      $creds = json_decode(get_option(GoogleSheetSettings::OPT_JSON_CREDS), true);
+      $creds = GoogleSheetSettings::get_credentials();
       
       if (!$api->authenticate($creds)) {
         hcisysq_log('GoogleSheetsSync::on_user_created - Authentication failed', 'ERROR');
@@ -77,7 +77,7 @@ class GoogleSheetsSync {
       }
 
       $api = new GoogleSheetsAPI();
-      $creds = json_decode(get_option(GoogleSheetSettings::OPT_JSON_CREDS), true);
+      $creds = GoogleSheetSettings::get_credentials();
       
       if (!$api->authenticate($creds)) {
         hcisysq_log('GoogleSheetsSync::on_user_updated - Authentication failed', 'ERROR');
@@ -109,7 +109,7 @@ class GoogleSheetsSync {
       }
 
       $api = new GoogleSheetsAPI();
-      $creds = json_decode(get_option(GoogleSheetSettings::OPT_JSON_CREDS), true);
+      $creds = GoogleSheetSettings::get_credentials();
       
       if (!$api->authenticate($creds)) {
         hcisysq_log('GoogleSheetsSync::on_user_deleted - Authentication failed', 'ERROR');
@@ -143,7 +143,7 @@ class GoogleSheetsSync {
       }
 
       $api = new GoogleSheetsAPI();
-      $creds = json_decode(get_option(GoogleSheetSettings::OPT_JSON_CREDS), true);
+      $creds = GoogleSheetSettings::get_credentials();
       
       if (!$api->authenticate($creds)) {
         hcisysq_log('GoogleSheetsSync::processBatch - Authentication failed', 'ERROR');

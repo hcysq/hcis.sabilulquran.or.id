@@ -44,6 +44,7 @@ class GoogleSheetMetrics {
   public static function render_widget() {
     $metrics = self::getMetrics();
     $is_configured = GoogleSheetSettings::is_configured();
+    $config_status = GoogleSheetSettings::get_status();
     ?>
     <div id="hcis-gs-metrics">
       <style>
@@ -63,10 +64,33 @@ class GoogleSheetMetrics {
           <p><strong><?php esc_html_e('Google Sheets not configured', 'hcis-ysq'); ?></strong></p>
           <p><?php echo sprintf(
             __('Go to <a href="%s">Google Sheets Settings</a> to configure', 'hcis-ysq'),
-            admin_url('admin.php?page=hcis-google-sheet-settings')
+            admin_url('admin.php?page=hcis-google-settings')
           ); ?></p>
+          <?php if (!empty($config_status['message'])): ?>
+            <p><?php echo esc_html($config_status['message']); ?></p>
+          <?php endif; ?>
         </div>
       <?php else: ?>
+
+      <?php if (!empty($config_status['message'])): ?>
+        <?php $status_class = !empty($config_status['valid']) ? 'status-ok' : 'status-warning'; ?>
+        <div class="hcis-metric-card">
+          <div class="hcis-metric-label"><?php esc_html_e('Configuration Status', 'hcis-ysq'); ?></div>
+          <div class="hcis-metric-secondary <?= esc_attr($status_class); ?>">
+            <?php echo esc_html($config_status['message']); ?>
+          </div>
+          <?php if (!empty($config_status['last_checked'])): ?>
+            <div class="hcis-metric-secondary">
+              <?php
+                printf(
+                  esc_html__('Last checked: %s', 'hcis-ysq'),
+                  esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $config_status['last_checked']))
+                );
+              ?>
+            </div>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
 
       <!-- Sync Status -->
       <div class="hcis-metric-card">

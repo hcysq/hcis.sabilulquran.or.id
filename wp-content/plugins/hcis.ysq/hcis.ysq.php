@@ -328,7 +328,7 @@ add_action('hcisysq_google_sheets_sync_cron', function() {
       }
 
       $api = new \HCISYSQ\GoogleSheetsAPI();
-      $creds = json_decode(get_option(\HCISYSQ\GoogleSheetSettings::OPT_JSON_CREDS), true);
+      $creds = \HCISYSQ\GoogleSheetSettings::get_credentials();
       
       if (!$api->authenticate($creds)) {
         hcisysq_log('Google Sheets sync: Authentication failed', 'WARNING');
