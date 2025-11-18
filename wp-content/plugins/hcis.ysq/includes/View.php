@@ -310,7 +310,6 @@ class View {
               <span class="hcisysq-user-name"><?= esc_html($publicSettings['display_name']) ?></span>
               <span class="hcisysq-user-role"><?= esc_html($publicSettings['username']) ?></span>
             </div>
-            <button type="button" class="btn-light" id="hcisysq-logout">Keluar</button>
           </div>
         </header>
 
@@ -1199,7 +1198,6 @@ class View {
               <span class="hcisysq-user-name"><?= esc_html($displayNameDisplay) ?></span>
               <span class="hcisysq-user-role">NIP: <?= esc_html($displayNipDisplay) ?></span>
             </div>
-            <button type="button" class="btn-light" id="hcisysq-logout">Keluar</button>
           </div>
         </header>
 
