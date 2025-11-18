@@ -251,12 +251,15 @@ class View {
     wp_enqueue_style('hcisysq-admin');
     wp_enqueue_script('hcisysq-admin');
 
+    $ajaxNonce = wp_create_nonce('hcisysq_nonce');
+
     $inline = [
       'publications' => $publications,
       'settings'      => $publicSettings,
       'home'          => $homeSettings,
       'tasks'         => $tasksBootstrap,
       'employees'     => ['loaded' => false],
+      'nonce'         => $ajaxNonce,
     ];
     wp_add_inline_script('hcisysq-admin', 'window.hcisysqAdmin = ' . wp_json_encode($inline) . ';', 'before');
 
@@ -322,7 +325,8 @@ class View {
             </div>
             <article class="hcisysq-card hcisysq-card--elevated">
               <h3 class="hcisysq-card-title">Pengaturan Beranda HCIS</h3>
-              <form id="hcisysq-home-settings-form" class="hcisysq-task-form hcisysq-task-form--settings" autocomplete="off">
+              <form id="hcisysq-home-settings-form" class="hcisysq-task-form hcisysq-task-form--settings" method="post" autocomplete="off">
+                <input type="hidden" name="_wpnonce" value="<?= esc_attr($ajaxNonce) ?>">
                 <div class="hcisysq-task-form__wrapper">
                   <div class="hcisysq-task-form__main">
                     <div class="hcisysq-form-row hcisysq-form-row--stacked">
@@ -394,7 +398,8 @@ class View {
                 </div>
                 <div class="hcisysq-tabs__panels">
                   <section class="hcisysq-tabs__panel is-active" data-tab-panel="create" role="tabpanel">
-                    <form id="hcisysq-publication-form" class="hcisysq-task-form hcisysq-task-form--publication" enctype="multipart/form-data" autocomplete="off">
+                    <form id="hcisysq-publication-form" class="hcisysq-task-form hcisysq-task-form--publication" method="post" enctype="multipart/form-data" autocomplete="off">
+                      <input type="hidden" name="_wpnonce" value="<?= esc_attr($ajaxNonce) ?>">
                       <div class="hcisysq-task-form__wrapper">
                         <div class="hcisysq-task-form__main">
                           <input type="hidden" name="publication_id" value="">
@@ -549,7 +554,8 @@ class View {
           <section class="hcisysq-admin-view" data-view="tugas">
             <article class="hcisysq-card hcisysq-card--elevated">
               <h3 class="hcisysq-card-title">Tambah Tugas</h3>
-              <form id="hcisysq-task-form" class="hcisysq-task-form" autocomplete="off">
+              <form id="hcisysq-task-form" class="hcisysq-task-form" method="post" autocomplete="off">
+                <input type="hidden" name="_wpnonce" value="<?= esc_attr($ajaxNonce) ?>">
                 <input type="hidden" name="task_id" value="">
                 <input type="hidden" name="unit_ids" value="">
                 <input type="hidden" name="employee_ids" value="">
@@ -661,7 +667,8 @@ class View {
           <section class="hcisysq-admin-view" data-view="settings">
             <article class="hcisysq-card">
               <h3 class="hcisysq-card-title">Keamanan &amp; Akses Administrator</h3>
-              <form id="hcisysq-admin-settings-form" class="hcisysq-form-grid">
+              <form id="hcisysq-admin-settings-form" class="hcisysq-form-grid" method="post">
+                <input type="hidden" name="_wpnonce" value="<?= esc_attr($ajaxNonce) ?>">
                 <div class="form-group">
                   <label for="hcisysq-admin-username">Username Administrator <span class="req">*</span></label>
                   <input type="text" id="hcisysq-admin-username" name="username" value="<?= esc_attr($publicSettings['username']) ?>" required>
