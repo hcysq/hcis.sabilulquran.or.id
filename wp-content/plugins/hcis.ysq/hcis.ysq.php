@@ -317,43 +317,7 @@ add_action('hcisysq_session_cleanup_cron', function() {
 /* =======================================================
  *  Google Sheets bi-directional sync cron (every 15 minutes)
  * ======================================================= */
-add_action('hcisysq_google_sheets_sync_cron', function() {
-  if (class_exists('\HCISYSQ\GoogleSheetSettings') && class_exists('\HCISYSQ\Repositories\UserRepository')) {
-    try {
-      $is_configured = \HCISYSQ\GoogleSheetSettings::is_configured();
-      
-      if (!$is_configured) {
-        hcisysq_log('Google Sheets sync: Not configured, skipping');
-        return;
-      }
-
-      $api = new \HCISYSQ\GoogleSheetsAPI();
-      $creds = json_decode(get_option(\HCISYSQ\GoogleSheetSettings::OPT_JSON_CREDS), true);
-      
-      if (!$api->authenticate($creds)) {
-        hcisysq_log('Google Sheets sync: Authentication failed', 'WARNING');
-        update_option('hcis_gs_last_error', 'Authentication failed');
-        return;
-      }
-
-      // Sync Users from WordPress to Google Sheet (bi-directional)
-      $repo = new \HCISYSQ\Repositories\UserRepository($api, new \HCISYSQ\SheetCache());
-      $synced = $repo->syncFromWordPress();
-
-      hcisysq_log('Google Sheets sync: Synced ' . $synced . ' users from WordPress');
-      update_option('hcis_gs_last_sync', current_time('mysql'));
-
-      // Log quota metrics
-      $quota = $api->getQuotaMetrics();
-      if ($quota['usage_percent'] > 80) {
-        hcisysq_log('Google Sheets: Quota usage at ' . $quota['usage_percent'] . '%', 'WARNING');
-      }
-    } catch (\Exception $e) {
-      hcisysq_log('Google Sheets sync error: ' . $e->getMessage(), 'ERROR');
-      update_option('hcis_gs_last_error', $e->getMessage());
-    }
-  }
-});
+// Cron handler defined in GoogleSheetsSync::run_cron_sync
 
 // Schedule Google Sheets sync if not already scheduled
 if (!wp_next_scheduled('hcisysq_google_sheets_sync_cron')) {
