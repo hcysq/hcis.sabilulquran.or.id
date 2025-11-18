@@ -251,12 +251,15 @@ class View {
     wp_enqueue_style('hcisysq-admin');
     wp_enqueue_script('hcisysq-admin');
 
+    $ajaxNonce = wp_create_nonce('hcisysq_nonce');
+
     $inline = [
       'publications' => $publications,
       'settings'      => $publicSettings,
       'home'          => $homeSettings,
       'tasks'         => $tasksBootstrap,
       'employees'     => ['loaded' => false],
+      'nonce'         => $ajaxNonce,
     ];
     wp_add_inline_script('hcisysq-admin', 'window.hcisysqAdmin = ' . wp_json_encode($inline) . ';', 'before');
 
@@ -310,7 +313,6 @@ class View {
               <span class="hcisysq-user-name"><?= esc_html($publicSettings['display_name']) ?></span>
               <span class="hcisysq-user-role"><?= esc_html($publicSettings['username']) ?></span>
             </div>
-            <button type="button" class="btn-light" id="hcisysq-logout">Keluar</button>
           </div>
         </header>
 
@@ -322,7 +324,8 @@ class View {
             </div>
             <article class="hcisysq-card hcisysq-card--elevated">
               <h3 class="hcisysq-card-title">Pengaturan Beranda HCIS</h3>
-              <form id="hcisysq-home-settings-form" class="hcisysq-task-form hcisysq-task-form--settings" autocomplete="off">
+              <form id="hcisysq-home-settings-form" class="hcisysq-task-form hcisysq-task-form--settings" method="post" autocomplete="off">
+                <input type="hidden" name="_wpnonce" value="<?= esc_attr($ajaxNonce) ?>">
                 <div class="hcisysq-task-form__wrapper">
                   <div class="hcisysq-task-form__main">
                     <div class="hcisysq-form-row hcisysq-form-row--stacked">
@@ -394,7 +397,8 @@ class View {
                 </div>
                 <div class="hcisysq-tabs__panels">
                   <section class="hcisysq-tabs__panel is-active" data-tab-panel="create" role="tabpanel">
-                    <form id="hcisysq-publication-form" class="hcisysq-task-form hcisysq-task-form--publication" enctype="multipart/form-data" autocomplete="off">
+                    <form id="hcisysq-publication-form" class="hcisysq-task-form hcisysq-task-form--publication" method="post" enctype="multipart/form-data" autocomplete="off">
+                      <input type="hidden" name="_wpnonce" value="<?= esc_attr($ajaxNonce) ?>">
                       <div class="hcisysq-task-form__wrapper">
                         <div class="hcisysq-task-form__main">
                           <input type="hidden" name="publication_id" value="">
@@ -549,7 +553,8 @@ class View {
           <section class="hcisysq-admin-view" data-view="tugas">
             <article class="hcisysq-card hcisysq-card--elevated">
               <h3 class="hcisysq-card-title">Tambah Tugas</h3>
-              <form id="hcisysq-task-form" class="hcisysq-task-form" autocomplete="off">
+              <form id="hcisysq-task-form" class="hcisysq-task-form" method="post" autocomplete="off">
+                <input type="hidden" name="_wpnonce" value="<?= esc_attr($ajaxNonce) ?>">
                 <input type="hidden" name="task_id" value="">
                 <input type="hidden" name="unit_ids" value="">
                 <input type="hidden" name="employee_ids" value="">
@@ -661,27 +666,26 @@ class View {
           <section class="hcisysq-admin-view" data-view="settings">
             <article class="hcisysq-card">
               <h3 class="hcisysq-card-title">Keamanan &amp; Akses Administrator</h3>
-              <p>Kelola kredensial admin melalui halaman <strong>Tools &rarr; Kredensial Admin</strong> di dasbor WordPress.</p>
-              <p>
-                <a class="btn-light" href="<?= esc_url(admin_url('tools.php?page=hcis-admin-credentials')) ?>">Buka Kredensial Admin</a>
-              </p>
-              <h4>Daftar Admin Aktif</h4>
-              <?php $adminAccounts = \HCISYSQ\AdminCredentials::get_accounts(); ?>
-              <?php if (empty($adminAccounts)): ?>
-                <p>Belum ada akun administrator yang tersimpan.</p>
-              <?php else: ?>
-                <ul class="hcisysq-admin-list">
-                  <?php foreach ($adminAccounts as $account): ?>
-                    <li>
-                      <strong><?= esc_html($account['display_name']); ?></strong>
-                      <span class="mono">(<?= esc_html($account['username']); ?>)</span>
-                      <?php if (!empty($account['whatsapp'])): ?>
-                        &middot; <span><?= esc_html($account['whatsapp']); ?></span>
-                      <?php endif; ?>
-                    </li>
-                  <?php endforeach; ?>
-                </ul>
-              <?php endif; ?>
+              <form id="hcisysq-admin-settings-form" class="hcisysq-form-grid" method="post">
+                <input type="hidden" name="_wpnonce" value="<?= esc_attr($ajaxNonce) ?>">
+                <div class="form-group">
+                  <label for="hcisysq-admin-username">Username Administrator <span class="req">*</span></label>
+                  <input type="text" id="hcisysq-admin-username" name="username" value="<?= esc_attr($publicSettings['username']) ?>" required>
+                </div>
+                <div class="form-group">
+                  <label for="hcisysq-admin-display">Nama Tampilan</label>
+                  <input type="text" id="hcisysq-admin-display" name="display_name" value="<?= esc_attr($publicSettings['display_name']) ?>">
+                </div>
+                <div class="form-group">
+                  <label for="hcisysq-admin-password">Password Baru</label>
+                  <input type="password" id="hcisysq-admin-password" name="password" placeholder="Kosongkan jika tidak diubah" autocomplete="new-password">
+                </div>
+
+                <div class="form-actions">
+                  <button type="submit" class="btn-primary">Simpan Pengaturan</button>
+                  <div class="msg" data-role="settings-message"></div>
+                </div>
+              </form>
             </article>
           </section>
 
@@ -1054,6 +1058,7 @@ class View {
       'background'     => '#2f7e20',
       'gap'            => 32,
       'letter_spacing' => 0.0,
+      'duplicates'     => 2,
     ];
     $tickerOptions = $tickerDefaults;
     if (is_array($rawTickerOptions)) {
@@ -1091,6 +1096,14 @@ class View {
     $tickerBackground = isset($tickerOptions['background']) ? sanitize_hex_color($tickerOptions['background']) : '';
     if (!$tickerBackground) {
       $tickerBackground = '#2f7e20';
+    }
+
+    $tickerDuplicates = absint($tickerOptions['duplicates']);
+    if ($tickerDuplicates < 1) {
+      $tickerDuplicates = 1;
+    }
+    if ($tickerDuplicates > 6) {
+      $tickerDuplicates = 6;
     }
 
     $rawTicker = get_option('hcisysq_home_marquee_text', '');
@@ -1143,6 +1156,7 @@ class View {
     $tickerGapAttr = (string) $tickerGap;
     $tickerLetterAttr = $format_number($tickerLetter);
     $tickerSpeedAttr = $format_number($tickerSpeed);
+    $tickerDuplicatesAttr = (string) $tickerDuplicates;
     $tickerHiddenAttr = empty($tickerItems) ? ' hidden="hidden"' : '';
 
     ob_start(); ?>
@@ -1201,7 +1215,6 @@ class View {
               <span class="hcisysq-user-name"><?= esc_html($displayNameDisplay) ?></span>
               <span class="hcisysq-user-role">NIP: <?= esc_html($displayNipDisplay) ?></span>
             </div>
-            <button type="button" class="btn-light" id="hcisysq-logout">Keluar</button>
           </div>
         </header>
 
@@ -1215,6 +1228,7 @@ class View {
               data-letter="<?= esc_attr($tickerLetterAttr) ?>"
               data-bg="<?= esc_attr($tickerBackground) ?>"
               data-speed="<?= esc_attr($tickerSpeedAttr) ?>"
+              data-duplicates="<?= esc_attr($tickerDuplicatesAttr) ?>"
               aria-live="polite"
               <?= $tickerHiddenAttr ?>
             >
