@@ -710,6 +710,12 @@ class GoogleSheetSettings {
 
   public static function get_setup_key_settings(): array {
     $stored = get_option(self::OPT_SETUP_KEYS, []);
+    if (is_string($stored)) {
+      $decoded = json_decode($stored, true);
+      if (is_array($decoded)) {
+        return $decoded;
+      }
+    }
     return is_array($stored) ? $stored : [];
   }
 
@@ -743,66 +749,6 @@ class GoogleSheetSettings {
     }
 
     return $effective;
-  }
-
-  protected static function normalize_setup_keys(array $setup_keys): array {
-    $definitions = self::get_setup_key_definitions();
-    $current = self::get_setup_key_config();
-    $normalized = [];
-
-    foreach ($definitions as $key => $definition) {
-      $incoming = isset($setup_keys[$key]) && is_array($setup_keys[$key]) ? $setup_keys[$key] : [];
-      $existing = $current[$key] ?? $definition;
-
-      $tab = isset($incoming['tab']) ? sanitize_key($incoming['tab']) : ($existing['tab'] ?? $definition['tab']);
-      if (!isset(self::TAB_MAP[$tab])) {
-        $tab = $definition['tab'];
-      }
-
-      $header = isset($incoming['header']) ? trim((string) $incoming['header']) : ($existing['header'] ?? $definition['header']);
-      $order = isset($incoming['order']) ? (int) $incoming['order'] : (int) ($existing['order'] ?? $definition['order']);
-      $gid = isset($incoming['gid']) ? trim((string) $incoming['gid']) : ($existing['gid'] ?? ($definition['gid'] ?? ''));
-
-      $normalized[$key] = array_merge($definition, [
-        'tab' => $tab,
-        'gid' => $gid,
-        'header' => ($header !== '') ? $header : $definition['header'],
-        'order' => $order > 0 ? $order : (int) ($definition['order'] ?? 0),
-      ]);
-    }
-
-    return $normalized;
-  }
-
-  protected static function persist_setup_keys(array $setup_keys): void {
-    $normalized = self::normalize_setup_keys($setup_keys);
-    update_option(self::OPT_SETUP_KEYS, $normalized, false);
-
-    $grouped = [];
-    foreach ($normalized as $config) {
-      $tab = $config['tab'];
-      if (!isset($grouped[$tab])) {
-        $grouped[$tab] = [];
-      }
-      $grouped[$tab][] = $config;
-    }
-
-    foreach (self::TAB_MAP as $slug => $config) {
-      $headers = $grouped[$slug] ?? [];
-      if (empty($headers)) {
-        continue;
-      }
-
-      usort($headers, function ($a, $b) {
-        return $a['order'] <=> $b['order'];
-      });
-
-      $labels = array_map(static function ($row) {
-        return $row['header'];
-      }, $headers);
-
-      update_option(self::OPT_TAB_COLUMN_ORDER_PREFIX . $slug, implode(', ', $labels), false);
-    }
   }
 
   public static function record_tab_metrics(string $tab, array $data): void {
@@ -987,6 +933,64 @@ class GoogleSheetSettings {
       'pelatihan' => '\\HCISYSQ\\Repositories\\PelatihanRepository',
     ];
     return $map[$tab] ?? null;
+  }
+
+  private static function normalize_setup_keys(array $payload): array {
+    $current = self::get_setup_key_config();
+    $definitions = self::get_setup_key_definitions();
+    foreach ($definitions as $key => $definition) {
+      $incoming = isset($payload[$key]) && is_array($payload[$key]) ? $payload[$key] : [];
+      $tab = isset($incoming['tab']) ? sanitize_key($incoming['tab']) : ($current[$key]['tab'] ?? $definition['tab']);
+      if (!isset(self::TAB_MAP[$tab])) {
+        $tab = $definition['tab'];
+      }
+      $header = isset($incoming['header']) ? trim((string) $incoming['header']) : ($current[$key]['header'] ?? $definition['header']);
+      $order = isset($incoming['order']) ? (int) $incoming['order'] : (int) ($current[$key]['order'] ?? $definition['order']);
+      $gid = isset($incoming['gid']) ? trim((string) $incoming['gid']) : ($current[$key]['gid'] ?? $definition['gid'] ?? '');
+      $current[$key] = array_merge($definition, [
+        'tab' => $tab,
+        'gid' => $gid,
+        'header' => $header !== '' ? $header : $definition['header'],
+        'order' => $order > 0 ? $order : (int) $definition['order'],
+      ]);
+    }
+    return $current;
+  }
+
+  private static function persist_setup_keys(array $config): void {
+    update_option(self::OPT_SETUP_KEYS, $config, false);
+
+    $grouped = [];
+    foreach ($config as $entry) {
+      $tab = isset($entry['tab']) ? sanitize_key($entry['tab']) : '';
+      if (!isset(self::TAB_MAP[$tab])) {
+        continue;
+      }
+      if (!isset($grouped[$tab])) {
+        $grouped[$tab] = [];
+      }
+      $grouped[$tab][] = [
+        'header' => isset($entry['header']) ? trim((string) $entry['header']) : '',
+        'order' => isset($entry['order']) ? (int) $entry['order'] : 0,
+      ];
+    }
+
+    foreach (self::TAB_MAP as $slug => $tab_config) {
+      $headers = $grouped[$slug] ?? [];
+      if (empty($headers)) {
+        continue;
+      }
+
+      usort($headers, function ($a, $b) {
+        return $a['order'] <=> $b['order'];
+      });
+
+      $labels = array_map(static function ($row) {
+        return $row['header'];
+      }, $headers);
+
+      update_option(self::OPT_TAB_COLUMN_ORDER_PREFIX . $slug, implode(', ', $labels), false);
+    }
   }
 
   private static function sync_tab_gid_options(array $tab_gid_map): void {
