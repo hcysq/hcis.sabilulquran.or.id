@@ -18,7 +18,8 @@ class Api {
     self::check_nonce();
 
     $account = sanitize_text_field($_POST['nip'] ?? '');
-    $pw  = sanitize_text_field($_POST['pw']  ?? '');
+    $pw_raw = $_POST['pw'] ?? '';
+    $pw = is_string($pw_raw) ? trim(wp_unslash($pw_raw)) : '';
 
     hcisysq_log("Login attempt for account={$account}");
 
