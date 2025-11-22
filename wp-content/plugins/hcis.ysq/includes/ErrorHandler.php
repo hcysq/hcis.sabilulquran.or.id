@@ -44,11 +44,85 @@ class ErrorHandler {
       return;
     }
 
-    if (!class_exists(DatabaseHandler::class)) {
+    if (!self::monologDependenciesAvailable()) {
+      self::$logger = self::getLegacyLogger();
       return;
     }
 
-    self::$logger = DatabaseHandler::getLogger();
+    if (!class_exists(DatabaseHandler::class)) {
+      self::$logger = self::getLegacyLogger();
+      return;
+    }
+
+    try {
+      self::$logger = DatabaseHandler::getLogger();
+    } catch (Throwable $exception) {
+      self::$logger = self::getLegacyLogger();
+      self::log(
+        'Monolog bootstrap failed; falling back to legacy logger',
+        'warning',
+        [
+          'component' => 'bootstrap',
+          'exception_class' => get_class($exception),
+          'message' => $exception->getMessage(),
+        ]
+      );
+    }
+  }
+
+  private static function monologDependenciesAvailable(): bool {
+    $classes = [
+      '\\Monolog\\Logger',
+      '\\Monolog\\Handler\\RotatingFileHandler',
+      '\\Monolog\\Formatter\\JsonFormatter',
+      '\\Monolog\\Formatter\\LineFormatter',
+      '\\Monolog\\LogRecord',
+    ];
+
+    foreach ($classes as $class) {
+      if (!class_exists($class)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private static function getLegacyLogger(): ?LoggerInterface {
+    if (!interface_exists(LoggerInterface::class)) {
+      return null;
+    }
+
+    $logFile = defined('HCISYSQ_LOG_FILE') ? HCISYSQ_LOG_FILE : (WP_CONTENT_DIR . '/hcisysq.log');
+
+    return new class($logFile) implements LoggerInterface {
+      private $logFile;
+
+      public function __construct($logFile) {
+        $this->logFile = $logFile;
+      }
+
+      public function emergency($message, array $context = []): void { $this->log('emergency', $message, $context); }
+      public function alert($message, array $context = []): void { $this->log('alert', $message, $context); }
+      public function critical($message, array $context = []): void { $this->log('critical', $message, $context); }
+      public function error($message, array $context = []): void { $this->log('error', $message, $context); }
+      public function warning($message, array $context = []): void { $this->log('warning', $message, $context); }
+      public function notice($message, array $context = []): void { $this->log('notice', $message, $context); }
+      public function info($message, array $context = []): void { $this->log('info', $message, $context); }
+      public function debug($message, array $context = []): void { $this->log('debug', $message, $context); }
+
+      public function log($level, $message, array $context = []): void {
+        $formatted = sprintf(
+          '[HCIS.YSQ %s] [%s] %s %s',
+          date('Y-m-d H:i:s'),
+          strtoupper((string) $level),
+          is_scalar($message) ? (string) $message : json_encode($message, JSON_PARTIAL_OUTPUT_ON_ERROR),
+          empty($context) ? '' : json_encode($context, JSON_PARTIAL_OUTPUT_ON_ERROR)
+        );
+
+        @error_log($formatted . PHP_EOL, 3, $this->logFile);
+      }
+    };
   }
 
   /**
