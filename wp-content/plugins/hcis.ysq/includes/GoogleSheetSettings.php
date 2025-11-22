@@ -995,7 +995,8 @@ class GoogleSheetSettings {
 
   private static function sync_tab_gid_options(array $tab_gid_map): void {
     foreach (self::TAB_MAP as $slug => $config) {
-      $gid_value = isset($tab_gid_map[$slug]) ? trim((string) $tab_gid_map[$slug]) : '';
+      $has_gid = array_key_exists($slug, $tab_gid_map);
+      $gid_value = $has_gid ? trim((string) $tab_gid_map[$slug]) : get_option($config['gid_option'], '');
       update_option($config['gid_option'], $gid_value, false);
     }
   }
