@@ -56,12 +56,26 @@ if (!defined('HCISYSQ_SS_URL')) define('HCISYSQ_SS_URL', 'https://starsender.onl
  * Includes Composer Autoloader (with fallback)
  * ======================================================= */
 
-$composer_autoload = HCISYSQ_DIR . 'vendor/autoload.php';
+$vendor_dir             = HCISYSQ_DIR . 'vendor';
+$primary_autoload       = $vendor_dir . '/autoload.php';
+$candidate_autoloaders  = array_unique(array_filter([
+  $primary_autoload,
+  defined('ABSPATH') ? rtrim(ABSPATH, '/\\') . '/vendor/autoload.php' : null,
+  defined('ABSPATH') ? dirname(rtrim(ABSPATH, '/\\')) . '/vendor/autoload.php' : null,
+]));
 
-if (file_exists($composer_autoload)) {
-  require_once $composer_autoload;
+$autoload_path = null;
+foreach ($candidate_autoloaders as $autoload_candidate) {
+  if (is_readable($autoload_candidate)) {
+    $autoload_path = $autoload_candidate;
+    break;
+  }
+}
+
+if ($autoload_path !== null) {
+  require_once $autoload_path;
   if (!defined('HCISYSQ_AUTOLOAD_MODE')) {
-    define('HCISYSQ_AUTOLOAD_MODE', 'composer');
+    define('HCISYSQ_AUTOLOAD_MODE', $autoload_path === $primary_autoload ? 'composer' : 'shared_composer');
   }
 } else {
   if (!defined('HCISYSQ_AUTOLOAD_MODE')) {
@@ -85,11 +99,24 @@ if (file_exists($composer_autoload)) {
     }
   });
 
-  hcisysq_log('Composer autoload.php tidak ditemukan, menggunakan fallback autoloader', 'warning');
+  $has_vendor_dir      = is_dir($vendor_dir);
+  $autoload_missing    = $has_vendor_dir && !is_readable($primary_autoload);
+  $fallback_log_suffix = $autoload_missing
+    ? 'vendor/ ditemukan tetapi autoload.php hilang atau tidak dapat dibaca'
+    : 'folder vendor/ atau autoload.php tidak ditemukan';
 
-  add_action('admin_notices', function () {
+  hcisysq_log(
+    'Composer autoload.php tidak ditemukan, menggunakan fallback autoloader (' . $fallback_log_suffix . ')',
+    'warning'
+  );
+
+  add_action('admin_notices', function () use ($autoload_missing) {
+    $message = $autoload_missing
+      ? __('HCIS YSQ mendeteksi folder vendor/, tetapi autoload.php hilang atau tidak dapat dibaca. Jalankan "composer install" untuk membangun autoloader.', 'hcis-ysq')
+      : __('HCIS YSQ membutuhkan folder vendor/ dan autoload.php. Jalankan "composer install" agar semua fitur aktif.', 'hcis-ysq');
+
     echo '<div class="notice notice-warning"><p>';
-    echo esc_html__('HCIS YSQ membutuhkan folder vendor/. Jalankan "composer install" agar semua fitur aktif.', 'hcis-ysq');
+    echo esc_html($message);
     echo '</p></div>';
   });
 }
