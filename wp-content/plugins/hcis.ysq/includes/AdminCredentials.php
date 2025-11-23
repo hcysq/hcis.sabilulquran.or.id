@@ -221,11 +221,7 @@ class AdminCredentials {
     $normalized = array_slice($normalized, 0, self::MAX_ACCOUNTS);
 
     update_option(self::OPTION, $normalized, false);
-    $synced = self::sync_wordpress_users($normalized, $plainPasswords);
-    if ($synced !== $normalized) {
-      update_option(self::OPTION, $synced, false);
-    }
-    return $synced;
+    return $normalized;
   }
 
   private static function sanitize_account(array $account): array {

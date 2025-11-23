@@ -41,7 +41,7 @@ class Admin {
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('hcis-admin-ajax-nonce'),
             'wa_test'  => [
-                'target_number' => AdminCredentials::get_primary_whatsapp(),
+                'target_number' => '',
                 'success_text'  => __('Pesan tes WhatsApp berhasil dikirim ke %s.', 'hcis-ysq'),
                 'error_text'    => __('Gagal mengirim pesan tes WhatsApp. Silakan coba lagi.', 'hcis-ysq'),
             ],
@@ -55,16 +55,14 @@ class Admin {
     }
 
     $api_key = get_option('hcisysq_wa_token');
-    $hasContacts = AdminCredentials::has_whatsapp_contact();
 
-    if (empty($api_key) || !$hasContacts) {
+    if (empty($api_key)) {
         $settings_url = admin_url('options-general.php?page=hcisysq-settings');
-        $credentials_url = admin_url('tools.php?page=hcis-admin-credentials');
         ?>
         <div class="notice notice-warning is-dismissible">
             <p>
-                <strong>Peringatan HCIS.YSQ:</strong> Pengaturan WhatsApp (API Key dan minimal satu nomor admin) belum lengkap. Fitur "Lupa Password" tidak akan berfungsi dengan benar.
-                <a href="<?= esc_url($settings_url); ?>">Isi token</a> atau kelola <a href="<?= esc_url($credentials_url); ?>">Kredensial Admin</a>.
+                <strong>Peringatan HCIS.YSQ:</strong> Pengaturan WhatsApp (API Key) belum lengkap. Fitur "Lupa Password" tidak akan berfungsi dengan benar.
+                <a href="<?= esc_url($settings_url); ?>">Isi token</a> dan pastikan tab <em>Admin</em> pada Google Sheet sudah berisi kontak admin.
             </p>
         </div>
         <?php
@@ -101,14 +99,6 @@ class Admin {
       'hcis-admin-portal-settings',
       [__CLASS__, 'render_portal_settings_page']
     );
-
-    add_management_page(
-      __('Kredensial Admin', 'hcis-ysq'),
-      __('Kredensial Admin', 'hcis-ysq'),
-      'manage_options',
-      'hcis-admin-credentials',
-      [__CLASS__, 'render_admin_credentials_page']
-    );
   }
 
   /**
@@ -136,8 +126,7 @@ class Admin {
 
     $wa_token_value = get_option('hcisysq_wa_token', '');
     $wa_token_override = Config::describe_override('wa_token');
-    $adminContacts = AdminCredentials::get_whatsapp_numbers();
-    $credentialsUrl = admin_url('tools.php?page=hcis-admin-credentials');
+    $adminContacts = [];
 
     $setup_key_config = GoogleSheetSettings::get_setup_key_config();
 
@@ -238,20 +227,10 @@ class Admin {
             </td>
           </tr>
           <tr>
-            <th scope="row"><?php esc_html_e('Kontak Admin', 'hcis-ysq'); ?></th>
+            <th scope="row"><?php esc_html_e('Status Kredensial Admin', 'hcis-ysq'); ?></th>
             <td>
-              <?php if (empty($adminContacts)): ?>
-                <p><?php esc_html_e('Belum ada nomor WhatsApp admin yang terdaftar.', 'hcis-ysq'); ?></p>
-              <?php else: ?>
-                <ul>
-                  <?php foreach ($adminContacts as $contact): ?>
-                    <li><?php echo esc_html($contact); ?></li>
-                  <?php endforeach; ?>
-                </ul>
-              <?php endif; ?>
-              <p class="description">
-                <a href="<?php echo esc_url($credentialsUrl); ?>"><?php esc_html_e('Kelola kredensial & nomor admin melalui halaman Tools &rarr; Kredensial Admin.', 'hcis-ysq'); ?></a>
-              </p>
+              <p><?php esc_html_e('Kredensial admin kini diambil dari tab “Admin” pada Google Sheet. Perubahan user/nomor WhatsApp dilakukan langsung di sheet.', 'hcis-ysq'); ?></p>
+              <p class="description"><?php esc_html_e('Pastikan tab Admin memiliki baris admin yang lengkap (username, password hash, nomor WhatsApp) agar login & notifikasi berjalan.', 'hcis-ysq'); ?></p>
             </td>
           </tr>
           <?php foreach ($gid_keys as $key => $label): ?>
@@ -556,33 +535,8 @@ class Admin {
         wp_send_json_error(['message' => 'Unauthorized'], 403);
     }
 
-    $destination = AdminCredentials::get_primary_whatsapp();
-    if ($destination === '') {
-        wp_send_json_error([
-            'message' => __('Tambahkan minimal satu nomor admin sebelum menguji koneksi WhatsApp.', 'hcis-ysq'),
-        ], 400);
-    }
-    $timestamp = wp_date(get_option('date_format') . ' ' . get_option('time_format'));
-
-    $message = sprintf(
-        __('Tes koneksi HCIS.YSQ: koneksi WA sudah terhubung ke nomor WA %1$s pada %2$s.', 'hcis-ysq'),
-        $destination,
-        $timestamp
-    );
-
-    $result = StarSender::send($destination, $message);
-
-    if (is_wp_error($result)) {
-        hcisysq_log(sprintf('Test WA connection failed for %s: %s', $destination, $result->get_error_message()), 'error');
-        wp_send_json_error([
-            'message' => $result->get_error_message(),
-            'destination' => $destination,
-        ], 500);
-    }
-
-    wp_send_json_success([
-        'message' => __('Pesan tes WhatsApp berhasil dikirim.', 'hcis-ysq'),
-        'destination' => $destination,
-    ]);
+    wp_send_json_error([
+        'message' => __('Tes WA dinonaktifkan karena kredensial admin kini dibaca langsung dari tab Admin di Google Sheet. Pastikan nomor admin sudah ada di sheet.', 'hcis-ysq'),
+    ], 400);
   }
 }
