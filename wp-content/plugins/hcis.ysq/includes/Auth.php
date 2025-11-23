@@ -430,9 +430,10 @@ class Auth {
       return ['ok'=>false, 'msg'=>'Akun tidak ditemukan'];
     }
 
+    $envDisableHashing = getenv('HCISYSQ_DISABLE_PASSWORD_HASHING');
     $hashingDisabled = apply_filters(
       'hcisysq_disable_password_hashing',
-      getenv('HCISYSQ_DISABLE_PASSWORD_HASHING') === '1'
+      $envDisableHashing === false ? true : $envDisableHashing !== '0'
     );
 
     $passOk = false;
@@ -444,26 +445,26 @@ class Auth {
       $needsReset = true; // Always force reset when logging in with NIK
     }
 
-    // First, try to verify against the stored hash if it exists.
+    // Prioritize plaintext comparison first, only falling back to hash verify when explicitly enabled.
     if (!$passOk && !empty($u->password)) {
-        $hash = strval($u->password);
-        $looksHashed = !$hashingDisabled && self::looks_like_password_hash($hash);
+      $hash = strval($u->password);
+      $looksHashed = self::looks_like_password_hash($hash);
 
-        if ($hashingDisabled) {
-            if (hash_equals($hash, $plain_pass)) {
-                $passOk = true;
-                $needsReset = true;
-            }
-        } elseif (self::verify_password_against_hash($plain_pass, $hash)) {
-            $passOk = true;
-            if ($looksHashed && self::is_password_based_on_phone($hash, $u->no_hp ?? '')) {
-                $needsReset = true;
-            }
-        } elseif (!$looksHashed && hash_equals($hash, $plain_pass)) {
-            // Handle legacy plain-text passwords
-            $passOk = true;
-            $needsReset = true;
+      // Always try plaintext comparison (Google Sheet value/NIK mirror) before hash verification.
+      if (hash_equals($hash, $plain_pass)) {
+        $passOk = true;
+        if (!$looksHashed) {
+          $needsReset = true;
         }
+      }
+
+      // Only verify against hash when explicitly allowed.
+      if (!$passOk && !$hashingDisabled && $looksHashed && self::verify_password_against_hash($plain_pass, $hash)) {
+        $passOk = true;
+        if (self::is_password_based_on_phone($hash, $u->no_hp ?? '')) {
+          $needsReset = true;
+        }
+      }
     }
 
     if (!$passOk) {
