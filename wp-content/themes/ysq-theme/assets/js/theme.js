@@ -140,6 +140,7 @@
     const toggle = document.querySelector('[data-color-mode-toggle]');
     const labelEl = toggle ? toggle.querySelector('[data-color-mode-toggle-label]') : null;
     const storageKey = 'ysq-color-mode';
+    const storageSourceKey = 'ysq-color-mode-source';
     const preferred = root.getAttribute('data-default-color-mode') || 'system';
     const choices = ['system', 'light', 'dark'];
     const labels = toggle
@@ -154,8 +155,10 @@
       try {
         if (mode === 'system') {
           window.localStorage.removeItem(storageKey);
+          window.localStorage.removeItem(storageSourceKey);
         } else {
           window.localStorage.setItem(storageKey, mode);
+          window.localStorage.setItem(storageSourceKey, 'user');
         }
       } catch (err) {
         // Storage might be blocked; fail silently.
@@ -182,7 +185,20 @@
 
     function getStored() {
       try {
-        return window.localStorage.getItem(storageKey);
+        const mode = window.localStorage.getItem(storageKey);
+        const source = window.localStorage.getItem(storageSourceKey);
+
+        if (!mode) {
+          return null;
+        }
+
+        if (source !== 'user') {
+          window.localStorage.removeItem(storageKey);
+          window.localStorage.removeItem(storageSourceKey);
+          return null;
+        }
+
+        return mode;
       } catch (err) {
         return null;
       }
