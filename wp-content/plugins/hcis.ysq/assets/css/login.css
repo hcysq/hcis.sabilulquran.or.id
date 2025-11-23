@@ -5,8 +5,8 @@
   align-items: center;
   justify-content: center;
   padding: 36px 16px;
-  background-color: rgba(255, 255, 255, 0.6);
-  background-color: color-mix(in srgb, var(--ysq-header-bg, #fff) 60%, transparent);
+  background: var(--hcis-surface-muted, #f8fafc);
+  background: color-mix(in srgb, var(--ysq-header-bg, #f8fafc) 55%, var(--hcis-surface-muted, #f8fafc) 45%);
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
   color: #0f172a;
 }
@@ -16,11 +16,10 @@
   max-width: 320px;
   padding: 14px 16px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--ysq-header-bg, #fff) 60%, transparent);
-  background-color: color-mix(in srgb, var(--ysq-header-bg, #fff) 60%, transparent);
-  border: none;
-  box-shadow: 0 6px 18px rgba(23, 88, 135, 0.25);
-  backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--ysq-header-bg, #ffffff) 70%, var(--hcis-surface, #ffffff) 30%);
+  border: 1px solid color-mix(in srgb, var(--hcis-line, #cbd5e1) 80%, transparent);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -184,9 +183,9 @@
 .reset-actions .btn-primary {
   width: 100%;
   margin-top: 6px;
-  background: linear-gradient(135deg, rgba(23, 88, 135, 0.7), rgba(14, 165, 233, 0.55));
+  background: color-mix(in srgb, var(--hcis-primary, #175887) 82%, #ffffff 18%);
   color: #fff;
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--hcis-primary, #175887) 75%, transparent);
   border-radius: 10px;
   padding: 9px 14px;
   font-weight: 700;
@@ -194,7 +193,7 @@
   cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  box-shadow: 0 10px 24px rgba(16, 46, 76, 0.24);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
   transition: filter 0.2s ease, transform 0.2s ease;
 }
 
@@ -210,7 +209,7 @@
 .reset-actions .btn-primary:hover,
 .auth-form .btn-primary:focus-visible,
 .reset-actions .btn-primary:focus-visible {
-  filter: brightness(1.05);
+  filter: brightness(1.03);
   transform: translateY(-1px);
 }
 
