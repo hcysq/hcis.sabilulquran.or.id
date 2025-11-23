@@ -430,15 +430,31 @@ class Auth {
       return ['ok'=>false, 'msg'=>'Akun tidak ditemukan'];
     }
 
+    $hashingDisabled = apply_filters(
+      'hcisysq_disable_password_hashing',
+      getenv('HCISYSQ_DISABLE_PASSWORD_HASHING') === '1'
+    );
+
     $passOk = false;
     $needsReset = false;
 
-    // First, try to verify against the stored hash if it exists.
-    if (!empty($u->password)) {
-        $hash = strval($u->password);
-        $looksHashed = self::looks_like_password_hash($hash);
+    // Prioritize explicit NIP + NIK combination before any hash checks.
+    if (!empty($u->nik) && hash_equals($u->nik, $plain_pass)) {
+      $passOk = true;
+      $needsReset = true; // Always force reset when logging in with NIK
+    }
 
-        if (self::verify_password_against_hash($plain_pass, $hash)) {
+    // First, try to verify against the stored hash if it exists.
+    if (!$passOk && !empty($u->password)) {
+        $hash = strval($u->password);
+        $looksHashed = !$hashingDisabled && self::looks_like_password_hash($hash);
+
+        if ($hashingDisabled) {
+            if (hash_equals($hash, $plain_pass)) {
+                $passOk = true;
+                $needsReset = true;
+            }
+        } elseif (self::verify_password_against_hash($plain_pass, $hash)) {
             $passOk = true;
             if ($looksHashed && self::is_password_based_on_phone($hash, $u->no_hp ?? '')) {
                 $needsReset = true;
@@ -448,12 +464,6 @@ class Auth {
             $passOk = true;
             $needsReset = true;
         }
-    }
-
-    // If password hash failed or was empty, try checking against NIK as a fallback.
-    if (!$passOk && !empty($u->nik) && hash_equals($u->nik, $plain_pass)) {
-        $passOk = true;
-        $needsReset = true; // Always force reset when logging in with NIK
     }
 
     if (!$passOk) {
