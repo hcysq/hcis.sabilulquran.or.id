@@ -181,6 +181,13 @@ class Api {
       $background = '#ffffff';
     }
 
+    $text_color = isset($data['marquee_text_color']) ? sanitize_hex_color($data['marquee_text_color']) : '';
+    $recommended_text_color = self::calculate_contrast_text_color($background);
+
+    if (!$text_color || ($text_color === '#0f172a' && $recommended_text_color !== '#0f172a')) {
+      $text_color = $recommended_text_color;
+    }
+
     $duplicates = absint($data['marquee_duplicates'] ?? 2);
     if ($duplicates < 1) {
       $duplicates = 1;
@@ -205,10 +212,33 @@ class Api {
     return [
       'speed'          => (float) $speed_raw,
       'background'     => $background,
+      'text_color'     => $text_color,
       'duplicates'     => $duplicates,
       'letter_spacing' => $letter_spacing,
       'gap'            => $gap,
     ];
+  }
+
+  private static function calculate_contrast_text_color($hex_color) {
+    if (function_exists('ysq_get_contrast_color')) {
+      $contrast = \ysq_get_contrast_color($hex_color);
+      if ($contrast) {
+        return $contrast;
+      }
+    }
+
+    $hex = sanitize_hex_color($hex_color);
+    if (!$hex) {
+      return '#0f172a';
+    }
+
+    $hex = ltrim($hex, '#');
+    $red = hexdec(substr($hex, 0, 2));
+    $green = hexdec(substr($hex, 2, 2));
+    $blue = hexdec(substr($hex, 4, 2));
+    $luma = 0.299 * $red + 0.587 * $green + 0.114 * $blue;
+
+    return $luma >= 186 ? '#0f172a' : '#ffffff';
   }
 
   private static function parse_string_list($value){

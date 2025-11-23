@@ -229,6 +229,28 @@ class View {
     }, $items);
   }
 
+  private static function get_marquee_contrast_color($hex_color) {
+    if (function_exists('ysq_get_contrast_color')) {
+      $contrast = \ysq_get_contrast_color($hex_color);
+      if ($contrast) {
+        return $contrast;
+      }
+    }
+
+    $hex = sanitize_hex_color($hex_color);
+    if (!$hex) {
+      return '#0f172a';
+    }
+
+    $hex = ltrim($hex, '#');
+    $red = hexdec(substr($hex, 0, 2));
+    $green = hexdec(substr($hex, 2, 2));
+    $blue = hexdec(substr($hex, 4, 2));
+    $luma = 0.299 * $red + 0.587 * $green + 0.114 * $blue;
+
+    return $luma >= 186 ? '#0f172a' : '#ffffff';
+  }
+
   private static function render_admin_dashboard(array $identity){
     $publicSettings = Auth::get_admin_public_settings();
     $publications  = self::format_admin_publications(Publikasi::all());
@@ -238,6 +260,7 @@ class View {
     $defaultOptions = [
       'speed'          => 1.0,
       'background'     => '#ffffff',
+      'text_color'     => '#0f172a',
       'duplicates'     => 2,
       'letter_spacing' => 0.0,
       'gap'            => 32,
@@ -247,6 +270,13 @@ class View {
     $homeOptions['duplicates'] = (int) $homeOptions['duplicates'];
     $homeOptions['letter_spacing'] = (float) $homeOptions['letter_spacing'];
     $homeOptions['gap'] = (int) $homeOptions['gap'];
+    $homeOptions['background'] = sanitize_hex_color($homeOptions['background']) ?: '#ffffff';
+
+    $contrastTextColor = self::get_marquee_contrast_color($homeOptions['background']);
+    $homeOptions['text_color'] = sanitize_hex_color($homeOptions['text_color']);
+    if (!$homeOptions['text_color'] || ($homeOptions['text_color'] === '#0f172a' && $contrastTextColor !== '#0f172a')) {
+      $homeOptions['text_color'] = $contrastTextColor;
+    }
 
     $homeSettings   = [
       'marquee_text' => is_string($homeMarquee) ? RichText::sanitize($homeMarquee) : '',
@@ -365,6 +395,13 @@ class View {
                       <label for="hcisysq-marquee-background" class="hcisysq-form-label">Warna Latar</label>
                       <div class="hcisysq-form-field">
                         <input type="color" id="hcisysq-marquee-background" name="marquee_background" class="hcisysq-form-control hcisysq-form-control--color" value="<?= esc_attr($homeSettings['options']['background']) ?>">
+                      </div>
+                    </div>
+                    <div class="hcisysq-form-row">
+                      <label for="hcisysq-marquee-text-color" class="hcisysq-form-label">Warna Teks</label>
+                      <div class="hcisysq-form-field">
+                        <input type="color" id="hcisysq-marquee-text-color" name="marquee_text_color" class="hcisysq-form-control hcisysq-form-control--color" value="<?= esc_attr($homeSettings['options']['text_color']) ?>">
+                        <p class="form-helper">Biarkan default untuk menyesuaikan kontras otomatis terhadap warna latar.</p>
                       </div>
                     </div>
                     <div class="hcisysq-form-row">
