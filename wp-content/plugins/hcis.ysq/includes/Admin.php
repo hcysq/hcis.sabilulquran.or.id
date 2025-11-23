@@ -118,16 +118,10 @@ class Admin {
 
     $notice = '';
     $default_sheet_id = GoogleSheetSettings::DEFAULT_SHEET_ID;
-    $tab_labels = GoogleSheetSettings::get_tab_labels();
-    $setup_key_rows = GoogleSheetSettings::get_effective_setup_keys();
-    $setup_key_definitions = GoogleSheetSettings::get_setup_key_definitions();
 
     $wa_token_value = get_option('hcisysq_wa_token', '');
     $wa_token_override = Config::describe_override('wa_token');
     $adminContacts = [];
-
-    $setup_key_config = GoogleSheetSettings::get_setup_key_config();
-    $gids_value = GoogleSheetSettings::get_gid_map();
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       check_admin_referer('hcis_portal_settings');
@@ -138,34 +132,10 @@ class Admin {
       $sheet_id = sanitize_text_field($_POST['hcis_portal_sheet_id'] ?? '');
       $wa_token_input = sanitize_text_field(wp_unslash($_POST['hcis_portal_wa_token'] ?? ''));
 
-      $gids = [];
-      foreach ($tab_labels as $key => $label) {
-        if ($key === 'admins') {
-          continue;
-        }
-        $gids[$key] = sanitize_text_field($_POST["hcis_portal_gid_{$key}"] ?? '');
-      }
-
-      $setup_keys_input = isset($_POST['hcis_portal_setup_keys']) ? wp_unslash($_POST['hcis_portal_setup_keys']) : [];
-      $setup_keys = [];
-      if (is_array($setup_keys_input)) {
-        foreach ($setup_keys_input as $setup_key => $row) {
-          if (!is_array($row)) {
-            continue;
-          }
-          $setup_keys[$setup_key] = [
-            'tab' => sanitize_key($row['tab'] ?? ''),
-            'header' => sanitize_text_field($row['header'] ?? ''),
-            'order' => isset($row['order']) ? absint($row['order']) : 0,
-          ];
-        }
-      }
-
-      $status_data = GoogleSheetSettings::save_settings($credentials_json, $sheet_id, $gids, $setup_keys);
+      $status_data = GoogleSheetSettings::save_settings($credentials_json, $sheet_id);
 
       update_option('hcisysq_wa_token', $wa_token_input);
       $wa_token_value = $wa_token_input;
-      $gids_value = GoogleSheetSettings::get_gid_map();
 
       if (!empty($status_data['valid'])) {
         $notice = '<div class="notice notice-success"><p>' . esc_html__('Settings saved.', 'hcis-ysq') . '</p></div>';
@@ -178,8 +148,6 @@ class Admin {
     $credentials_value = GoogleSheetSettings::get_credentials_json();
     $sheet_id_value = GoogleSheetSettings::get_sheet_id() ?: $default_sheet_id;
     $status_block = GoogleSheetSettings::get_status();
-    $setup_key_rows = GoogleSheetSettings::get_effective_setup_keys();
-
     ?>
     <div class="wrap">
       <h1><?= esc_html__('Portal HCIS Settings', 'hcis-ysq'); ?></h1>
@@ -236,68 +204,7 @@ class Admin {
               <p class="description"><?php esc_html_e('Pastikan tab Admin memiliki baris admin yang lengkap (username, password hash, nomor WhatsApp) agar login & notifikasi berjalan.', 'hcis-ysq'); ?></p>
             </td>
           </tr>
-          <tr>
-            <th scope="row" colspan="2"><h2 style="margin: 0;"><?php esc_html_e('Data Sources', 'hcis-ysq'); ?></h2></th>
-          </tr>
-          <?php foreach ($tab_labels as $key => $label): ?>
-            <?php if ($key === 'admins') continue; ?>
-            <tr>
-              <th scope="row"><label for="hcis_portal_gid_<?php echo esc_attr($key); ?>"><?php echo esc_html(sprintf(__('GID %s', 'hcis-ysq'), $label)); ?></label></th>
-              <td>
-                <input type="text" id="hcis_portal_gid_<?php echo esc_attr($key); ?>" name="hcis_portal_gid_<?php echo esc_attr($key); ?>" class="regular-text" style="width: 220px" value="<?php echo esc_attr($gids_value[$key] ?? ''); ?>" placeholder="0">
-                <p class="description"><?php echo esc_html(sprintf(__('GID untuk tab %s', 'hcis-ysq'), $label)); ?></p>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-
-          <tr>
-            <th scope="row"><?php esc_html_e('Setup Key Mapping', 'hcis-ysq'); ?></th>
-            <td>
-              <p class="description"><strong><?php esc_html_e('Catatan:', 'hcis-ysq'); ?></strong> <?php esc_html_e('Atur target tab melalui bagian GID di "Data Sources" di atas untuk menghindari kebingungan antara pemilihan tab dan konfigurasi GID.', 'hcis-ysq'); ?></p>
-              <p class="description"><?php esc_html_e('Tentukan tab Google Sheet, header, dan urutan untuk setiap key yang dibutuhkan plugin. Contoh: employee_id_number muncul di Dashboard → Profil sehingga harus menunjuk kolom NIP yang benar.', 'hcis-ysq'); ?></p>
-              <table class="widefat striped" style="max-width: 1000px; margin-top: 10px;">
-                <thead>
-                  <tr>
-                    <th><?php esc_html_e('Kolom', 'hcis-ysq'); ?></th>
-                    <th><?php esc_html_e('Plugin', 'hcis-ysq'); ?></th>
-                    <th><?php esc_html_e('Deskripsi', 'hcis-ysq'); ?></th>
-                    <th><?php esc_html_e('Tab / Sheet', 'hcis-ysq'); ?></th>
-                    <th><?php esc_html_e('Header di Sheet', 'hcis-ysq'); ?></th>
-                    <th><?php esc_html_e('Urutan', 'hcis-ysq'); ?></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php foreach ($setup_key_rows as $key => $row): ?>
-                    <?php
-                      $tab_slug = $setup_key_definitions[$key]['tab'] ?? ($row['tab'] ?? '');
-                      $tab_label = $tab_labels[$tab_slug] ?? ucfirst((string) $tab_slug);
-                      $tab_gid = $gids_value[$tab_slug] ?? '';
-                    ?>
-                    <tr>
-                      <td><code><?php echo esc_html($row['label']); ?></code></td>
-                      <td><?php echo esc_html($row['plugin']); ?></td>
-                      <td><?php echo esc_html($row['description']); ?></td>
-                      <td>
-                        <span><?php echo esc_html($tab_label); ?></span>
-                        <?php if ($tab_gid !== ''): ?>
-                          <p class="description" style="margin: 4px 0 0;">
-                            <?php echo esc_html(sprintf(__('GID: %s', 'hcis-ysq'), $tab_gid)); ?>
-                          </p>
-                        <?php endif; ?>
-                      </td>
-                      <td>
-                        <input type="text" name="hcis_portal_setup_keys[<?php echo esc_attr($key); ?>][header]" value="<?php echo esc_attr($row['header']); ?>" class="regular-text" />
-                      </td>
-                      <td>
-                        <input type="number" min="1" step="1" name="hcis_portal_setup_keys[<?php echo esc_attr($key); ?>][order]" value="<?php echo esc_attr($row['order']); ?>" style="width: 80px;" />
-                      </td>
-                    </tr>
-                  <?php endforeach; ?>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </table>
+          </table>
         <p class="submit">
           <input type="text" id="hcis-test-nip" name="hcis_test_nip" class="regular-text" placeholder="<?php esc_attr_e('NIP to Test (optional)', 'hcis-ysq'); ?>" style="width: 200px; margin-right: 10px;">
           <button type="submit" class="button button-primary"><?php esc_html_e('Simpan', 'hcis-ysq'); ?></button>
