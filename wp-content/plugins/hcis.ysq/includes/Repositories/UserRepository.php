@@ -17,14 +17,58 @@ class UserRepository extends AbstractSheetRepository {
     'phone' => 'No HP',
     'email' => 'Email',
     'nik' => 'NIK',
+    'unit' => 'Unit',
+    'jabatan' => 'Jabatan',
+    'tempat_lahir' => 'Tempat Lahir',
+    'tanggal_lahir' => 'Tanggal Lahir',
+    'alamat_ktp' => 'Alamat KTP',
+    'desa' => 'Desa/Kelurahan',
+    'kecamatan' => 'Kecamatan',
+    'kota' => 'Kota/Kabupaten',
+    'kode_pos' => 'Kode Pos',
+    'tmt' => 'TMT',
+    'periode' => 'Periode',
+    'gaji_pokok' => 'Gaji Pokok',
+    'tunjangan' => 'Tunjangan',
+    'potongan' => 'Potongan',
+    'take_home_pay' => 'Take Home Pay',
+    'status' => 'Status',
   ];
 
   public function __construct(?SheetCache $cache = null) {
     parent::__construct($cache);
 
     $config = GoogleSheetSettings::get_setup_key_config();
-    $this->columns['password_hash'] = $config['user_password_hash']['header'] ?? $this->columns['password_hash'];
-    $this->columns['nik'] = $config['user_nik']['header'] ?? $this->columns['nik'];
+    $configMap = [
+      'nip' => 'user_nip',
+      'nama' => 'user_name',
+      'password_hash' => 'user_password_hash',
+      'phone' => 'user_phone',
+      'email' => 'user_email',
+      'nik' => 'user_nik',
+      'unit' => 'user_unit',
+      'jabatan' => 'user_position',
+      'tempat_lahir' => 'user_birth_place',
+      'tanggal_lahir' => 'user_birth_date',
+      'alamat_ktp' => 'user_address',
+      'desa' => 'user_village',
+      'kecamatan' => 'user_district',
+      'kota' => 'user_city',
+      'kode_pos' => 'user_postal_code',
+      'tmt' => 'user_join_date',
+      'periode' => 'payroll_period',
+      'gaji_pokok' => 'payroll_basic_salary',
+      'tunjangan' => 'payroll_allowance',
+      'potongan' => 'payroll_deduction',
+      'take_home_pay' => 'payroll_take_home_pay',
+      'status' => 'payroll_status',
+    ];
+
+    foreach ($configMap as $columnKey => $configKey) {
+      if (!empty($config[$configKey]['header'])) {
+        $this->columns[$columnKey] = $config[$configKey]['header'];
+      }
+    }
   }
 
   public function create($user_id) {

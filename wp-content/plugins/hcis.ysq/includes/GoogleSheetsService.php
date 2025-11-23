@@ -141,6 +141,34 @@ class GoogleSheetsService {
     }
 
     /**
+     * Retrieve all sheet/tab titles from the configured spreadsheet.
+     *
+     * @return array
+     * @throws Exception
+     */
+    public function get_sheet_titles(): array {
+        if (!$this->is_configured()) {
+            throw new Exception('Plugin is not configured. Please check settings.');
+        }
+
+        try {
+            $spreadsheet = $this->service->spreadsheets->get($this->spreadsheet_id);
+            $titles = [];
+
+            foreach ((array) $spreadsheet->getSheets() as $sheet) {
+                $title = $sheet->getProperties()->getTitle();
+                if (!empty($title)) {
+                    $titles[] = $title;
+                }
+            }
+
+            return $titles;
+        } catch (Exception $e) {
+            throw new Exception('Unable to fetch sheet titles: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Creates a new sheet/tab inside the configured spreadsheet.
      *
      * @param string $title
