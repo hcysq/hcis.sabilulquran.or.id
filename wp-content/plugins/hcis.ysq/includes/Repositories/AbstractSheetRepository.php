@@ -223,7 +223,7 @@ abstract class AbstractSheetRepository {
   }
 
   protected function cacheKey(string $suffix): string {
-    return implode('_', ['sheet', $this->tab, $this->getCacheBuster(), $suffix]);
+    return implode('_', ['sheet', $this->sheet_id, $this->tab, $suffix]);
   }
 
   protected function flushCache(): void {
