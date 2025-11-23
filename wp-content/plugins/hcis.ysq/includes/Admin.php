@@ -120,6 +120,7 @@ class Admin {
     $default_sheet_id = GoogleSheetSettings::DEFAULT_SHEET_ID;
     $tab_labels = GoogleSheetSettings::get_tab_labels();
     $setup_key_rows = GoogleSheetSettings::get_effective_setup_keys();
+    $setup_key_definitions = GoogleSheetSettings::get_setup_key_definitions();
 
     $wa_token_value = get_option('hcisysq_wa_token', '');
     $wa_token_override = Config::describe_override('wa_token');
@@ -252,6 +253,7 @@ class Admin {
           <tr>
             <th scope="row"><?php esc_html_e('Setup Key Mapping', 'hcis-ysq'); ?></th>
             <td>
+              <p class="description"><strong><?php esc_html_e('Catatan:', 'hcis-ysq'); ?></strong> <?php esc_html_e('Atur target tab melalui bagian GID di "Data Sources" di atas untuk menghindari kebingungan antara pemilihan tab dan konfigurasi GID.', 'hcis-ysq'); ?></p>
               <p class="description"><?php esc_html_e('Tentukan tab Google Sheet, header, dan urutan untuk setiap key yang dibutuhkan plugin. Contoh: employee_id_number muncul di Dashboard → Profil sehingga harus menunjuk kolom NIP yang benar.', 'hcis-ysq'); ?></p>
               <table class="widefat striped" style="max-width: 1000px; margin-top: 10px;">
                 <thead>
@@ -266,16 +268,22 @@ class Admin {
                 </thead>
                 <tbody>
                   <?php foreach ($setup_key_rows as $key => $row): ?>
+                    <?php
+                      $tab_slug = $setup_key_definitions[$key]['tab'] ?? ($row['tab'] ?? '');
+                      $tab_label = $tab_labels[$tab_slug] ?? ucfirst((string) $tab_slug);
+                      $tab_gid = $gids_value[$tab_slug] ?? '';
+                    ?>
                     <tr>
                       <td><code><?php echo esc_html($row['label']); ?></code></td>
                       <td><?php echo esc_html($row['plugin']); ?></td>
                       <td><?php echo esc_html($row['description']); ?></td>
                       <td>
-                        <select name="hcis_portal_setup_keys[<?php echo esc_attr($key); ?>][tab]">
-                          <?php foreach ($tab_labels as $tab_key => $tab_label): ?>
-                            <option value="<?php echo esc_attr($tab_key); ?>" <?php selected($row['tab'], $tab_key); ?>><?php echo esc_html($tab_label); ?></option>
-                          <?php endforeach; ?>
-                        </select>
+                        <span><?php echo esc_html($tab_label); ?></span>
+                        <?php if ($tab_gid !== ''): ?>
+                          <p class="description" style="margin: 4px 0 0;">
+                            <?php echo esc_html(sprintf(__('GID: %s', 'hcis-ysq'), $tab_gid)); ?>
+                          </p>
+                        <?php endif; ?>
                       </td>
                       <td>
                         <input type="text" name="hcis_portal_setup_keys[<?php echo esc_attr($key); ?>][header]" value="<?php echo esc_attr($row['header']); ?>" class="regular-text" />
