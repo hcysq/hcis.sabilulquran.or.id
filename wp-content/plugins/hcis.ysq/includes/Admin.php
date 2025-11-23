@@ -130,6 +130,7 @@ class Admin {
     $adminContacts = [];
 
     $setup_key_config = GoogleSheetSettings::get_setup_key_config();
+    $gids_value = GoogleSheetSettings::get_gid_map();
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       check_admin_referer('hcis_portal_settings');
@@ -164,6 +165,7 @@ class Admin {
 
       update_option('hcisysq_wa_token', $wa_token_input);
       $wa_token_value = $wa_token_input;
+      $gids_value = GoogleSheetSettings::get_gid_map();
 
       if (!empty($status_data['valid'])) {
         $notice = '<div class="notice notice-success"><p>' . esc_html__('Settings saved.', 'hcis-ysq') . '</p></div>';
