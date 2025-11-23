@@ -215,15 +215,13 @@ class GoogleSheetsService {
         try {
             $normalized_headers = $this->normalize_headers($headers);
             $end_column = $this->column_letter(count($normalized_headers));
-            $has_notes = array_filter(array_column($normalized_headers, 'note'));
-            $end_row = $has_notes ? 2 : 1;
+            $end_row = 1;
             $range = sprintf('%s!A1:%s%d', $sheet_title, $end_column, $end_row);
 
             $header_row = array_column($normalized_headers, 'label');
-            $note_row = array_column($normalized_headers, 'note');
 
             $body = new \Google_Service_Sheets_ValueRange([
-                'values' => $has_notes ? [$header_row, $note_row] : [$header_row],
+                'values' => [$header_row],
             ]);
 
             $params = [
