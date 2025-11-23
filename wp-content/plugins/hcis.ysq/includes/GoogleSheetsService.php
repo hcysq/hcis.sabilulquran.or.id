@@ -139,4 +139,81 @@ class GoogleSheetsService {
             throw new Exception('Connection failed: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Creates a new sheet/tab inside the configured spreadsheet.
+     *
+     * @param string $title
+     * @return bool True on success, false on failure.
+     */
+    public function create_sheet(string $title): bool {
+        if (!$this->is_configured()) {
+            return false;
+        }
+
+        try {
+            $request = new \Google_Service_Sheets_Request([
+                'addSheet' => [
+                    'properties' => [
+                        'title' => $title,
+                    ],
+                ],
+            ]);
+
+            $batch = new \Google_Service_Sheets_BatchUpdateSpreadsheetRequest([
+                'requests' => [$request],
+            ]);
+
+            $this->service->spreadsheets->batchUpdate($this->spreadsheet_id, $batch);
+            return true;
+        } catch (Exception $e) {
+            error_log('HCIS GoogleSheetsService create_sheet Error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Writes header labels to the first row of a sheet.
+     *
+     * @param string $sheet_title
+     * @param array $headers
+     * @return bool
+     */
+    public function set_headers(string $sheet_title, array $headers): bool {
+        if (!$this->is_configured() || empty($headers)) {
+            return false;
+        }
+
+        try {
+            $end_column = $this->column_letter(count($headers));
+            $range = sprintf('%s!A1:%s1', $sheet_title, $end_column);
+
+            $body = new \Google_Service_Sheets_ValueRange([
+                'values' => [array_values($headers)],
+            ]);
+
+            $params = [
+                'valueInputOption' => 'RAW',
+            ];
+
+            $this->service->spreadsheets_values->update($this->spreadsheet_id, $range, $body, $params);
+            return true;
+        } catch (Exception $e) {
+            error_log('HCIS GoogleSheetsService set_headers Error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Convert column count to Google Sheets column letter (e.g., 1 -> A, 27 -> AA).
+     */
+    private function column_letter(int $count): string {
+        $letter = '';
+        while ($count > 0) {
+            $remainder = ($count - 1) % 26;
+            $letter = chr(65 + $remainder) . $letter;
+            $count = (int) (($count - 1) / 26);
+        }
+        return $letter;
+    }
 }

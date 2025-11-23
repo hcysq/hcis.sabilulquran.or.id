@@ -11,6 +11,7 @@ class Admin {
     add_action('wp_ajax_hcis_test_connection', [__CLASS__, 'ajax_test_connection']);
     add_action('wp_ajax_hcis_test_wa_connection', [__CLASS__, 'ajax_test_wa_connection']);
     add_action('wp_ajax_hcis_clear_cache', [__CLASS__, 'ajax_clear_cache']);
+    add_action('wp_ajax_hcis_setup_sheets', [__CLASS__, 'ajax_setup_sheets']);
   }
 
   public static function enqueue_assets($hook) {
@@ -303,6 +304,7 @@ class Admin {
           <button type="submit" class="button button-primary"><?php esc_html_e('Simpan', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-test-connection" class="button"><?php esc_html_e('Test Connection', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-clear-cache" class="button"><?php esc_html_e('Clear Cache', 'hcis-ysq'); ?></button>
+          <button type="button" id="hcis-setup-sheets" class="button button-secondary"><?php esc_html_e('Setup Database', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-test-wa-connection" class="button"><?php esc_html_e('Test WA Connection', 'hcis-ysq'); ?></button>
         </p>
       </form>
@@ -613,6 +615,62 @@ class Admin {
     } catch (\Exception $e) {
         wp_send_json_error(['message' => 'An error occurred while clearing the cache: ' . $e->getMessage()], 500);
     }
+  }
+
+  public static function ajax_setup_sheets() {
+    check_ajax_referer('hcis-admin-ajax-nonce');
+
+    if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) {
+        wp_send_json_error(['message' => 'Unauthorized'], 403);
+    }
+
+    try {
+        $api = \HCISYSQ\GoogleSheetsAPI::getInstance();
+    } catch (\Exception $e) {
+        wp_send_json_error(['message' => $e->getMessage()], 400);
+    }
+
+    $existing_titles = $api->getSheetTitles();
+    $tabs = \HCISYSQ\GoogleSheetSettings::get_tabs();
+
+    $created = [];
+    $skipped = [];
+
+    foreach ($tabs as $slug => $config) {
+        $title = $config['title'];
+
+        if (in_array($title, $existing_titles, true)) {
+            $skipped[] = $title;
+            continue;
+        }
+
+        $created_successfully = $api->createSheet($title);
+        if (!$created_successfully) {
+            wp_send_json_error([
+                'message' => sprintf(__('Gagal membuat tab %s.', 'hcis-ysq'), $title),
+            ]);
+        }
+
+        $headers = \HCISYSQ\GoogleSheetSettings::get_tab_column_map($slug);
+        if (!empty($headers)) {
+            $api->setHeaders($title, $headers);
+        }
+
+        $created[] = $title;
+    }
+
+    if (empty($created)) {
+        wp_send_json_success([
+            'message' => __('Database sudah ada.', 'hcis-ysq'),
+            'skipped' => $skipped,
+        ]);
+    }
+
+    wp_send_json_success([
+        'message' => __('Tab dasar berhasil dibuat.', 'hcis-ysq'),
+        'created' => $created,
+        'skipped' => $skipped,
+    ]);
   }
 
   public static function ajax_test_wa_connection() {

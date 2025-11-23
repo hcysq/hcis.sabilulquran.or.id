@@ -512,45 +512,20 @@ class GoogleSheetSettings {
 
   private const TAB_MAP = [
     'admins' => [
-      'title' => 'Admins',
+      'title' => 'HCIS Admins',
       'gid_option' => 'hcis_gid_admins',
       'range_end' => 'D',
     ],
     'users' => [
-      'title' => 'Users',
+      'title' => 'HCIS Users',
       'gid_option' => 'hcis_gid_users',
-      'range_end' => 'E',
-    ],
-    'profiles' => [
-      'title' => 'Profiles',
-      'gid_option' => 'hcis_gid_profiles',
-      'range_end' => 'N',
-    ],
-    'payroll' => [
-      'title' => 'Payroll',
-      'gid_option' => 'hcis_gid_payroll',
-      'range_end' => 'G',
-    ],
-    'keluarga' => [
-      'title' => 'Keluarga',
-      'gid_option' => 'hcis_gid_keluarga',
       'range_end' => 'F',
     ],
-    'dokumen' => [
-      'title' => 'Dokumen',
-      'gid_option' => 'hcis_gid_dokumen',
-      'range_end' => 'G',
-    ],
-    'pendidikan' => [
-      'title' => 'Pendidikan',
-      'gid_option' => 'hcis_gid_pendidikan',
-      'range_end' => 'G',
-    ],
-    'pelatihan' => [
-      'title' => 'Pelatihan',
-      'gid_option' => 'hcis_gid_pelatihan',
-      'range_end' => 'G',
-    ],
+  ];
+
+  private const DEFAULT_TAB_HEADERS = [
+    'users' => ['NIP', 'Nama', 'Password Hash', 'No HP', 'Email', 'NIK'],
+    'admins' => ['Username', 'Display Name', 'Password Hash', 'WhatsApp'],
   ];
 
   public static function init() {
@@ -676,7 +651,7 @@ class GoogleSheetSettings {
       ];
     }
     if (empty($columns)) {
-      return [];
+      return self::DEFAULT_TAB_HEADERS[$tab] ?? [];
     }
     usort($columns, function ($a, $b) {
       $orderSort = ($a['order'] <=> $b['order']);
@@ -930,12 +905,6 @@ class GoogleSheetSettings {
   public static function repository_class_for(string $tab): ?string {
     $map = [
       'users' => '\\HCISYSQ\\Repositories\\UserRepository',
-      'profiles' => '\\HCISYSQ\\Repositories\\ProfileRepository',
-      'payroll' => '\\HCISYSQ\\Repositories\\PayrollRepository',
-      'keluarga' => '\\HCISYSQ\\Repositories\\KeluargaRepository',
-      'dokumen' => '\\HCISYSQ\\Repositories\\DokumenRepository',
-      'pendidikan' => '\\HCISYSQ\\Repositories\\PendidikanRepository',
-      'pelatihan' => '\\HCISYSQ\\Repositories\\PelatihanRepository',
       'admins' => '\\HCISYSQ\\Repositories\\AdminRepository',
     ];
     return $map[$tab] ?? null;
