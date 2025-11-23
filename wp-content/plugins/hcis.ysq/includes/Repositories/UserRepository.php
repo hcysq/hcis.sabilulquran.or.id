@@ -5,6 +5,7 @@ if (!defined('ABSPATH')) exit;
 
 use HCISYSQ\SheetCache;
 use HCISYSQ\GoogleSheetsAPI;
+use HCISYSQ\GoogleSheetSettings;
 
 class UserRepository extends AbstractSheetRepository {
 
@@ -17,6 +18,14 @@ class UserRepository extends AbstractSheetRepository {
     'email' => 'Email',
     'nik' => 'NIK',
   ];
+
+  public function __construct(?SheetCache $cache = null) {
+    parent::__construct($cache);
+
+    $config = GoogleSheetSettings::get_setup_key_config();
+    $this->columns['password_hash'] = $config['user_password_hash']['header'] ?? $this->columns['password_hash'];
+    $this->columns['nik'] = $config['user_nik']['header'] ?? $this->columns['nik'];
+  }
 
   public function create($user_id) {
     $user = get_userdata($user_id);
