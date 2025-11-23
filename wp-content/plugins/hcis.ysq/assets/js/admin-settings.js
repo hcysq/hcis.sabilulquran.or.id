@@ -1,6 +1,77 @@
 jQuery(document).ready(function($) {
     const noticeContainer = $('#hcis-admin-notice');
 
+    const userLabels = {
+        nip: 'NIP',
+        nama: 'Nama',
+        nik: 'NIK',
+        phone: 'Phone',
+        email: 'Email',
+        no_hp: 'No HP'
+    };
+
+    function buildUserDetails(userData, headingText) {
+        if (!userData || !$.isPlainObject(userData)) {
+            return null;
+        }
+
+        const list = $('<ul>').addClass('hcis-admin-user-list');
+        let hasEntries = false;
+
+        Object.keys(userLabels).forEach(function(key) {
+            if (!userData[key]) {
+                return;
+            }
+
+            hasEntries = true;
+            const listItem = $('<li>');
+            listItem.append($('<strong>').text(userLabels[key] + ': '));
+            listItem.append($('<span>').text(userData[key]));
+            list.append(listItem);
+        });
+
+        if (!hasEntries) {
+            return null;
+        }
+
+        const userBlock = $('<div>').addClass('hcis-admin-user-details');
+        userBlock.append($('<p>').text(headingText));
+        userBlock.append(list);
+        return userBlock;
+    }
+
+    function buildConnectionStatusBlocks(data) {
+        const blocks = [];
+
+        const statusDefs = [
+            { key: 'google_sheets', label: 'Google Sheets' },
+            { key: 'database', label: 'Database' }
+        ];
+
+        statusDefs.forEach(function(def) {
+            const status = data ? data[def.key] : null;
+            if (!status) {
+                return;
+            }
+
+            const message = status.message || (status.success ? 'OK' : 'Unavailable');
+            blocks.push($('<p>').text(def.label + ': ' + message));
+
+            if (def.key === 'database' && status.sample_user) {
+                const sampleBlock = buildUserDetails(status.sample_user, 'Contoh data pengguna dari database:');
+                if (sampleBlock) {
+                    blocks.push(sampleBlock);
+                }
+            }
+        });
+
+        if (!blocks.length && data && data.connection_status) {
+            blocks.push($('<p>').text('Connection status: ' + data.connection_status));
+        }
+
+        return blocks;
+    }
+
     function showNotice(content, isError = false) {
         const contents = Array.isArray(content) ? content : [content];
 
@@ -39,52 +110,34 @@ jQuery(document).ready(function($) {
             _ajax_nonce: hcis_admin.nonce,
             nip: nipToTest // Pass NIP
         }, function(response) {
+            const contentBlocks = buildConnectionStatusBlocks(response.data || {});
+
+            const userData = response.data ? response.data.user_data_for_nip : null;
+            const userBlock = buildUserDetails(userData, 'User Data for NIP:');
+            if (userBlock) {
+                contentBlocks.push(userBlock);
+            } else if (typeof userData === 'string') {
+                contentBlocks.push($('<p>').text(userData));
+            }
+
             if (response.success) {
-                const contentBlocks = [];
-                const hasConnectionStatus = response.data && response.data.connection_status;
-                const connectionStatus = hasConnectionStatus ? response.data.connection_status : 'Connection established.';
-                contentBlocks.push($('<p>').text('Connection successful: ' + connectionStatus));
-
-                const userData = response.data ? response.data.user_data_for_nip : null;
-                if (userData && $.isPlainObject(userData)) {
-                    const labels = {
-                        nip: 'NIP',
-                        nama: 'Nama',
-                        nik: 'NIK',
-                        phone: 'Phone',
-                        email: 'Email'
-                    };
-                    const list = $('<ul>').addClass('hcis-admin-user-list');
-                    let hasEntries = false;
-
-                    Object.keys(labels).forEach(function(key) {
-                        if (!userData[key]) {
-                            return;
-                        }
-
-                        hasEntries = true;
-                        const listItem = $('<li>');
-                        listItem.append($('<strong>').text(labels[key] + ': '));
-                        listItem.append($('<span>').text(userData[key]));
-                        list.append(listItem);
-                    });
-
-                    if (hasEntries) {
-                        const userBlock = $('<div>').addClass('hcis-admin-user-details');
-                        userBlock.append($('<p>').text('User Data for NIP:'));
-                        userBlock.append(list);
-                        contentBlocks.push(userBlock);
-                    }
-                } else if (typeof userData === 'string') {
-                    contentBlocks.push($('<p>').text(userData));
+                if (!contentBlocks.length) {
+                    contentBlocks.push($('<p>').text('Connection established.'));
                 }
-
                 showNotice(contentBlocks);
             } else {
+                const errorBlocks = contentBlocks.slice();
                 const errorMessage = (response.data && response.data.message)
                     ? 'Connection failed: ' + response.data.message
                     : 'Connection failed.';
-                showNotice(errorMessage, true);
+
+                if (!errorBlocks.length) {
+                    errorBlocks.push($('<p>').text(errorMessage));
+                } else {
+                    errorBlocks.unshift($('<p>').text(errorMessage));
+                }
+
+                showNotice(errorBlocks, true);
             }
         }).fail(function() {
             showNotice('An unexpected error occurred.', true);
