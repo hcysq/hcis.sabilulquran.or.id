@@ -185,11 +185,17 @@ class GoogleSheetsService {
         }
 
         try {
-            $end_column = $this->column_letter(count($headers));
-            $range = sprintf('%s!A1:%s1', $sheet_title, $end_column);
+            $normalized_headers = $this->normalize_headers($headers);
+            $end_column = $this->column_letter(count($normalized_headers));
+            $has_notes = array_filter(array_column($normalized_headers, 'note'));
+            $end_row = $has_notes ? 2 : 1;
+            $range = sprintf('%s!A1:%s%d', $sheet_title, $end_column, $end_row);
+
+            $header_row = array_column($normalized_headers, 'label');
+            $note_row = array_column($normalized_headers, 'note');
 
             $body = new \Google_Service_Sheets_ValueRange([
-                'values' => [array_values($headers)],
+                'values' => $has_notes ? [$header_row, $note_row] : [$header_row],
             ]);
 
             $params = [
@@ -202,6 +208,141 @@ class GoogleSheetsService {
             error_log('HCIS GoogleSheetsService set_headers Error: ' . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Normalize header definitions to include labels and optional notes/descriptions.
+     *
+     * @param array $headers
+     * @return array
+     */
+    private function normalize_headers(array $headers): array {
+        $config_notes = $this->build_header_note_lookup();
+
+        $normalized = [];
+        foreach ($headers as $key => $header) {
+            $label = '';
+            $notes = [];
+
+            if (is_array($header)) {
+                $label = trim((string) ($header['label'] ?? ''));
+                $notes[] = trim((string) ($header['note'] ?? ''));
+                $notes[] = trim((string) ($header['format'] ?? ''));
+            } else {
+                $label = trim((string) $header);
+            }
+
+            $config_note_key = is_string($key) ? strtolower($key) : null;
+            $lookup_keys = array_filter([
+                strtolower($label),
+                $config_note_key,
+            ]);
+
+            foreach ($lookup_keys as $lookup_key) {
+                if (isset($config_notes[$lookup_key])) {
+                    $notes[] = $config_notes[$lookup_key];
+                }
+            }
+
+            $note_text = $this->merge_note_parts($notes);
+            $label_with_note = $this->append_note_to_label($label, $note_text);
+
+            $normalized[] = [
+                'label' => $label_with_note,
+                'note' => $note_text,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Build lookup table for header notes from GoogleSheetSettings definitions.
+     *
+     * @return array
+     */
+    private function build_header_note_lookup(): array {
+        $lookup = [];
+        foreach (GoogleSheetSettings::get_effective_setup_keys() as $key => $config) {
+            $note = $this->compile_note_from_config($config);
+            if ($note === '') {
+                continue;
+            }
+
+            $header = strtolower(trim((string) ($config['header'] ?? '')));
+            $label = strtolower(trim((string) ($config['label'] ?? '')));
+            $key_lower = strtolower((string) $key);
+
+            foreach ([$header, $label, $key_lower] as $index) {
+                if ($index === '') {
+                    continue;
+                }
+                $lookup[$index] = $note;
+            }
+        }
+
+        return $lookup;
+    }
+
+    /**
+     * Merge unique note parts into a single description string.
+     *
+     * @param array $notes
+     * @return string
+     */
+    private function merge_note_parts(array $notes): string {
+        $unique = [];
+        foreach ($notes as $note) {
+            $clean = trim((string) $note);
+            if ($clean === '') {
+                continue;
+            }
+            $key = strtolower($clean);
+            if (!isset($unique[$key])) {
+                $unique[$key] = $clean;
+            }
+        }
+
+        return implode(' | ', array_values($unique));
+    }
+
+    /**
+     * Append note to a label in parentheses if not already present.
+     */
+    private function append_note_to_label(string $label, string $note): string {
+        $clean_label = trim($label);
+        if ($note === '') {
+            return $clean_label;
+        }
+
+        $pattern = sprintf('/\(%s\)$/i', preg_quote($note, '/'));
+        if (preg_match($pattern, $clean_label)) {
+            return $clean_label;
+        }
+
+        if (stripos($clean_label, $note) !== false) {
+            return $clean_label;
+        }
+
+        return sprintf('%s (%s)', $clean_label, $note);
+    }
+
+    /**
+     * Build note string from setup key configuration.
+     */
+    private function compile_note_from_config(array $config): string {
+        $notes = [];
+        $description = trim((string) ($config['description'] ?? ''));
+        $format = trim((string) ($config['format'] ?? ''));
+
+        if ($description !== '') {
+            $notes[] = $description;
+        }
+        if ($format !== '') {
+            $notes[] = $format;
+        }
+
+        return $this->merge_note_parts($notes);
     }
 
     /**
