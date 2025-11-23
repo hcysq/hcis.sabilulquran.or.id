@@ -138,11 +138,11 @@
   function initColorMode() {
     const root = document.documentElement;
     const toggle = document.querySelector('[data-color-mode-toggle]');
-    const labelEl = toggle ? toggle.querySelector('[data-color-mode-toggle-label]') : null;
     const storageKey = 'ysq-color-mode';
     const storageSourceKey = 'ysq-color-mode-source';
     const preferred = root.getAttribute('data-default-color-mode') || 'system';
     const choices = ['system', 'light', 'dark'];
+    const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
     const labels = toggle
       ? {
           system: toggle.dataset.labelSystem || 'Ikuti Sistem',
@@ -165,8 +165,20 @@
       }
     }
 
+    function getEffectiveMode(mode) {
+      const normalized = choices.includes(mode) ? mode : 'system';
+      if (normalized === 'system') {
+        if (media && typeof media.matches === 'boolean') {
+          return media.matches ? 'dark' : 'light';
+        }
+        return 'light';
+      }
+      return normalized;
+    }
+
     function apply(mode) {
       const normalized = choices.includes(mode) ? mode : 'system';
+      const effectiveMode = getEffectiveMode(normalized);
       if (normalized === 'system') {
         root.removeAttribute('data-theme');
       } else {
@@ -176,9 +188,12 @@
 
       if (toggle) {
         toggle.dataset.mode = normalized;
-        toggle.setAttribute('aria-pressed', normalized === 'dark');
-        if (labelEl) {
-          labelEl.textContent = labels[normalized] || labels.system || '';
+        toggle.setAttribute('aria-pressed', effectiveMode === 'dark');
+        toggle.setAttribute('aria-label', labels[normalized] || labels.system || '');
+        toggle.classList.remove('is-light', 'is-dark', 'is-system');
+        toggle.classList.add(`is-${effectiveMode}`);
+        if (normalized === 'system') {
+          toggle.classList.add('is-system');
         }
       }
     }
@@ -216,7 +231,6 @@
       });
     }
 
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
     if (media && media.addEventListener) {
       media.addEventListener('change', function () {
         const stored = getStored();
