@@ -130,6 +130,7 @@ class Admin {
     $default_sheet_id = GoogleSheetSettings::DEFAULT_SHEET_ID;
     $tab_labels = GoogleSheetSettings::get_tab_labels();
     $gid_keys = [
+      'admins' => $tab_labels['admins'] ?? __('Admins', 'hcis-ysq'),
       'users' => $tab_labels['users'] ?? __('Users', 'hcis-ysq'),
     ];
     $setup_key_rows = GoogleSheetSettings::get_effective_setup_keys();

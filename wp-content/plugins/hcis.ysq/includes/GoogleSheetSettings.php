@@ -511,6 +511,11 @@ class GoogleSheetSettings {
   ];
 
   private const TAB_MAP = [
+    'admins' => [
+      'title' => 'Admins',
+      'gid_option' => 'hcis_gid_admins',
+      'range_end' => 'D',
+    ],
     'users' => [
       'title' => 'Users',
       'gid_option' => 'hcis_gid_users',
@@ -931,6 +936,7 @@ class GoogleSheetSettings {
       'dokumen' => '\\HCISYSQ\\Repositories\\DokumenRepository',
       'pendidikan' => '\\HCISYSQ\\Repositories\\PendidikanRepository',
       'pelatihan' => '\\HCISYSQ\\Repositories\\PelatihanRepository',
+      'admins' => '\\HCISYSQ\\Repositories\\AdminRepository',
     ];
     return $map[$tab] ?? null;
   }

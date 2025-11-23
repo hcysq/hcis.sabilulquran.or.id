@@ -31,6 +31,7 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
       GoogleSheetSettings::OPT_SETUP_KEYS,
       GoogleSheetSettings::OPT_TAB_METRICS,
       'hcis_gid_users',
+      'hcis_gid_admins',
       'hcis_gid_profiles',
       'hcis_gid_payroll',
       'hcis_gid_keluarga',
