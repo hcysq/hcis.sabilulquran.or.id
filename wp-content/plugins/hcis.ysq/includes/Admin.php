@@ -321,47 +321,121 @@ class Admin {
         wp_send_json_error(['message' => 'Unauthorized'], 403);
     }
 
+    global $wpdb;
+
     $nip = sanitize_text_field($_POST['nip'] ?? '');
-    $response_data = [];
+
+    $google_status = [
+        'success' => false,
+        'message' => '',
+    ];
 
     try {
-        // Use the modern, standardized service
         $service = new GoogleSheetsService();
         $title = $service->test_connection();
-        $response_data['connection_status'] = 'Successfully connected to spreadsheet: ' . $title;
+        $google_status['success'] = true;
+        $google_status['message'] = 'Successfully connected to spreadsheet: ' . $title;
+    } catch (\Exception $e) {
+        $google_status['message'] = $e->getMessage();
+    }
 
-        if (!empty($nip)) {
-            $repo = new \HCISYSQ\Repositories\UserRepository();
-            $user_data = $repo->find($nip);
+    $table = $wpdb->prefix . 'hcisysq_users';
+    $table_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
 
-            if ($user_data && is_array($user_data)) {
-                $allowed_keys = ['nip', 'nama', 'nik', 'phone', 'email'];
-                $sanitized_user_data = [];
+    $database_status = [
+        'success' => false,
+        'message' => '',
+    ];
 
-                foreach ($allowed_keys as $key) {
-                    if (!array_key_exists($key, $user_data)) {
+    if ($table_exists !== $table) {
+        $database_status['message'] = sprintf(__('Tabel pengguna tidak ditemukan: %s', 'hcis-ysq'), $table);
+    } else {
+        $sample_row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} LIMIT %d", 1), ARRAY_A);
+
+        if (!empty($wpdb->last_error)) {
+            $database_status['message'] = sprintf(__('Gagal membaca tabel pengguna: %s', 'hcis-ysq'), $wpdb->last_error);
+        } else {
+            $database_status['success'] = true;
+            $database_status['message'] = sprintf(__('Tabel pengguna tersedia: %s', 'hcis-ysq'), $table);
+
+            if (!empty($sample_row)) {
+                $allowed_user_keys = ['nip', 'nama', 'nik', 'no_hp', 'email'];
+                $sample_user = [];
+
+                foreach ($allowed_user_keys as $key) {
+                    if (!array_key_exists($key, $sample_row)) {
                         continue;
                     }
 
-                    $value = $user_data[$key];
+                    $value = $sample_row[$key];
                     if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
-                        $sanitized_user_data[$key] = sanitize_text_field((string) $value);
+                        $sample_user[$key] = sanitize_text_field((string) $value);
                     }
                 }
 
-                if (!empty($sanitized_user_data)) {
-                    $response_data['user_data_for_nip'] = $sanitized_user_data;
-                } else {
-                    $response_data['user_data_for_nip'] = 'No public user data available for NIP: ' . $nip;
+                if (!empty($sample_user)) {
+                    $database_status['sample_user'] = $sample_user;
                 }
             } else {
-                $response_data['user_data_for_nip'] = 'No user found for NIP: ' . $nip;
+                $database_status['message'] .= ' - ' . __('Tidak ada baris contoh ditemukan.', 'hcis-ysq');
             }
         }
-        wp_send_json_success($response_data);
-    } catch (\Exception $e) {
-        wp_send_json_error(['message' => $e->getMessage()], 500);
     }
+
+    $response_data = [
+        'connection_status' => $google_status['message'],
+        'google_sheets' => $google_status,
+        'database' => $database_status,
+    ];
+
+    if (!empty($nip)) {
+        $repo = new \HCISYSQ\Repositories\UserRepository();
+        $user_data = $repo->find($nip);
+
+        if ($user_data && is_array($user_data)) {
+            $allowed_keys = ['nip', 'nama', 'nik', 'phone', 'email'];
+            $sanitized_user_data = [];
+
+            foreach ($allowed_keys as $key) {
+                if (!array_key_exists($key, $user_data)) {
+                    continue;
+                }
+
+                $value = $user_data[$key];
+                if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
+                    $sanitized_user_data[$key] = sanitize_text_field((string) $value);
+                }
+            }
+
+            if (!empty($sanitized_user_data)) {
+                $response_data['user_data_for_nip'] = $sanitized_user_data;
+            } else {
+                $response_data['user_data_for_nip'] = 'No public user data available for NIP: ' . $nip;
+            }
+        } else {
+            $response_data['user_data_for_nip'] = 'No user found for NIP: ' . $nip;
+        }
+    }
+
+    $overall_success = $google_status['success'] && $database_status['success'];
+
+    if ($overall_success) {
+        wp_send_json_success($response_data);
+    }
+
+    $error_messages = [];
+    if (!$google_status['success'] && !empty($google_status['message'])) {
+        $error_messages[] = sprintf(__('Google Sheets error: %s', 'hcis-ysq'), $google_status['message']);
+    }
+    if (!$database_status['success'] && !empty($database_status['message'])) {
+        $error_messages[] = sprintf(__('Database error: %s', 'hcis-ysq'), $database_status['message']);
+    }
+
+    if (!empty($error_messages)) {
+        $response_data['message'] = implode(' | ', $error_messages);
+    }
+
+    wp_send_json_error($response_data, 500);
   }
 
   public static function render_admin_credentials_page() {
