@@ -335,6 +335,14 @@ class Admin {
             $user_data = $repo->find($nip);
 
             if ($user_data && is_array($user_data)) {
+                // Explicitly block any password-like fields even if the repository returns them.
+                $blocked_keys = ['password', 'pass', 'pwd', 'user_pass'];
+                foreach ($blocked_keys as $blocked_key) {
+                    if (array_key_exists($blocked_key, $user_data)) {
+                        wp_send_json_error(['message' => 'Refused to expose sensitive user fields.'], 400);
+                    }
+                }
+
                 $allowed_keys = ['nip', 'nama', 'nik', 'phone', 'email'];
                 $sanitized_user_data = [];
 
