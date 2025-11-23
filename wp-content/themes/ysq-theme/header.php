@@ -75,9 +75,10 @@ $enable_color_mode_toggle  = get_theme_mod('ysq_enable_color_mode_toggle', false
                 <?php endif; ?>
 
                 <?php if ($enable_color_mode_toggle) : ?>
-                    <button type="button" class="color-mode-toggle" data-color-mode-toggle aria-pressed="false" data-label-system="<?php esc_attr_e('Ikuti Sistem', 'ysq'); ?>" data-label-light="<?php esc_attr_e('Mode Terang', 'ysq'); ?>" data-label-dark="<?php esc_attr_e('Mode Gelap', 'ysq'); ?>">
-                        <span class="color-mode-toggle__icon" aria-hidden="true"></span>
-                        <span class="color-mode-toggle__label" data-color-mode-toggle-label><?php esc_html_e('Ikuti Sistem', 'ysq'); ?></span>
+                    <button type="button" class="color-mode-toggle" data-color-mode-toggle aria-pressed="false" aria-label="<?php esc_attr_e('Ikuti Sistem', 'ysq'); ?>" data-label-system="<?php esc_attr_e('Ikuti Sistem', 'ysq'); ?>" data-label-light="<?php esc_attr_e('Mode Terang', 'ysq'); ?>" data-label-dark="<?php esc_attr_e('Mode Gelap', 'ysq'); ?>">
+                        <span class="color-mode-toggle__icon color-mode-toggle__icon--sun" aria-hidden="true">☀</span>
+                        <span class="color-mode-toggle__thumb" aria-hidden="true"></span>
+                        <span class="color-mode-toggle__icon color-mode-toggle__icon--moon" aria-hidden="true">🌙</span>
                     </button>
                 <?php endif; ?>
             </div>
