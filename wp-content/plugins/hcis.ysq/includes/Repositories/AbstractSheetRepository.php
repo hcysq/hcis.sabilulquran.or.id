@@ -228,6 +228,27 @@ abstract class AbstractSheetRepository {
 
   protected function flushCache(): void {
     $this->cache->forget($this->cacheKey('all'));
+    $this->bumpCacheBuster();
+  }
+
+  protected function getCacheBuster(): string {
+    $optionKey = $this->getCacheBusterOptionKey();
+    $buster = get_option($optionKey);
+
+    if (empty($buster)) {
+      $buster = uniqid('', true);
+      update_option($optionKey, $buster);
+    }
+
+    return (string) $buster;
+  }
+
+  protected function bumpCacheBuster(): void {
+    update_option($this->getCacheBusterOptionKey(), uniqid('', true));
+  }
+
+  protected function getCacheBusterOptionKey(): string {
+    return implode('_', ['hcis', 'gs', 'cache', 'buster', $this->tab]);
   }
 
   protected function findEmployeeIdByNip(string $nip): ?int {
