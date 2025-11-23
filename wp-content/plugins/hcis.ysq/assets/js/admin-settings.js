@@ -167,6 +167,41 @@ jQuery(document).ready(function($) {
         });
     });
 
+    $('#hcis-setup-sheets').on('click', function() {
+        const button = $(this);
+        button.prop('disabled', true);
+        noticeContainer.hide();
+
+        $.post(hcis_admin.ajax_url, {
+            action: 'hcis_setup_sheets',
+            _ajax_nonce: hcis_admin.nonce
+        }, function(response) {
+            const contentBlocks = [];
+            if (response.data) {
+                if (Array.isArray(response.data.created) && response.data.created.length) {
+                    contentBlocks.push($('<p>').text('Tab dibuat: ' + response.data.created.join(', ')));
+                }
+
+                if (Array.isArray(response.data.skipped) && response.data.skipped.length) {
+                    contentBlocks.push($('<p>').text('Tab sudah ada: ' + response.data.skipped.join(', ')));
+                }
+            }
+
+            const message = (response.data && response.data.message) || 'Setup selesai.';
+
+            if (response.success) {
+                contentBlocks.unshift($('<p>').text(message));
+                showNotice(contentBlocks);
+            } else {
+                showNotice(message, true);
+            }
+        }).fail(function() {
+            showNotice('Gagal menjalankan setup.', true);
+        }).always(function() {
+            button.prop('disabled', false);
+        });
+    });
+
     $('#hcis-test-wa-connection').on('click', function() {
         const button = $(this);
         button.prop('disabled', true);
