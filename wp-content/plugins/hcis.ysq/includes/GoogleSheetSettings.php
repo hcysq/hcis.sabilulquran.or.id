@@ -1001,8 +1001,19 @@ class GoogleSheetSettings {
 
   private static function sync_tab_gid_options(array $tab_gid_map): void {
     foreach (self::TAB_MAP as $slug => $config) {
+      $current_gid = get_option($config['gid_option'], null);
       $has_gid = array_key_exists($slug, $tab_gid_map);
-      $gid_value = $has_gid ? trim((string) $tab_gid_map[$slug]) : get_option($config['gid_option'], '');
+      $incoming_gid = $has_gid ? trim((string) $tab_gid_map[$slug]) : null;
+
+      if ($incoming_gid === null || $incoming_gid === '') {
+        if ($current_gid === null) {
+          continue;
+        }
+        $gid_value = trim((string) $current_gid);
+      } else {
+        $gid_value = $incoming_gid;
+      }
+
       update_option($config['gid_option'], $gid_value, false);
     }
   }

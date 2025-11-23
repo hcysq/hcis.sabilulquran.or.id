@@ -91,4 +91,34 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
     $this->assertTrue($status['valid']);
     $this->assertSame('404', get_option('hcis_gid_dokumen'), 'GID should persist across submissions even when omitted later');
   }
+
+  public function test_existing_gids_survive_single_field_update(): void {
+    GoogleSheetSettings::save_settings(
+      $this->valid_credentials,
+      'spreadsheet-123',
+      [
+        'profiles' => '101',
+        'users' => '202',
+        'payroll' => '303',
+      ],
+      []
+    );
+
+    $this->assertSame('202', get_option('hcis_gid_users'));
+    $this->assertSame('303', get_option('hcis_gid_payroll'));
+
+    $status = GoogleSheetSettings::save_settings(
+      $this->valid_credentials,
+      'spreadsheet-123',
+      [
+        'profiles' => '111',
+      ],
+      []
+    );
+
+    $this->assertTrue($status['valid']);
+    $this->assertSame('111', get_option('hcis_gid_profiles'));
+    $this->assertSame('202', get_option('hcis_gid_users'), 'Unedited tab GIDs should remain after saving a single field');
+    $this->assertSame('303', get_option('hcis_gid_payroll'), 'Additional stored tab GIDs should persist through partial saves');
+  }
 }
