@@ -223,5 +223,73 @@ class GoogleSheetsAPI {
     public function isAuthenticated(): bool {
         return $this->authenticated;
     }
+
+    public function createSheet(string $title): bool {
+        if (!$this->authenticated) {
+            return false;
+        }
+
+        try {
+            $request = new Sheets\Request([
+                'addSheet' => new Sheets\AddSheetRequest([
+                    'properties' => ['title' => $title],
+                ]),
+            ]);
+
+            $batch = new Sheets\BatchUpdateSpreadsheetRequest([
+                'requests' => [$request],
+            ]);
+
+            $this->service->spreadsheets->batchUpdate($this->spreadsheet_id, $batch);
+            return true;
+        } catch (GoogleServiceException $e) {
+            hcisysq_log("Create sheet failed for {$title}: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
+            return false;
+        }
+    }
+
+    public function setHeaders(string $sheetTitle, array $headers): bool {
+        if (!$this->authenticated || empty($headers)) {
+            return false;
+        }
+
+        try {
+            $range = sprintf('%s!A1:%s1', $sheetTitle, $this->columnLetter(count($headers)));
+            $body = new Sheets\ValueRange(['values' => [array_values($headers)]]);
+            $params = ["valueInputOption" => "RAW"];
+            $this->service->spreadsheets_values->update($this->spreadsheet_id, $range, $body, $params);
+            return true;
+        } catch (GoogleServiceException $e) {
+            hcisysq_log("Set headers failed for {$sheetTitle}: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
+            return false;
+        }
+    }
+
+    public function getSheetTitles(): array {
+        try {
+            $spreadsheet = $this->getSpreadsheet();
+            $sheets = $spreadsheet->getSheets();
+            if (!is_array($sheets)) {
+                return [];
+            }
+
+            return array_values(array_filter(array_map(static function ($sheet) {
+                return $sheet->getProperties()->getTitle();
+            }, $sheets)));
+        } catch (\Exception $e) {
+            hcisysq_log("Get sheet titles failed: " . $e->getMessage(), "ERROR");
+            return [];
+        }
+    }
+
+    private function columnLetter(int $count): string {
+        $letter = '';
+        while ($count > 0) {
+            $remainder = ($count - 1) % 26;
+            $letter = chr(65 + $remainder) . $letter;
+            $count = (int) (($count - 1) / 26);
+        }
+        return $letter;
+    }
 }
 

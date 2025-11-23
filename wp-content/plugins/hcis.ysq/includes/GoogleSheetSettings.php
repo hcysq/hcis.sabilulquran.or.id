@@ -651,7 +651,7 @@ class GoogleSheetSettings {
       ];
     }
     if (empty($columns)) {
-      return [];
+      return self::DEFAULT_TAB_HEADERS[$tab] ?? [];
     }
     usort($columns, function ($a, $b) {
       $orderSort = ($a['order'] <=> $b['order']);
@@ -824,12 +824,6 @@ class GoogleSheetSettings {
   public static function repository_class_for(string $tab): ?string {
     $map = [
       'users' => '\\HCISYSQ\\Repositories\\UserRepository',
-      'profiles' => '\\HCISYSQ\\Repositories\\ProfileRepository',
-      'payroll' => '\\HCISYSQ\\Repositories\\PayrollRepository',
-      'keluarga' => '\\HCISYSQ\\Repositories\\KeluargaRepository',
-      'dokumen' => '\\HCISYSQ\\Repositories\\DokumenRepository',
-      'pendidikan' => '\\HCISYSQ\\Repositories\\PendidikanRepository',
-      'pelatihan' => '\\HCISYSQ\\Repositories\\PelatihanRepository',
       'admins' => '\\HCISYSQ\\Repositories\\AdminRepository',
     ];
     return $map[$tab] ?? null;
