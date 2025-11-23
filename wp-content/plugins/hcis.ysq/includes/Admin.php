@@ -532,12 +532,22 @@ class Admin {
     }
 
     try {
-        $api = \HCISYSQ\GoogleSheetsAPI::getInstance();
+        $service = new GoogleSheetsService();
+        if (!$service->is_configured()) {
+            wp_send_json_error([
+                'message' => __('Google Sheet belum dikonfigurasi.', 'hcis-ysq'),
+            ], 400);
+        }
     } catch (\Exception $e) {
         wp_send_json_error(['message' => $e->getMessage()], 400);
     }
 
-    $existing_titles = $api->getSheetTitles();
+    try {
+        $existing_titles = $service->get_sheet_titles();
+    } catch (\Exception $e) {
+        wp_send_json_error(['message' => $e->getMessage()], 400);
+    }
+
     $tabs = \HCISYSQ\GoogleSheetSettings::get_tabs();
 
     $created = [];
@@ -551,16 +561,17 @@ class Admin {
             continue;
         }
 
-        $created_successfully = $api->createSheet($title);
+        $headers = \HCISYSQ\GoogleSheetSettings::get_tab_column_map($slug);
+
+        $created_successfully = $service->create_sheet($title);
         if (!$created_successfully) {
             wp_send_json_error([
                 'message' => sprintf(__('Gagal membuat tab %s.', 'hcis-ysq'), $title),
             ]);
         }
 
-        $headers = \HCISYSQ\GoogleSheetSettings::get_tab_column_map($slug);
         if (!empty($headers)) {
-            $api->setHeaders($title, $headers);
+            $service->set_headers($title, $headers);
         }
 
         $created[] = $title;
@@ -568,7 +579,7 @@ class Admin {
 
     if (empty($created)) {
         wp_send_json_success([
-            'message' => __('Database sudah ada.', 'hcis-ysq'),
+            'message' => __('database sudah ada', 'hcis-ysq'),
             'skipped' => $skipped,
         ]);
     }
