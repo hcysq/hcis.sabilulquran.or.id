@@ -213,6 +213,10 @@ class Admin {
           <button type="button" id="hcis-clear-cache" class="button"><?php esc_html_e('Clear Cache', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-setup-sheets" class="button button-secondary"><?php esc_html_e('Setup Database', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-test-wa-connection" class="button"><?php esc_html_e('Test WA Connection', 'hcis-ysq'); ?></button>
+          <label for="hcis-rewrite-headers" style="margin-left: 12px; vertical-align: middle;">
+            <input type="checkbox" id="hcis-rewrite-headers">
+            <?php esc_html_e('Tulis ulang header tab yang sudah ada', 'hcis-ysq'); ?>
+          </label>
         </p>
       </form>
       <div id="hcis-admin-notice" class="notice" style="display: none; margin-top: 1rem;"></div>
@@ -552,16 +556,22 @@ class Admin {
 
     $created = [];
     $skipped = [];
+    $headers_written = [];
+    $rewrite_headers = !empty($_POST['rewrite_headers']) && filter_var($_POST['rewrite_headers'], FILTER_VALIDATE_BOOLEAN);
 
     foreach ($tabs as $slug => $config) {
         $title = $config['title'];
+        $headers = \HCISYSQ\GoogleSheetSettings::get_tab_column_map($slug);
 
         if (in_array($title, $existing_titles, true)) {
-            $skipped[] = $title;
+            if ($rewrite_headers && !empty($headers)) {
+                $service->set_headers($title, $headers);
+                $headers_written[] = $title;
+            } else {
+                $skipped[] = $title;
+            }
             continue;
         }
-
-        $headers = \HCISYSQ\GoogleSheetSettings::get_tab_column_map($slug);
 
         $created_successfully = $service->create_sheet($title);
         if (!$created_successfully) {
@@ -572,22 +582,26 @@ class Admin {
 
         if (!empty($headers)) {
             $service->set_headers($title, $headers);
+            $headers_written[] = $title;
         }
 
         $created[] = $title;
     }
 
+    $message = __('Tab dasar berhasil dibuat.', 'hcis-ysq');
     if (empty($created)) {
-        wp_send_json_success([
-            'message' => __('database sudah ada', 'hcis-ysq'),
-            'skipped' => $skipped,
-        ]);
+        if (!empty($headers_written)) {
+            $message = __('Header tab berhasil ditulis ulang.', 'hcis-ysq');
+        } else {
+            $message = __('database sudah ada', 'hcis-ysq');
+        }
     }
 
     wp_send_json_success([
-        'message' => __('Tab dasar berhasil dibuat.', 'hcis-ysq'),
+        'message' => $message,
         'created' => $created,
         'skipped' => $skipped,
+        'headers_written' => $headers_written,
     ]);
   }
 

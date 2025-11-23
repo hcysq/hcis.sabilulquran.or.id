@@ -174,12 +174,17 @@ jQuery(document).ready(function($) {
 
         $.post(hcis_admin.ajax_url, {
             action: 'hcis_setup_sheets',
-            _ajax_nonce: hcis_admin.nonce
+            _ajax_nonce: hcis_admin.nonce,
+            rewrite_headers: $('#hcis-rewrite-headers').is(':checked')
         }, function(response) {
             const contentBlocks = [];
             if (response.data) {
                 if (Array.isArray(response.data.created) && response.data.created.length) {
                     contentBlocks.push($('<p>').text('Tab dibuat: ' + response.data.created.join(', ')));
+                }
+
+                if (Array.isArray(response.data.headers_written) && response.data.headers_written.length) {
+                    contentBlocks.push($('<p>').text('Header ditulis: ' + response.data.headers_written.join(', ')));
                 }
 
                 if (Array.isArray(response.data.skipped) && response.data.skipped.length) {
