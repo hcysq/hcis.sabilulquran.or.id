@@ -3,6 +3,8 @@ namespace HCISYSQ;
 
 if (!defined('ABSPATH')) exit;
 
+use HCISYSQ\Repositories\AdminRepository;
+
 class Auth {
   const ADMIN_OPTION = AdminCredentials::OPTION;
   const DEFAULT_ADMIN_USERNAME = 'administrator';
@@ -157,37 +159,75 @@ class Auth {
     return $user;
   }
 
+  private static function get_admin_repository(): AdminRepository {
+    return new AdminRepository();
+  }
+
+  private static function get_admin_account(?string $username = null): ?array {
+    $repo = self::get_admin_repository();
+
+    if ($username !== null) {
+      $normalized = sanitize_user($username, true);
+      if ($normalized !== '') {
+        $found = $repo->getByUsername($normalized);
+        if (!empty($found)) {
+          return $found;
+        }
+      }
+    }
+
+    return $repo->getPrimaryAdmin();
+  }
+
+  private static function normalize_admin_settings(array $account): array {
+    $username = sanitize_user($account['username'] ?? '', true);
+    $display = sanitize_text_field($account['display_name'] ?? $username);
+
+    return [
+      'id'            => $account['row_index'] ?? $username,
+      'username'      => $username,
+      'display_name'  => $display !== '' ? $display : $username,
+      'password_hash' => trim((string) ($account['password_hash'] ?? '')),
+      'whatsapp'      => self::norm_phone($account['whatsapp'] ?? ''),
+      'user_id'       => 0,
+    ];
+  }
+
   public static function get_admin_settings($username = null){
-    $accounts = AdminCredentials::get_accounts();
     $selected = null;
 
     if ($username) {
-      $selected = AdminCredentials::find_account_by_username($username, $accounts);
+      $selected = self::get_admin_account($username);
     }
 
     if (!$selected && is_user_logged_in()) {
       $wpUser = wp_get_current_user();
       if ($wpUser && $wpUser->exists()) {
-        $selected = AdminCredentials::find_account_by_username($wpUser->user_login, $accounts);
+        $selected = self::get_admin_account($wpUser->user_login);
       }
     }
 
-    if (!$selected && !empty($accounts)) {
-      $selected = $accounts[0];
-    }
-
     if (!$selected) {
-      return [
-        'id'            => '',
-        'username'      => self::DEFAULT_ADMIN_USERNAME,
-        'display_name'  => self::DEFAULT_ADMIN_DISPLAY,
-        'password_hash' => self::DEFAULT_ADMIN_HASH,
-        'whatsapp'      => '',
-        'user_id'       => 0,
-      ];
+      $selected = self::get_admin_account();
     }
 
-    return $selected;
+    if ($selected) {
+      return self::normalize_admin_settings($selected);
+    }
+
+    $legacy = AdminCredentials::get_primary_account();
+    if ($legacy) {
+      return $legacy;
+    }
+
+    return [
+      'id'            => '',
+      'username'      => self::DEFAULT_ADMIN_USERNAME,
+      'display_name'  => self::DEFAULT_ADMIN_DISPLAY,
+      'password_hash' => self::DEFAULT_ADMIN_HASH,
+      'whatsapp'      => '',
+      'user_id'       => 0,
+    ];
   }
 
   public static function save_admin_settings(array $settings){
@@ -303,6 +343,43 @@ class Auth {
     return false;
   }
 
+  public static function login_admin($username, $plain_pass){
+    $username = sanitize_user($username, true);
+    $plain_pass = trim(strval($plain_pass));
+
+    if ($username === '' || $plain_pass === '') {
+      return ['ok' => false, 'msg' => __('Username dan password wajib diisi.', 'hcis-ysq')];
+    }
+
+    $account = self::get_admin_account($username);
+    if (!$account) {
+      return ['ok' => false, 'msg' => __('Akun administrator tidak ditemukan.', 'hcis-ysq')];
+    }
+
+    $hash = strval($account['password_hash'] ?? '');
+    if (!self::looks_like_password_hash($hash) || !password_verify($plain_pass, $hash)) {
+      return ['ok' => false, 'msg' => __('Password salah.', 'hcis-ysq')];
+    }
+
+    $displayName = sanitize_text_field($account['display_name'] ?? $username);
+    if ($displayName === '') {
+      $displayName = $username;
+    }
+
+    $payload = [
+      'type'         => 'admin',
+      'username'     => $account['username'] ?? $username,
+      'display_name' => $displayName,
+    ];
+
+    $sessionToken = self::store_session($payload);
+    if ($sessionToken === false) {
+      return ['ok' => false, 'msg' => __('Sesi tidak dapat dibuat. Coba lagi nanti.', 'hcis-ysq')];
+    }
+
+    return ['ok' => true, 'msg' => __('Login administrator berhasil.', 'hcis-ysq')];
+  }
+
   public static function login($account, $plain_pass){
     $account = trim(strval($account));
     $plain_pass = trim(strval($plain_pass));
@@ -398,19 +475,29 @@ class Auth {
     }
     return true;
   }
-  private static function build_admin_identity($username = null, $displayName = null, ?array $settings = null){
-    if (!$settings) {
-      $settings = self::get_admin_settings($username);
+  private static function build_admin_identity($username = null, $displayName = null, ?array $account = null){
+    if (!$account) {
+      $account = self::get_admin_account($username);
     }
+
+    $settings = $account ? self::normalize_admin_settings($account) : self::get_admin_settings($username);
 
     $resolvedUsername = $username ? sanitize_user($username, true) : '';
     if ($resolvedUsername === '') {
       $resolvedUsername = $settings['username'];
     }
 
+    if ($resolvedUsername === '') {
+      $resolvedUsername = self::DEFAULT_ADMIN_USERNAME;
+    }
+
     $resolvedDisplay = $displayName ? sanitize_text_field($displayName) : '';
-    if ($resolvedDisplay === '') {
+    if ($resolvedDisplay === '' && !empty($settings['display_name'])) {
       $resolvedDisplay = $settings['display_name'];
+    }
+
+    if ($resolvedDisplay === '') {
+      $resolvedDisplay = $resolvedUsername;
     }
 
     return [
@@ -435,8 +522,8 @@ class Auth {
       if ($type === 'admin') {
         $username    = $payload['username'] ?? null;
         $displayName = $payload['display_name'] ?? null;
-        $settings    = self::get_admin_settings($username);
-        return self::build_admin_identity($username, $displayName, $settings);
+        $account     = $username ? self::get_admin_account($username) : self::get_admin_account();
+        return self::build_admin_identity($username, $displayName, $account);
       }
 
       $nip = $payload['nip'] ?? null;

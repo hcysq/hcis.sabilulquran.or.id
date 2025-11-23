@@ -135,7 +135,7 @@ class Legacy_Admin_Bridge {
       ? wp_unslash($_POST['ysq_admin_password'])
       : '';
 
-    $result = Auth::login($username, $password);
+    $result = Auth::login_admin($username, $password);
     if (!$result || empty($result['ok'])) {
       $message = is_array($result) && !empty($result['msg'])
         ? $result['msg']
@@ -403,7 +403,7 @@ class Legacy_Admin_Bridge {
   }
 
   public static function is_admin_authenticated() {
-    $identity = Auth::current_identity(false);
+    $identity = Auth::current_identity();
     if ($identity && ($identity['type'] ?? '') === 'admin') {
       return true;
     }
