@@ -87,6 +87,7 @@ $enable_color_mode_toggle  = get_theme_mod('ysq_enable_color_mode_toggle', false
 
 <?php
 $marquee_items   = array();
+$marquee_style_attr = '';
 $marquee_raw     = get_option('hcisysq_home_marquee_text', '');
 $marquee_options = get_option('hcisysq_home_marquee_options', array());
 
@@ -153,18 +154,22 @@ if (!empty($marquee_raw)) {
     }
 }
 
-if (!empty($marquee_items)) {
-    $marquee_letter_value = number_format($marquee_letters, 1, '.', '');
-    $marquee_style_parts  = array(
-        '--marquee-background:' . $marquee_bg,
-        '--marquee-gap:' . $marquee_gap . 'px',
-        '--marquee-letter-spacing:' . $marquee_letter_value . 'px',
-        '--marquee-speed:' . $marquee_speed,
+if (empty($marquee_items)) {
+    $marquee_items = array(
+        __('Selamat datang di Sabilul Qur\'an • HRIS', 'ysq'),
     );
-    $marquee_style_attr = implode(';', $marquee_style_parts) . ';';
 }
 
-if ((is_front_page() || is_home()) && !empty($marquee_items)) :
+$marquee_letter_value = number_format($marquee_letters, 1, '.', '');
+$marquee_style_parts  = array(
+    '--marquee-background:' . $marquee_bg,
+    '--marquee-gap:' . $marquee_gap . 'px',
+    '--marquee-letter-spacing:' . $marquee_letter_value . 'px',
+    '--marquee-speed:' . $marquee_speed,
+);
+$marquee_style_attr = implode(';', $marquee_style_parts) . ';';
+
+if (!empty($marquee_items)) :
     ?>
     <div class="site-marquee" role="region" aria-label="<?php esc_attr_e('Informasi berjalan', 'ysq'); ?>" style="<?php echo esc_attr($marquee_style_attr); ?>">
         <div class="site-marquee__track" aria-live="polite">
