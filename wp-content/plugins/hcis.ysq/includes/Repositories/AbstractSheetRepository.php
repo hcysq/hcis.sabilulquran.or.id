@@ -98,14 +98,13 @@ abstract class AbstractSheetRepository {
 
   public function deleteByPrimary(string $value): bool {
     $rows = $this->all();
-    foreach ($rows as $row) {
+        foreach ($rows as $row) {
       if (($row[$this->primaryKey] ?? '') === $value) {
         $rowIndex = $row['row_index'] ?? null;
         if ($rowIndex === null) {
           continue;
         }
-        $gid = GoogleSheetSettings::get_gid($this->tab);
-        $success = $this->api->deleteRows(GoogleSheetSettings::get_tab_name($this->tab), $gid, $rowIndex, $rowIndex);
+        $success = $this->api->deleteRows(GoogleSheetSettings::get_tab_name($this->tab), $rowIndex, $rowIndex);
         if ($success) {
           $this->flushCache();
         }

@@ -22,6 +22,7 @@ class GoogleSheetsAPI {
     private $service;
     private $spreadsheet_id;
     private $authenticated = false;
+    private $sheetIdCache = [];
 
     /**
      * Private constructor to prevent direct instantiation.
@@ -77,6 +78,7 @@ class GoogleSheetsAPI {
 
     public function setSpreadsheetId($spreadsheet_id) {
         $this->spreadsheet_id = $spreadsheet_id;
+        $this->sheetIdCache = [];
     }
 
     public function getService() {
@@ -99,6 +101,45 @@ class GoogleSheetsAPI {
             hcisysq_log("Get spreadsheet failed: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
             throw $e; // Re-throw for the caller to handle
         }
+    }
+
+    public function getSheetIdByTitle(string $title): ?int {
+        if (!$this->authenticated) {
+            return null;
+        }
+
+        if (isset($this->sheetIdCache[$title])) {
+            return $this->sheetIdCache[$title];
+        }
+
+        try {
+            $spreadsheet = $this->getSpreadsheet();
+            $sheets = $spreadsheet->getSheets();
+            if (!is_array($sheets)) {
+                return null;
+            }
+
+            foreach ($sheets as $sheet) {
+                $properties = $sheet->getProperties();
+                if (!$properties) {
+                    continue;
+                }
+
+                $sheetTitle = $properties->getTitle();
+                $sheetId = $properties->getSheetId();
+
+                if ($sheetTitle === null || $sheetId === null) {
+                    continue;
+                }
+
+                $this->sheetIdCache[$sheetTitle] = $sheetId;
+            }
+        } catch (GoogleServiceException $e) {
+            hcisysq_log("Get sheet metadata failed: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
+            return null;
+        }
+
+        return $this->sheetIdCache[$title] ?? null;
     }
 
     public function getRows($range): array {
@@ -147,8 +188,14 @@ class GoogleSheetsAPI {
         }
     }
 
-    public function deleteRows($gid, $start_row, $end_row): bool {
+    public function deleteRows(string $sheetTitle, $start_row, $end_row): bool {
         if (!$this->authenticated) {
+            return false;
+        }
+
+        $gid = $this->getSheetIdByTitle($sheetTitle);
+        if ($gid === null) {
+            hcisysq_log("Delete rows failed: sheet not found", "ERROR", ['title' => $sheetTitle]);
             return false;
         }
 
@@ -168,7 +215,7 @@ class GoogleSheetsAPI {
             $this->service->spreadsheets->batchUpdate($this->spreadsheet_id, $batch);
             return true;
         } catch (GoogleServiceException $e) {
-            hcisysq_log("Delete rows failed for GID {$gid}: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
+            hcisysq_log("Delete rows failed for sheet {$sheetTitle}: " . $e->getMessage(), "ERROR", ['code' => $e->getCode()]);
             return false;
         }
     }

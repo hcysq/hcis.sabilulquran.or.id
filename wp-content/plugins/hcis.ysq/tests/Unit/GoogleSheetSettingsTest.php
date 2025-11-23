@@ -1,6 +1,6 @@
 <?php
 /**
- * Unit Tests for GoogleSheetSettings GID persistence
+ * Unit Tests for GoogleSheetSettings validation and migrations
  *
  * @package HCISYSQ
  * @group GoogleSheetSettings
@@ -30,6 +30,13 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
       GoogleSheetSettings::OPT_STATUS,
       GoogleSheetSettings::OPT_SETUP_KEYS,
       GoogleSheetSettings::OPT_TAB_METRICS,
+    ];
+
+    foreach (GoogleSheetSettings::get_tabs() as $slug => $_config) {
+      $options[] = GoogleSheetSettings::OPT_TAB_COLUMN_ORDER_PREFIX . $slug;
+    }
+
+    $options = array_merge($options, [
       'hcis_gid_users',
       'hcis_gid_admins',
       'hcis_gid_profiles',
@@ -38,87 +45,47 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
       'hcis_gid_dokumen',
       'hcis_gid_pendidikan',
       'hcis_gid_pelatihan',
-    ];
+    ]);
 
     foreach ($options as $option) {
       delete_option($option);
     }
   }
 
-  public function test_missing_tab_gid_in_payload_keeps_existing_option(): void {
-    update_option('hcis_gid_payroll', '303', false);
-
+  public function test_save_settings_stores_sheet_id_and_credentials(): void {
     $status = GoogleSheetSettings::save_settings(
       $this->valid_credentials,
-      'spreadsheet-123',
-      [
-        'profiles' => '101',
-        'users' => '202',
-      ],
-      []
+      'spreadsheet-123'
     );
 
     $this->assertTrue($status['valid']);
-    $this->assertSame('101', get_option('hcis_gid_profiles'));
-    $this->assertSame('202', get_option('hcis_gid_users'));
-    $this->assertSame('303', get_option('hcis_gid_payroll'), 'Existing payroll GID should not be cleared when missing from payload');
+    $this->assertSame('spreadsheet-123', get_option(GoogleSheetSettings::OPT_SHEET_ID));
+    $this->assertSame($this->valid_credentials, get_option(GoogleSheetSettings::OPT_JSON_CREDS));
   }
 
-  public function test_gid_persists_across_multiple_submissions(): void {
-    GoogleSheetSettings::save_settings(
-      $this->valid_credentials,
-      'spreadsheet-123',
-      [
-        'profiles' => '101',
-        'users' => '202',
-        'dokumen' => '404',
-      ],
-      []
-    );
-
-    $this->assertSame('404', get_option('hcis_gid_dokumen'));
-
+  public function test_save_settings_requires_sheet_id(): void {
     $status = GoogleSheetSettings::save_settings(
       $this->valid_credentials,
-      'spreadsheet-123',
-      [
-        'profiles' => '101',
-        'users' => '202',
-      ],
-      []
+      ''
     );
 
-    $this->assertTrue($status['valid']);
-    $this->assertSame('404', get_option('hcis_gid_dokumen'), 'GID should persist across submissions even when omitted later');
+    $this->assertFalse($status['valid']);
+    $this->assertSame('Sheet ID wajib diisi.', $status['message']);
   }
 
-  public function test_existing_gids_survive_single_field_update(): void {
-    GoogleSheetSettings::save_settings(
-      $this->valid_credentials,
-      'spreadsheet-123',
-      [
-        'profiles' => '101',
-        'users' => '202',
-        'payroll' => '303',
-      ],
-      []
-    );
-
-    $this->assertSame('202', get_option('hcis_gid_users'));
-    $this->assertSame('303', get_option('hcis_gid_payroll'));
+  public function test_legacy_gid_options_are_removed(): void {
+    update_option('hcis_gid_users', '202', false);
+    update_option('hcis_gs_tab_col_order_users', 'Email, Nama', false);
+    update_option(GoogleSheetSettings::OPT_SETUP_KEYS, ['custom' => true], false);
 
     $status = GoogleSheetSettings::save_settings(
       $this->valid_credentials,
-      'spreadsheet-123',
-      [
-        'profiles' => '111',
-      ],
-      []
+      'spreadsheet-123'
     );
 
     $this->assertTrue($status['valid']);
-    $this->assertSame('111', get_option('hcis_gid_profiles'));
-    $this->assertSame('202', get_option('hcis_gid_users'), 'Unedited tab GIDs should remain after saving a single field');
-    $this->assertSame('303', get_option('hcis_gid_payroll'), 'Additional stored tab GIDs should persist through partial saves');
+    $this->assertFalse(get_option('hcis_gid_users'));
+    $this->assertFalse(get_option('hcis_gs_tab_col_order_users'));
+    $this->assertFalse(get_option(GoogleSheetSettings::OPT_SETUP_KEYS));
   }
 }
