@@ -119,10 +119,6 @@ class Admin {
     $notice = '';
     $default_sheet_id = GoogleSheetSettings::DEFAULT_SHEET_ID;
     $tab_labels = GoogleSheetSettings::get_tab_labels();
-    $gid_keys = [
-      'admins' => $tab_labels['admins'] ?? __('Admins', 'hcis-ysq'),
-      'users' => $tab_labels['users'] ?? __('Users', 'hcis-ysq'),
-    ];
     $setup_key_rows = GoogleSheetSettings::get_effective_setup_keys();
 
     $wa_token_value = get_option('hcisysq_wa_token', '');
@@ -142,7 +138,10 @@ class Admin {
       $wa_token_input = sanitize_text_field(wp_unslash($_POST['hcis_portal_wa_token'] ?? ''));
 
       $gids = [];
-      foreach ($gid_keys as $key => $label) {
+      foreach ($tab_labels as $key => $label) {
+        if ($key === 'admins') {
+          continue;
+        }
         $gids[$key] = sanitize_text_field($_POST["hcis_portal_gid_{$key}"] ?? '');
       }
 
@@ -236,12 +235,16 @@ class Admin {
               <p class="description"><?php esc_html_e('Pastikan tab Admin memiliki baris admin yang lengkap (username, password hash, nomor WhatsApp) agar login & notifikasi berjalan.', 'hcis-ysq'); ?></p>
             </td>
           </tr>
-          <?php foreach ($gid_keys as $key => $label): ?>
+          <tr>
+            <th scope="row" colspan="2"><h2 style="margin: 0;"><?php esc_html_e('Data Sources', 'hcis-ysq'); ?></h2></th>
+          </tr>
+          <?php foreach ($tab_labels as $key => $label): ?>
+            <?php if ($key === 'admins') continue; ?>
             <tr>
               <th scope="row"><label for="hcis_portal_gid_<?php echo esc_attr($key); ?>"><?php echo esc_html(sprintf(__('GID %s', 'hcis-ysq'), $label)); ?></label></th>
               <td>
                 <input type="text" id="hcis_portal_gid_<?php echo esc_attr($key); ?>" name="hcis_portal_gid_<?php echo esc_attr($key); ?>" class="regular-text" style="width: 220px" value="<?php echo esc_attr($gids_value[$key] ?? ''); ?>" placeholder="0">
-                <p class="description"><?php esc_html_e('Masukkan GID tab terkait di Google Sheet.', 'hcis-ysq'); ?></p>
+                <p class="description"><?php echo esc_html(sprintf(__('GID untuk tab %s', 'hcis-ysq'), $label)); ?></p>
               </td>
             </tr>
           <?php endforeach; ?>
