@@ -149,6 +149,7 @@
 
   $(document).ready(function() {
     initLoginForm();
+    initPasswordToggleButtons();
     initResetForm();
   });
 
