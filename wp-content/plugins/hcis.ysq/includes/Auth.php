@@ -55,7 +55,9 @@ class Auth {
   }
 
   private static function store_session(array $payload){
-    $payload = array_merge(['type' => 'user'], $payload);
+    if (empty($payload['type'])) {
+      $payload['type'] = 'user';
+    }
 
     $token = null;
 
@@ -377,7 +379,14 @@ class Auth {
       return ['ok' => false, 'msg' => __('Sesi tidak dapat dibuat. Coba lagi nanti.', 'hcis-ysq')];
     }
 
-    return ['ok' => true, 'msg' => __('Login administrator berhasil.', 'hcis-ysq')];
+    return [
+      'ok'    => true,
+      'msg'   => __('Login administrator berhasil.', 'hcis-ysq'),
+      'admin' => [
+        'username'     => $payload['username'],
+        'display_name' => $payload['display_name'],
+      ],
+    ];
   }
 
   public static function login($account, $plain_pass){
