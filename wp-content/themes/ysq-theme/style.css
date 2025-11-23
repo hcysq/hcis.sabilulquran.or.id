@@ -325,7 +325,7 @@ h6 {
   --marquee-letter-spacing: 0px;
   --marquee-speed: 1;
   background: var(--marquee-background);
-  color: var(--ysq-color-text);
+  color: var(--marquee-text-color, #0f172a);
   overflow: hidden;
   border-bottom: 1px solid var(--ysq-color-border);
   padding: 9px 0;
@@ -351,7 +351,7 @@ h6 {
   font-weight: 600;
   letter-spacing: var(--marquee-letter-spacing, 0px);
   text-transform: uppercase;
-  color: inherit;
+  color: var(--marquee-text-color, #0f172a);
 }
 
 .site-marquee:hover .site-marquee__track {

@@ -106,6 +106,26 @@ $marquee_repeat  = min(max($marquee_repeat, 1), 6);
 $marquee_bg_raw  = isset($marquee_options['background']) ? trim((string) $marquee_options['background']) : '';
 $marquee_bg_hex  = sanitize_hex_color($marquee_bg_raw);
 $marquee_bg      = $marquee_bg_hex ? $marquee_bg_hex : ($marquee_bg_raw !== '' ? $marquee_bg_raw : 'rgba(255,255,255,0.5)');
+$marquee_bg_for_contrast = $marquee_bg_hex;
+$marquee_luma_match = array();
+if (!$marquee_bg_for_contrast && preg_match('/rgba?\(([^)]+)\)/', $marquee_bg, $marquee_luma_match)) {
+    $marquee_channels = array_map('trim', explode(',', $marquee_luma_match[1]));
+    if (count($marquee_channels) >= 3) {
+        $marquee_red   = intval($marquee_channels[0]);
+        $marquee_green = intval($marquee_channels[1]);
+        $marquee_blue  = intval($marquee_channels[2]);
+        $marquee_bg_for_contrast = sprintf('#%02x%02x%02x', $marquee_red, $marquee_green, $marquee_blue);
+    }
+}
+$marquee_text_raw = isset($marquee_options['text_color']) ? trim((string) $marquee_options['text_color']) : '';
+$marquee_text_hex = sanitize_hex_color($marquee_text_raw);
+$marquee_contrast = function_exists('ysq_get_contrast_color')
+    ? ysq_get_contrast_color($marquee_bg_for_contrast ?: '#ffffff')
+    : '#0f172a';
+
+if (!$marquee_text_hex || ($marquee_text_hex === '#0f172a' && $marquee_contrast !== '#0f172a')) {
+    $marquee_text_hex = $marquee_contrast;
+}
 
 if (is_string($marquee_raw)) {
     $marquee_raw = trim($marquee_raw);
@@ -166,6 +186,7 @@ $marquee_style_parts  = array(
     '--marquee-gap:' . $marquee_gap . 'px',
     '--marquee-letter-spacing:' . $marquee_letter_value . 'px',
     '--marquee-speed:' . $marquee_speed,
+    '--marquee-text-color:' . $marquee_text_hex,
 );
 $marquee_style_attr = implode(';', $marquee_style_parts) . ';';
 

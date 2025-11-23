@@ -31,6 +31,38 @@
       });
   }
 
+  function normalizeHexColor(value) {
+    if (typeof value !== 'string') {
+      return '';
+    }
+
+    const cleaned = value.trim();
+    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(cleaned)) {
+      return '';
+    }
+
+    if (cleaned.length === 4) {
+      const [, r, g, b] = cleaned;
+      return '#' + r + r + g + g + b + b;
+    }
+
+    return cleaned.toLowerCase();
+  }
+
+  function getContrastTextColor(hexColor, fallback) {
+    const sanitized = normalizeHexColor(hexColor);
+    if (!sanitized) {
+      return fallback || '#0f172a';
+    }
+
+    const r = parseInt(sanitized.substr(1, 2), 16);
+    const g = parseInt(sanitized.substr(3, 2), 16);
+    const b = parseInt(sanitized.substr(5, 2), 16);
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+
+    return luma >= 186 ? '#0f172a' : '#ffffff';
+  }
+
   function initMarqueePreview() {
     const $wrapper = $('[data-role="marquee-preview-wrapper"]');
     if (!$wrapper.length) {
@@ -46,6 +78,7 @@
     const $gap = $('#hcisysq-marquee-gap');
     const $letter = $('#hcisysq-marquee-letter');
     const $background = $('#hcisysq-marquee-background');
+    const $textColor = $('#hcisysq-marquee-text-color');
     const $speed = $('#hcisysq-marquee-speed');
     const $duplicates = $('#hcisysq-marquee-duplicates');
 
@@ -81,9 +114,25 @@
         }
       }
 
-      const bg = $background.val();
+      const bg = normalizeHexColor($background.val());
+      const contrast = getContrastTextColor(bg, '#0f172a');
+      const textColor = normalizeHexColor($textColor.val());
+      const resolvedText = !textColor || (textColor === '#0f172a' && contrast !== '#0f172a')
+        ? contrast
+        : textColor;
+
       if (bg) {
         $wrapper.css('backgroundColor', bg);
+        $track.css('backgroundColor', bg);
+      } else {
+        $wrapper.css('backgroundColor', '');
+        $track.css('backgroundColor', '');
+      }
+
+      if (resolvedText) {
+        $track.css('color', resolvedText);
+      } else {
+        $track.css('color', '');
       }
 
       const gapValue = parseFloat($gap.val());
@@ -119,6 +168,7 @@
     $gap.on('input change', renderPreview);
     $letter.on('input change', renderPreview);
     $background.on('change', renderPreview);
+    $textColor.on('change', renderPreview);
     $speed.on('change', renderPreview);
     $duplicates.on('change', renderPreview);
 
