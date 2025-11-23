@@ -303,9 +303,37 @@ class Auth {
     ];
   }
 
+  private static function is_wordpress_password_hash($hash) {
+    $hash = (string) $hash;
+    return (strpos($hash, '$P$') === 0 || strpos($hash, '$S$') === 0);
+  }
+
   private static function looks_like_password_hash($hash) {
     $hash = (string) $hash;
-    return (strpos($hash, '$2y$') === 0 || strpos($hash, '$argon2') === 0);
+    if ($hash === '') return false;
+
+    return (
+      strpos($hash, '$2y$') === 0 ||
+      strpos($hash, '$argon2') === 0 ||
+      self::is_wordpress_password_hash($hash)
+    );
+  }
+
+  private static function verify_password_against_hash(string $password, string $hash): bool {
+    if ($hash === '') {
+      return false;
+    }
+
+    if (self::is_wordpress_password_hash($hash)) {
+      return wp_check_password($password, $hash);
+    }
+
+    if (self::looks_like_password_hash($hash)) {
+      return password_verify($password, $hash);
+    }
+
+    // Fallback to WordPress password checker for unexpected hash formats
+    return wp_check_password($password, $hash);
   }
 
   private static function is_password_based_on_phone($hash, $phoneRaw) {
@@ -337,7 +365,7 @@ class Auth {
     }
 
     foreach ($candidates as $candidate) {
-      if (password_verify($candidate, $hash)) {
+      if (self::verify_password_against_hash($candidate, $hash)) {
         return true;
       }
     }
@@ -410,9 +438,9 @@ class Auth {
         $hash = strval($u->password);
         $looksHashed = self::looks_like_password_hash($hash);
 
-        if ($looksHashed && password_verify($plain_pass, $hash)) {
+        if (self::verify_password_against_hash($plain_pass, $hash)) {
             $passOk = true;
-            if (self::is_password_based_on_phone($hash, $u->no_hp ?? '')) {
+            if ($looksHashed && self::is_password_based_on_phone($hash, $u->no_hp ?? '')) {
                 $needsReset = true;
             }
         } elseif (!$looksHashed && hash_equals($hash, $plain_pass)) {
