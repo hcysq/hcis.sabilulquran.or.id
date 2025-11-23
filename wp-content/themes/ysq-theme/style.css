@@ -368,9 +368,7 @@ h6 {
 }
 
 .site-main {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 16px;
+  width: 100%;
   min-height: calc(100vh - 200px);
 }
 
@@ -1319,6 +1317,13 @@ body.home .announcement-feed {
   }
 }
 
+@media (max-width: 768px) {
+  .content-wrapper {
+    margin: 24px 12px;
+    padding: 24px 16px;
+  }
+}
+
 @media (max-width: 640px) {
   .form-field-inline {
     flex-direction: column;
@@ -1340,9 +1345,12 @@ body.home .announcement-feed {
 }
 
 .content-wrapper {
+  width: 100%;
+  max-width: 1100px;
+  margin: 32px auto;
   background: var(--ysq-color-surface);
   border-radius: 8px;
-  padding: 32px;
+  padding: 32px 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
