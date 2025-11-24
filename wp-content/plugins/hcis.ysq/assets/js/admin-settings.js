@@ -113,7 +113,11 @@ jQuery(document).ready(function($) {
             const contentBlocks = buildConnectionStatusBlocks(response.data || {});
 
             const userData = response.data ? response.data.user_data_for_nip : null;
-            const userBlock = buildUserDetails(userData, 'User Data for NIP:');
+            const userSource = response.data ? response.data.user_data_source : null;
+            const headingText = userSource
+                ? `User Data for NIP (${userSource})`
+                : 'User Data for NIP:';
+            const userBlock = buildUserDetails(userData, headingText);
             if (userBlock) {
                 contentBlocks.push(userBlock);
             } else if (typeof userData === 'string') {
