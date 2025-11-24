@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
 
 class SheetCache {
 
-  const CACHE_TTL = 3600;
+  const CACHE_TTL = 300;
   const PREFIX = 'hcis_gs_cache_';
 
   private static $metrics = [

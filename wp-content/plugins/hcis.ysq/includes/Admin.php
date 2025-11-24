@@ -70,6 +70,13 @@ class Admin {
     }
   }
 
+  private static function should_force_fresh_users_lookup(string $context): bool {
+    $env = getenv('HCISYSQ_FORCE_FRESH_USERS');
+    $default = $env === false ? true : $env !== '0';
+
+    return (bool) apply_filters('hcisysq_force_fresh_users_lookup', $default, $context);
+  }
+
 
   public static function menu() {
     // 1. Keep the old settings page, but hook it to 'add_options_page' for consistency.
@@ -237,6 +244,14 @@ class Admin {
     global $wpdb;
 
     $nip = sanitize_text_field($_POST['nip'] ?? '');
+    $bypassCacheRequested = filter_var($_POST['bypass_cache'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+    $bypassCache = self::should_force_fresh_users_lookup('admin_test_connection') || $bypassCacheRequested;
+    $bypassCache = (bool) apply_filters('hcisysq_admin_test_connection_bypass_cache', $bypassCache, $nip);
+
+    if ($bypassCache) {
+        SheetCache::flush();
+    }
 
     $google_status = [
         'success' => false,
@@ -302,7 +317,8 @@ class Admin {
     ];
 
     if (!empty($nip)) {
-        $user = Auth::get_user_by_nip($nip);
+        $repo = new \HCISYSQ\Repositories\UserRepository();
+        $user_data = $repo->find($nip, $bypassCache);
 
         if ($user) {
             $allowed_keys = ['nip', 'nama', 'nik', 'no_hp', 'jabatan', 'unit'];

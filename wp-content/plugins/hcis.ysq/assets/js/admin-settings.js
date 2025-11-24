@@ -108,7 +108,8 @@ jQuery(document).ready(function($) {
         $.post(hcis_admin.ajax_url, {
             action: 'hcis_test_connection',
             _ajax_nonce: hcis_admin.nonce,
-            nip: nipToTest // Pass NIP
+            nip: nipToTest, // Pass NIP
+            bypass_cache: true
         }, function(response) {
             const contentBlocks = buildConnectionStatusBlocks(response.data || {});
 

@@ -125,6 +125,13 @@ class Auth {
     return null;
   }
 
+  private static function should_force_fresh_user_lookup(string $context): bool {
+    $env = getenv('HCISYSQ_FORCE_FRESH_USERS');
+    $default = $env === false ? true : $env !== '0';
+
+    return (bool) apply_filters('hcisysq_force_fresh_users_lookup', $default, $context);
+  }
+
   // normalisasi no HP: keep digits only, leading 0/8 -> 62
   public static function norm_phone($s){
     $s = preg_replace('/\D+/', '', strval($s));
@@ -140,10 +147,9 @@ class Auth {
   }
 
   /** Ambil user by NIP langsung dari Google Sheet menggunakan Repository */
-  public static function get_user_by_nip($nip){
+  public static function get_user_by_nip($nip, bool $forceFresh = false){
     $repo = new \HCISYSQ\Repositories\UserRepository();
-    $record = $repo->find($nip);
-    $source = 'sheet';
+    $record = $repo->find($nip, $forceFresh);
 
     if (!$record || !is_array($record)) {
       $record = self::find_user_in_local_table($nip);
@@ -464,7 +470,13 @@ class Auth {
       return ['ok' => false, 'msg' => 'Akun & Password wajib diisi'];
     }
 
-    $u = self::get_user_by_nip($account);
+    $forceFreshLookup = self::should_force_fresh_user_lookup('login');
+
+    if ($forceFreshLookup) {
+      SheetCache::flush();
+    }
+
+    $u = self::get_user_by_nip($account, $forceFreshLookup);
     if (!$u) {
       return ['ok'=>false, 'msg'=>'Akun tidak ditemukan'];
     }

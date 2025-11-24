@@ -25,43 +25,34 @@ abstract class AbstractSheetRepository {
     $this->api->setSpreadsheetId($this->sheet_id);
   }
 
-  public function all(): array {
+  public function all(bool $bypassCache = false): array {
     $cacheKey = $this->cacheKey('all');
+
+    if ($bypassCache) {
+      $this->cache->forget($cacheKey);
+      return $this->resolveAllRows();
+    }
+
     return $this->cache->remember($cacheKey, function () {
-      $range = GoogleSheetSettings::get_tab_range($this->tab);
-      $all_rows = $this->api->getRows($range);
-
-      if (empty($all_rows)) {
-        return [];
-      }
-
-      // Assume the first row is the header
-      $this->sheet_headers = array_map('trim', array_shift($all_rows));
-
-      // Build the column index map
-      $this->buildColumnIndexMap();
-
-      $result = [];
-      foreach ($all_rows as $index => $row) {
-        $normalized = $this->mapRow($row, $index + 1); // +1 because we removed the header row
-        if (!empty(array_filter($normalized, static function ($value) { return $value !== ''; }))) {
-          $result[] = $normalized;
-        }
-      }
-      return $result;
+      return $this->resolveAllRows();
     });
   }
 
-  public function find(string $value): array {
+  public function find(string $value, bool $bypassCache = false): array {
     $cacheKey = $this->cacheKey('find_' . md5($value));
-    $cached = $this->cache->get($cacheKey);
-    if ($cached !== null) {
-      return $cached;
+
+    if (!$bypassCache) {
+      $cached = $this->cache->get($cacheKey);
+      if ($cached !== null) {
+        return $cached;
+      }
     }
 
-    foreach ($this->all() as $row) {
+    foreach ($this->all($bypassCache) as $row) {
       if (($row[$this->primaryKey] ?? '') === $value) {
-        $this->cache->put($cacheKey, $row);
+        if (!$bypassCache) {
+          $this->cache->put($cacheKey, $row);
+        }
         return $row;
       }
     }
@@ -158,6 +149,30 @@ abstract class AbstractSheetRepository {
 
   public function toSheetRow(array $data): array {
     return $this->buildRow($data);
+  }
+
+  protected function resolveAllRows(): array {
+    $range = GoogleSheetSettings::get_tab_range($this->tab);
+    $all_rows = $this->api->getRows($range);
+
+    if (empty($all_rows)) {
+      return [];
+    }
+
+    // Assume the first row is the header
+    $this->sheet_headers = array_map('trim', array_shift($all_rows));
+
+    // Build the column index map
+    $this->buildColumnIndexMap();
+
+    $result = [];
+    foreach ($all_rows as $index => $row) {
+      $normalized = $this->mapRow($row, $index + 1); // +1 because we removed the header row
+      if (!empty(array_filter($normalized, static function ($value) { return $value !== ''; }))) {
+        $result[] = $normalized;
+      }
+    }
+    return $result;
   }
 
   public function getTabRange(): string {
