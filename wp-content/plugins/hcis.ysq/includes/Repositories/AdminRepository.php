@@ -18,8 +18,8 @@ class AdminRepository extends AbstractSheetRepository {
 
   private $requiredColumns = ['username', 'display_name', 'password_hash', 'whatsapp'];
 
-  public function all(): array {
-    $rows = parent::all();
+  public function all(bool $bypassCache = false): array {
+    $rows = parent::all($bypassCache);
 
     if (!$this->hasRequiredColumns()) {
       hcisysq_log('AdminRepository::all - Missing required columns in sheet header', 'warning');
@@ -42,13 +42,13 @@ class AdminRepository extends AbstractSheetRepository {
     return $filtered;
   }
 
-  public function getByUsername(string $username): array {
+  public function getByUsername(string $username, bool $bypassCache = false): array {
     $username = sanitize_user($username, true);
     if ($username === '') {
       return [];
     }
 
-    foreach ($this->all() as $row) {
+    foreach ($this->all($bypassCache) as $row) {
       if (strcasecmp($row['username'] ?? '', $username) === 0) {
         return $row;
       }
