@@ -152,19 +152,57 @@ class Auth {
     $record = $repo->find($nip, $forceFresh);
 
     if (!$record || !is_array($record)) {
+      $record = self::find_user_in_local_table($nip);
+      $source = 'database';
+    }
+
+    if (!$record || !is_array($record)) {
       return null;
     }
 
+    return self::map_record_to_user($record, $source);
+  }
+
+  private static function find_user_in_local_table(string $nip): ?array {
+    global $wpdb;
+
+    if (!isset($wpdb)) {
+      return null;
+    }
+
+    $table = $wpdb->prefix . 'hcisysq_users';
+    $table_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+
+    if ($table_exists !== $table) {
+      return null;
+    }
+
+    $row = $wpdb->get_row($wpdb->prepare("SELECT id, nip, nama, jabatan, unit, no_hp, nik, password FROM {$table} WHERE nip = %s LIMIT 1", $nip), ARRAY_A);
+
+    if (!$row) {
+      return null;
+    }
+
+    $row['_source'] = 'database';
+
+    hcisysq_log('Auth::get_user_by_nip() - Fallback to local table for NIP ' . $nip);
+
+    return $row;
+  }
+
+  private static function map_record_to_user(array $record, string $source): \stdClass {
     $user = new \stdClass();
-    $user->id = (int)($record['row_index'] ?? 0); // Use row_index as a unique ID
+    $user->id = isset($record['row_index']) ? (int)$record['row_index'] : (int)($record['id'] ?? 0); // Use row_index or local id as a unique ID
     $user->nip = $record['nip'] ?? '';
     $user->nama = $record['nama'] ?? '';
     $user->jabatan = $record['jabatan'] ?? ''; // Jabatan might not be in this sheet, but keep for compatibility
     $user->unit = $record['unit'] ?? ''; // Unit might not be in this sheet, but keep for compatibility
-    $user->no_hp = $record['phone'] ?? ''; // Use 'phone' from repository
-    $user->password = $record['password_hash'] ?? ''; // Use 'password_hash' from repository
+    $user->no_hp = $record['phone'] ?? ($record['no_hp'] ?? ''); // Use 'phone' from repository or local 'no_hp'
+    $user->password = $record['password_hash'] ?? ($record['password'] ?? ''); // Use 'password_hash' from repository or local 'password'
     $user->nik = $record['nik'] ?? ''; // Add NIK for default password check
-    $user->row = (int)($record['row_index'] ?? 0) + 1; // row_index is 0-based, sheet rows are 1-based
+    $user->row = isset($record['row_index']) ? (int)$record['row_index'] + 1 : (int)($record['row'] ?? 0); // row_index is 0-based, sheet rows are 1-based
+    $user->source = $record['_source'] ?? $source;
+
     return $user;
   }
 

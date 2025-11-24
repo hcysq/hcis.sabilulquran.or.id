@@ -320,23 +320,28 @@ class Admin {
         $repo = new \HCISYSQ\Repositories\UserRepository();
         $user_data = $repo->find($nip, $bypassCache);
 
-        if ($user_data && is_array($user_data)) {
-            $allowed_keys = ['nip', 'nama', 'nik', 'phone', 'email'];
+        if ($user) {
+            $allowed_keys = ['nip', 'nama', 'nik', 'no_hp', 'jabatan', 'unit'];
             $sanitized_user_data = [];
 
             foreach ($allowed_keys as $key) {
-                if (!array_key_exists($key, $user_data)) {
+                if (!property_exists($user, $key)) {
                     continue;
                 }
 
-                $value = $user_data[$key];
+                $value = $user->$key;
                 if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
                     $sanitized_user_data[$key] = sanitize_text_field((string) $value);
                 }
             }
 
             if (!empty($sanitized_user_data)) {
+                $source_label = ($user->source ?? '') === 'database'
+                    ? __('Database lokal', 'hcis-ysq')
+                    : __('Google Sheet', 'hcis-ysq');
+
                 $response_data['user_data_for_nip'] = $sanitized_user_data;
+                $response_data['user_data_source'] = $source_label;
             } else {
                 $response_data['user_data_for_nip'] = 'No public user data available for NIP: ' . $nip;
             }
