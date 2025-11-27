@@ -17,6 +17,7 @@ class GoogleSheetSettings {
   const OPT_STATUS = 'hcis_gs_settings_status';
   const TAB_HASH_PREFIX = 'hcis_gs_tab_hash_';
   const OPT_TAB_COLUMN_ORDER_PREFIX = 'hcis_gs_tab_col_order_';
+  const OPT_TAB_GID_PREFIX = 'hcis_gs_tab_gid_';
   const OPT_SETUP_KEYS = 'hcis_gs_setup_keys';
   private const LEGACY_GID_OPTIONS = [
     'hcis_gid_admins',
@@ -633,6 +634,11 @@ class GoogleSheetSettings {
     $tab = sanitize_key($tab);
     $title = self::get_tab_name($tab);
 
+    $configuredGid = self::get_tab_gid_option($tab);
+    if ($configuredGid !== '') {
+      return $configuredGid;
+    }
+
     try {
       $api = GoogleSheetsAPI::getInstance();
       $sheetId = $api->getSheetIdByTitle($title);
@@ -905,6 +911,17 @@ class GoogleSheetSettings {
       update_option(self::OPT_SETUP_KEYS, $setup_keys, false);
     }
 
+    if (!empty($gids)) {
+      foreach (self::TAB_MAP as $tab => $_config) {
+        $gid = isset($gids[$tab]) ? trim((string) $gids[$tab]) : '';
+        if ($gid !== '') {
+          update_option(self::OPT_TAB_GID_PREFIX . $tab, $gid, false);
+        } else {
+          delete_option(self::OPT_TAB_GID_PREFIX . $tab);
+        }
+      }
+    }
+
     update_option(self::OPT_STATUS, $status, false);
 
     return $status;
@@ -921,7 +938,20 @@ class GoogleSheetSettings {
 
     foreach (array_keys(self::TAB_MAP) as $tab) {
       delete_option(self::OPT_TAB_COLUMN_ORDER_PREFIX . $tab);
+      delete_option(self::OPT_TAB_GID_PREFIX . $tab);
     }
+  }
+
+  private static function get_tab_gid_option(string $tab): string {
+    $tab = sanitize_key($tab);
+    $raw = get_option(self::OPT_TAB_GID_PREFIX . $tab, '');
+
+    if (is_array($raw)) {
+      return '';
+    }
+
+    $gid = trim((string) $raw);
+    return $gid !== '' ? $gid : '';
   }
 
   public static function register_rest_routes() {

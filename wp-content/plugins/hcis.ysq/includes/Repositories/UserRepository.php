@@ -121,6 +121,62 @@ class UserRepository extends AbstractSheetRepository {
     return $this->all();
   }
 
+  public function findMissingPasswordRows(int $limit = 10, bool $bypassCache = false): array {
+    $rows = $this->all($bypassCache);
+    $missing = [];
+
+    foreach ($rows as $row) {
+      $hash = trim((string) ($row['password_hash'] ?? ''));
+      if ($hash !== '') {
+        continue;
+      }
+
+      $missing[] = [
+        'nip' => $row['nip'] ?? '',
+        'row' => isset($row['row_index']) ? ((int) $row['row_index']) + 1 : null,
+      ];
+
+      if (count($missing) >= $limit) {
+        break;
+      }
+    }
+
+    return $missing;
+  }
+
+  public function setPasswordHash(string $nip, string $hash): bool {
+    $nip = trim($nip);
+    $hash = trim($hash);
+
+    if ($nip === '' || $hash === '') {
+      return false;
+    }
+
+    $rows = $this->all(true);
+
+    foreach ($rows as $row) {
+      if (($row['nip'] ?? '') !== $nip) {
+        continue;
+      }
+
+      $row['password_hash'] = $hash;
+      return $this->updateByPrimary($row);
+    }
+
+    return false;
+  }
+
+  public function generateAndPersistPassword(string $nip, ?string $password = null): array {
+    $password = $password ?: wp_generate_password(12, false);
+    $hash = wp_hash_password($password);
+
+    return [
+      'password' => $password,
+      'hash' => $hash,
+      'updated' => $this->setPasswordHash($nip, $hash),
+    ];
+  }
+
   public function syncFromWordPress() {
     $wp_users = get_users(['number' => -1]);
     $synced = 0;
