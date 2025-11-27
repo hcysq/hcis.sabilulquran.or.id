@@ -320,23 +320,23 @@ class Admin {
         $repo = new \HCISYSQ\Repositories\UserRepository();
         $user_data = $repo->find($nip, $bypassCache);
 
-        if ($user) {
+        if ($user_data) {
             $allowed_keys = ['nip', 'nama', 'nik', 'no_hp', 'jabatan', 'unit'];
             $sanitized_user_data = [];
 
             foreach ($allowed_keys as $key) {
-                if (!property_exists($user, $key)) {
+                if (!property_exists($user_data, $key)) {
                     continue;
                 }
 
-                $value = $user->$key;
+                $value = $user_data->$key;
                 if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
                     $sanitized_user_data[$key] = sanitize_text_field((string) $value);
                 }
             }
 
             if (!empty($sanitized_user_data)) {
-                $source_label = ($user->source ?? '') === 'database'
+                $source_label = ($user_data->source ?? '') === 'database'
                     ? __('Database lokal', 'hcis-ysq')
                     : __('Google Sheet', 'hcis-ysq');
 
