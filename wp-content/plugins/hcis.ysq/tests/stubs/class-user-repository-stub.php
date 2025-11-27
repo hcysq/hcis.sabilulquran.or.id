@@ -46,6 +46,7 @@ class UserRepository {
       return false;
     }
 
+    self::$records[$nip]['password'] = $hash;
     self::$records[$nip]['password_hash'] = $hash;
     return true;
   }

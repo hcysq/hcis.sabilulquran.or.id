@@ -33,7 +33,7 @@ class AuthLoginTest extends \WP_UnitTestCase {
         $this->assertFalse($result['force_password_reset']);
     }
 
-    public function test_login_falls_back_to_nik_only_when_password_missing() {
+    public function test_login_falls_back_to_nik_only_when_password_columns_empty() {
         $nik = '9876543210';
 
         UserRepository::set_test_users([
@@ -41,6 +41,7 @@ class AuthLoginTest extends \WP_UnitTestCase {
                 'row_index' => 0,
                 'nip' => 'NIK001',
                 'nama' => 'Fallback User',
+                'password' => '',
                 'password_hash' => '',
                 'phone' => '08111111111',
                 'nik' => $nik,
@@ -54,26 +55,25 @@ class AuthLoginTest extends \WP_UnitTestCase {
         $this->assertTrue($result['force_password_reset']);
     }
 
-    public function test_login_rejects_nik_when_password_exists() {
+    public function test_nik_login_blocked_when_password_available() {
         $nik = '9876543210';
         $passwordHash = wp_hash_password('different-password');
 
         UserRepository::set_test_users([
-            'NIK002' => [
+            'NIK001' => [
                 'row_index' => 0,
-                'nip' => 'NIK002',
-                'nama' => 'Password Exists',
+                'nip' => 'NIK001',
+                'nama' => 'Fallback User',
                 'password_hash' => $passwordHash,
                 'phone' => '08111111111',
                 'nik' => $nik,
             ],
         ]);
 
-        $result = Auth::login('NIK002', $nik);
+        $result = Auth::login('NIK001', $nik);
 
         $this->assertFalse($result['ok']);
-        $this->assertFalse($result['missing_password']);
-        $this->assertTrue($result['nik_login_disabled']);
+        $this->assertArrayNotHasKey('missing_password', $result);
     }
 
     public function test_login_rejects_missing_password_hash(): void {

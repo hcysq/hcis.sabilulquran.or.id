@@ -209,6 +209,7 @@ class PasswordResetManager {
         $user_repo = self::get_user_repository();
         $success = $user_repo->updateByPrimary([
             'nip' => $nip,
+            'password' => $new_password_hash,
             'password_hash' => $new_password_hash,
         ]);
 
