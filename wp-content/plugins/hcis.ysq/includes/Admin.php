@@ -1,6 +1,8 @@
 <?php
 namespace HCISYSQ;
 
+use HCISYSQ\Repositories\AdminRepository;
+
 if (!defined('ABSPATH')) exit;
 
 class Admin {
@@ -701,8 +703,49 @@ class Admin {
         wp_send_json_error(['message' => 'Unauthorized'], 403);
     }
 
-    wp_send_json_error([
-        'message' => __('Tes WA dinonaktifkan karena kredensial admin kini dibaca langsung dari tab Admin di Google Sheet. Pastikan nomor admin sudah ada di sheet.', 'hcis-ysq'),
-    ], 400);
+    $token = trim((string) get_option('hcisysq_wa_token', ''));
+    if ($token === '') {
+        wp_send_json_error([
+            'message' => __('StarSender API Key belum diisi. Simpan pengaturan terlebih dahulu.', 'hcis-ysq'),
+        ], 400);
+    }
+
+    $destination = self::get_primary_admin_whatsapp();
+    if ($destination === '') {
+        wp_send_json_error([
+            'message' => __('Nomor WhatsApp admin tidak ditemukan. Pastikan tab Admin memiliki kolom WhatsApp yang terisi.', 'hcis-ysq'),
+        ], 400);
+    }
+
+    $result = StarSender::send($destination, __('[HCIS] Pesan uji koneksi StarSender.', 'hcis-ysq'));
+
+    if (is_wp_error($result) || $result === false) {
+        $message = is_wp_error($result)
+            ? $result->get_error_message()
+            : __('Gagal mengirim pesan uji WhatsApp.', 'hcis-ysq');
+
+        wp_send_json_error(['message' => $message], 500);
+    }
+
+    wp_send_json_success([
+        'destination' => $destination,
+        'message' => __('Pesan uji WhatsApp berhasil dikirim.', 'hcis-ysq'),
+    ]);
+  }
+
+  private static function get_primary_admin_whatsapp(): string {
+    $number = AdminCredentials::get_primary_whatsapp();
+    if ($number !== '') {
+        return $number;
+    }
+
+    $repo = new AdminRepository();
+    $admin = $repo->getPrimaryAdmin();
+
+    if (!empty($admin['whatsapp'])) {
+        return Auth::norm_phone($admin['whatsapp']);
+    }
+
+    return '';
   }
 }
