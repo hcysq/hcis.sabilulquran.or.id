@@ -484,11 +484,9 @@ class Auth {
     }
 
     $passwordColumn = trim((string) ($u->password ?? ''));
-    $nikValue = trim((string) ($u->nik ?? ''));
-
     $hasPasswordColumn = $passwordColumn !== '';
 
-    if ($plain_pass === '' && !$hasPasswordColumn && $nikValue === '') {
+    if ($plain_pass === '' && !$hasPasswordColumn) {
       return [
         'ok' => false,
         'msg' => __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password.', 'hcis-ysq'),
@@ -500,37 +498,20 @@ class Auth {
       return ['ok' => false, 'msg' => 'Password wajib diisi'];
     }
 
-    $passOk = false;
-    $needsReset = false;
-    $missingPassword = false;
-    $nikLoginDisabled = false;
-
-    if ($hasPasswordColumn && hash_equals($passwordColumn, $plain_pass)) {
-      $passOk = true;
-    }
-
-    if (!$passOk && !$hasPasswordColumn && $nikValue !== '' && hash_equals($nikValue, $plain_pass)) {
-      $passOk = true;
-      $needsReset = true; // Always force reset when logging in with NIK fallback when password is missing
-    }
-
-    if (!$passOk && !$hasPasswordColumn && $nikValue !== '') {
-      $missingPassword = true;
-    }
+    $passOk = $hasPasswordColumn && hash_equals($passwordColumn, $plain_pass);
 
     if (!$passOk) {
       return [
         'ok'=>false,
-        'msg'=> $missingPassword
-          ? __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password.', 'hcis-ysq')
-          : ($nikLoginDisabled
-            ? __('NIK tidak lagi dapat digunakan sebagai password. Gunakan password baru.', 'hcis-ysq')
-            : __('Password salah.', 'hcis-ysq')
-          ),
-        'missing_password' => $missingPassword,
-        'nik_login_disabled' => $nikLoginDisabled,
+        'msg'=> $hasPasswordColumn
+          ? __('Password salah.', 'hcis-ysq')
+          : __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password.', 'hcis-ysq'),
+        'missing_password' => !$hasPasswordColumn,
+        'nik_login_disabled' => false,
       ];
     }
+
+    $needsReset = !$hasPasswordColumn;
 
     $payload = [
       'type' => 'user',
@@ -643,20 +624,16 @@ class Auth {
         $user = self::get_user_by_nip($nip);
         if ($user) {
           $skipGranted = !empty($payload['reset_skip_granted']);
-          $needsResetSession = !empty($payload['needs_password_reset']);
           $passwordValue = trim((string) ($user->password ?? ''));
-          $calculatedNeedsReset = $needsResetSession && $passwordValue === '';
+          $needsReset = $passwordValue === '';
 
-          if ($calculatedNeedsReset === false && !empty($payload['needs_password_reset'])) {
-            self::update_current_session(['needs_password_reset' => false]);
-          } elseif ($calculatedNeedsReset === true && empty($payload['needs_password_reset'])) {
-            self::update_current_session(['needs_password_reset' => true]);
+          $sessionNeedsReset = !empty($payload['needs_password_reset']);
+          if ($needsReset !== $sessionNeedsReset) {
+            self::update_current_session(['needs_password_reset' => $needsReset]);
           }
-
-          $needsReset = $calculatedNeedsReset;
-          if ($skipGranted && $calculatedNeedsReset) {
+          if ($skipGranted && $needsReset) {
             $needsReset = false;
-          } elseif ($skipGranted && !$calculatedNeedsReset) {
+          } elseif ($skipGranted && !$needsReset) {
             self::update_current_session(['reset_skip_granted' => false]);
           }
 
