@@ -150,6 +150,7 @@ class Auth {
   public static function get_user_by_nip($nip, bool $forceFresh = false){
     $repo = new \HCISYSQ\Repositories\UserRepository();
     $record = $repo->find($nip, $forceFresh);
+    $source = 'sheet';
 
     if (!$record || !is_array($record)) {
       $record = self::find_user_in_local_table($nip);
