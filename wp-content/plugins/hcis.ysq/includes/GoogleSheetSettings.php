@@ -739,7 +739,90 @@ class GoogleSheetSettings {
   }
 
   public static function get_effective_setup_keys(): array {
-    return self::get_setup_key_definitions();
+    $definitions = self::get_setup_key_definitions();
+    $overrides = get_option(self::OPT_SETUP_KEYS, []);
+
+    if (!is_array($overrides)) {
+      $overrides = [];
+    }
+
+    foreach ($overrides as $key => $override) {
+      if (!isset($definitions[$key]) || !is_array($override)) {
+        continue;
+      }
+
+      $definitions[$key] = array_merge($definitions[$key], $override);
+    }
+
+    foreach (self::TAB_MAP as $tab => $_config) {
+      $customOrder = self::get_tab_column_order_option($tab);
+      if (empty($customOrder)) {
+        continue;
+      }
+
+      $matchedKeys = [];
+
+      foreach ($customOrder as $index => $header) {
+        foreach ($definitions as $configKey => $config) {
+          if (($config['tab'] ?? '') !== $tab) {
+            continue;
+          }
+
+          $configHeader = (string) ($config['header'] ?? '');
+          if ($configHeader === '') {
+            continue;
+          }
+
+          if (strcasecmp($configHeader, $header) === 0) {
+            $definitions[$configKey]['order'] = $index + 1;
+            $matchedKeys[$configKey] = true;
+          }
+        }
+      }
+
+      $remaining = [];
+      foreach ($definitions as $configKey => $config) {
+        if (($config['tab'] ?? '') !== $tab || isset($matchedKeys[$configKey])) {
+          continue;
+        }
+
+        $remaining[$configKey] = $config;
+      }
+
+      if (!empty($remaining)) {
+        uasort($remaining, function ($a, $b) {
+          $orderSort = ((int) ($a['order'] ?? 0)) <=> ((int) ($b['order'] ?? 0));
+          if ($orderSort !== 0) {
+            return $orderSort;
+          }
+
+          return strcasecmp((string) ($a['header'] ?? ''), (string) ($b['header'] ?? ''));
+        });
+
+        $nextOrder = count($customOrder) + 1;
+        foreach (array_keys($remaining) as $configKey) {
+          $definitions[$configKey]['order'] = $nextOrder++;
+        }
+      }
+    }
+
+    return $definitions;
+  }
+
+  private static function get_tab_column_order_option(string $tab): array {
+    $tab = sanitize_key($tab);
+    $raw = get_option(self::OPT_TAB_COLUMN_ORDER_PREFIX . $tab, []);
+
+    if (is_string($raw)) {
+      $raw = array_map('trim', explode(',', $raw));
+    } elseif (!is_array($raw)) {
+      return [];
+    }
+
+    $raw = array_map('trim', $raw);
+    return array_values(array_filter($raw, function ($value) {
+      return $value !== '';
+    }));
   }
 
   private static function column_letter(int $count): string {
@@ -817,7 +900,10 @@ class GoogleSheetSettings {
     }
 
     self::purge_legacy_gid_options();
-    self::purge_setup_key_overrides();
+
+    if (!empty($setup_keys)) {
+      update_option(self::OPT_SETUP_KEYS, $setup_keys, false);
+    }
 
     update_option(self::OPT_STATUS, $status, false);
 

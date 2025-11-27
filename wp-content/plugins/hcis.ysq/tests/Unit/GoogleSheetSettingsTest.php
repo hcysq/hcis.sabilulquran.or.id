@@ -63,6 +63,25 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
     $this->assertSame($this->valid_credentials, get_option(GoogleSheetSettings::OPT_JSON_CREDS));
   }
 
+  public function test_save_settings_stores_setup_key_overrides(): void {
+    $overrides = [
+      'user_nip' => ['header' => 'Employee ID'],
+    ];
+
+    $status = GoogleSheetSettings::save_settings(
+      $this->valid_credentials,
+      'spreadsheet-123',
+      [],
+      $overrides
+    );
+
+    $this->assertTrue($status['valid']);
+    $this->assertSame($overrides, get_option(GoogleSheetSettings::OPT_SETUP_KEYS));
+
+    $config = GoogleSheetSettings::get_setup_key_config();
+    $this->assertSame('Employee ID', $config['user_nip']['header']);
+  }
+
   public function test_save_settings_requires_sheet_id(): void {
     $status = GoogleSheetSettings::save_settings(
       $this->valid_credentials,
@@ -85,7 +104,30 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
 
     $this->assertTrue($status['valid']);
     $this->assertFalse(get_option('hcis_gid_users'));
-    $this->assertFalse(get_option('hcis_gs_tab_col_order_users'));
-    $this->assertFalse(get_option(GoogleSheetSettings::OPT_SETUP_KEYS));
+    $this->assertSame('Email, Nama', get_option('hcis_gs_tab_col_order_users'));
+    $this->assertSame(['custom' => true], get_option(GoogleSheetSettings::OPT_SETUP_KEYS));
+  }
+
+  public function test_tab_column_order_overrides_are_respected(): void {
+    update_option('hcis_gs_tab_col_order_users', ['Full Name', 'Employee ID'], false);
+
+    $overrides = [
+      'user_nip' => ['header' => 'Employee ID'],
+      'user_name' => ['header' => 'Full Name'],
+    ];
+
+    GoogleSheetSettings::save_settings(
+      $this->valid_credentials,
+      'spreadsheet-123',
+      [],
+      $overrides
+    );
+
+    $config = GoogleSheetSettings::get_setup_key_config();
+    $this->assertSame(2, $config['user_nip']['order']);
+    $this->assertSame(1, $config['user_name']['order']);
+
+    $headers = GoogleSheetSettings::get_tab_column_map('users');
+    $this->assertSame(['Full Name', 'Employee ID'], array_slice($headers, 0, 2));
   }
 }
