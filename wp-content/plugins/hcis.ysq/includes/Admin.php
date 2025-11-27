@@ -258,11 +258,56 @@ class Admin {
         'message' => '',
     ];
 
+    $user_header_check = [];
+
     try {
         $service = new GoogleSheetsService();
         $title = $service->test_connection();
         $google_status['success'] = true;
         $google_status['message'] = 'Successfully connected to spreadsheet: ' . $title;
+
+        $user_header_check = [
+            'tab' => GoogleSheetSettings::get_tab_name('users'),
+            'range' => '',
+            'expected' => [],
+            'actual' => [],
+            'missing' => [],
+            'mismatched' => [],
+        ];
+
+        try {
+            $userRepo = new \HCISYSQ\Repositories\UserRepository();
+            $user_header_check['expected'] = $userRepo->getExpectedHeaders();
+
+            $headerRange = sprintf('%s!1:1', $user_header_check['tab']);
+            $user_header_check['range'] = $headerRange;
+
+            $headerRows = $service->get_sheet_data($headerRange) ?? [];
+            $actualHeaders = isset($headerRows[0]) ? array_map('trim', $headerRows[0]) : [];
+            $user_header_check['actual'] = $actualHeaders;
+
+            foreach ($user_header_check['expected'] as $index => $expectedHeader) {
+                $actualHeader = $actualHeaders[$index] ?? '';
+
+                if ($actualHeader === '') {
+                    $user_header_check['missing'][] = [
+                        'expected' => $expectedHeader,
+                        'position' => $index + 1,
+                    ];
+                    continue;
+                }
+
+                if (strcasecmp($expectedHeader, $actualHeader) !== 0) {
+                    $user_header_check['mismatched'][] = [
+                        'expected' => $expectedHeader,
+                        'actual' => $actualHeader,
+                        'position' => $index + 1,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            $user_header_check['error'] = $e->getMessage();
+        }
     } catch (\Exception $e) {
         $google_status['message'] = $e->getMessage();
     }
@@ -315,6 +360,10 @@ class Admin {
         'google_sheets' => $google_status,
         'database' => $database_status,
     ];
+
+    if (!empty($user_header_check)) {
+        $response_data['user_sheet_headers'] = $user_header_check;
+    }
 
     if (!empty($nip)) {
         $repo = new \HCISYSQ\Repositories\UserRepository();

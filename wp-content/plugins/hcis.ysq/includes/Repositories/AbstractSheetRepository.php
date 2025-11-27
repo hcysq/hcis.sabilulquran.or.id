@@ -175,6 +175,16 @@ abstract class AbstractSheetRepository {
     return $result;
   }
 
+  public function getExpectedHeaders(): array {
+    $configured = GoogleSheetSettings::get_tab_column_map($this->tab);
+
+    if (!empty($configured)) {
+      return $configured;
+    }
+
+    return array_values($this->columns);
+  }
+
   public function getTabRange(): string {
     return GoogleSheetSettings::get_tab_range($this->tab);
   }
