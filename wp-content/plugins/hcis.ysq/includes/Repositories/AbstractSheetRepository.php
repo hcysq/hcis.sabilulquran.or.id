@@ -128,9 +128,7 @@ abstract class AbstractSheetRepository {
 
   protected function buildRow(array $data): array {
     $row = [];
-    $configured_order = GoogleSheetSettings::get_tab_column_map($this->tab);
-    $default_columns_labels = array_values($this->columns);
-    $effective_column_labels = !empty($configured_order) ? $configured_order : $default_columns_labels;
+    $effective_column_labels = $this->getEffectiveColumnLabels();
 
     foreach ($effective_column_labels as $label) {
         // Find the internal key corresponding to this label
@@ -149,6 +147,27 @@ abstract class AbstractSheetRepository {
 
   public function toSheetRow(array $data): array {
     return $this->buildRow($data);
+  }
+
+  protected function getEffectiveColumnLabels(): array {
+    $default_columns_labels = array_values($this->columns);
+    $configured_order = GoogleSheetSettings::get_tab_column_map($this->tab);
+
+    if (empty($configured_order)) {
+      return $default_columns_labels;
+    }
+
+    $filtered_order = array_values(array_filter($configured_order, function ($label) use ($default_columns_labels) {
+      return in_array($label, $default_columns_labels, true);
+    }));
+
+    foreach ($default_columns_labels as $label) {
+      if (!in_array($label, $filtered_order, true)) {
+        $filtered_order[] = $label;
+      }
+    }
+
+    return $filtered_order;
   }
 
   protected function resolveAllRows(): array {
@@ -176,13 +195,7 @@ abstract class AbstractSheetRepository {
   }
 
   public function getExpectedHeaders(): array {
-    $configured = GoogleSheetSettings::get_tab_column_map($this->tab);
-
-    if (!empty($configured)) {
-      return $configured;
-    }
-
-    return array_values($this->columns);
+    return $this->getEffectiveColumnLabels();
   }
 
   public function getTabRange(): string {
@@ -216,13 +229,7 @@ abstract class AbstractSheetRepository {
 
   protected function buildColumnIndexMap(): void {
     $this->column_index_map = [];
-    $configured_order = GoogleSheetSettings::get_tab_column_map($this->tab);
-
-    // Get the default internal keys and their labels from the concrete repository
-    // This assumes $this->columns is already populated by the child class.
-    $default_columns_labels = array_values($this->columns); // e.g., ['NIP', 'Nama', 'Password Hash', ...]
-
-    $effective_column_labels = !empty($configured_order) ? $configured_order : $default_columns_labels;
+    $effective_column_labels = $this->getEffectiveColumnLabels();
 
     $setup_definitions = GoogleSheetSettings::get_setup_key_config();
     $tab_definitions = array_filter($setup_definitions, function ($definition) {

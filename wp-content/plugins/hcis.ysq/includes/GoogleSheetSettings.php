@@ -514,7 +514,7 @@ class GoogleSheetSettings {
     'users' => [
       'NIP',
       'Nama',
-      'Password Hash',
+      'Password',
       'No HP',
       'Email',
       'NIK',
