@@ -517,6 +517,7 @@ class Auth {
     $passOk = false;
     $needsReset = false;
     $missingPassword = false;
+    $nikLoginDisabled = false;
 
     foreach ($passwordValues as $hash) {
       $hash = strval($hash);
@@ -553,8 +554,12 @@ class Auth {
         'ok'=>false,
         'msg'=> $missingPassword
           ? __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password_hash.', 'hcis-ysq')
-          : __('Password salah.', 'hcis-ysq'),
+          : ($nikLoginDisabled
+            ? __('NIK tidak lagi dapat digunakan sebagai password. Gunakan password baru.', 'hcis-ysq')
+            : __('Password salah.', 'hcis-ysq')
+          ),
         'missing_password' => $missingPassword,
+        'nik_login_disabled' => $nikLoginDisabled,
       ];
     }
 
