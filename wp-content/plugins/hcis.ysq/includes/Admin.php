@@ -261,6 +261,8 @@ class Admin {
     ];
 
     $user_header_check = [];
+    $password_readiness = [];
+    $userRepo = null;
 
     try {
         $service = new GoogleSheetsService();
@@ -314,6 +316,52 @@ class Admin {
         $google_status['message'] = $e->getMessage();
     }
 
+    if ($userRepo) {
+        try {
+            $allUsers = $userRepo->all($bypassCache);
+            $missingRows = [];
+            $missingTotal = 0;
+
+            $targetMissing = false;
+
+            foreach ($allUsers as $row) {
+                $hash = trim((string) ($row['password_hash'] ?? ''));
+                if ($hash !== '') {
+                    continue;
+                }
+
+                $missingTotal++;
+
+                if (!empty($nip) && !$targetMissing && ($row['nip'] ?? '') === $nip) {
+                    $targetMissing = true;
+                }
+
+                if (count($missingRows) < 10) {
+                    $missingRows[] = [
+                        'nip' => $row['nip'] ?? '',
+                        'row' => isset($row['row_index']) ? ((int) $row['row_index']) + 1 : null,
+                    ];
+                }
+            }
+
+            $password_readiness = [
+                'missing_total' => $missingTotal,
+                'sample_missing_rows' => $missingRows,
+                'message' => $missingTotal > 0
+                    ? __('Beberapa akun belum memiliki password_hash di Google Sheet. Harap isi sebelum login.', 'hcis-ysq')
+                    : __('Semua akun memiliki password_hash terisi.', 'hcis-ysq'),
+            ];
+
+            if (!empty($nip)) {
+                $password_readiness['target_missing'] = $targetMissing;
+            }
+        } catch (\Exception $e) {
+            $password_readiness = [
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
     $table = $wpdb->prefix . 'hcisysq_users';
     $table_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
 
@@ -365,6 +413,10 @@ class Admin {
 
     if (!empty($user_header_check)) {
         $response_data['user_sheet_headers'] = $user_header_check;
+    }
+
+    if (!empty($password_readiness)) {
+        $response_data['password_readiness'] = $password_readiness;
     }
 
     if (!empty($nip)) {

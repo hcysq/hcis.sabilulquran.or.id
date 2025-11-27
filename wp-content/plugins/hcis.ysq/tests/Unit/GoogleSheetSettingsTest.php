@@ -130,4 +130,16 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
     $headers = GoogleSheetSettings::get_tab_column_map('users');
     $this->assertSame(['Full Name', 'Employee ID'], array_slice($headers, 0, 2));
   }
+
+  public function test_save_settings_persists_gids_and_resolver_prefers_saved_option(): void {
+    $status = GoogleSheetSettings::save_settings(
+      $this->valid_credentials,
+      'spreadsheet-123',
+      ['users' => '1111']
+    );
+
+    $this->assertTrue($status['valid']);
+    $this->assertSame('1111', get_option(GoogleSheetSettings::OPT_TAB_GID_PREFIX . 'users'));
+    $this->assertSame('1111', GoogleSheetSettings::get_gid('users'));
+  }
 }

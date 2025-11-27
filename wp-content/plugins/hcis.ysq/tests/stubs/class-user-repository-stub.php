@@ -19,6 +19,46 @@ class UserRepository {
     return self::$records[$nip] ?? [];
   }
 
+  public function findMissingPasswordRows(int $limit = 10, bool $bypassCache = false): array {
+    $missing = [];
+
+    foreach (self::$records as $row) {
+      $hash = trim((string) ($row['password_hash'] ?? ''));
+      if ($hash !== '') {
+        continue;
+      }
+
+      $missing[] = [
+        'nip' => $row['nip'] ?? '',
+        'row' => isset($row['row_index']) ? ((int) $row['row_index']) + 1 : null,
+      ];
+
+      if (count($missing) >= $limit) {
+        break;
+      }
+    }
+
+    return $missing;
+  }
+
+  public function setPasswordHash(string $nip, string $hash): bool {
+    if (!isset(self::$records[$nip])) {
+      return false;
+    }
+
+    self::$records[$nip]['password_hash'] = $hash;
+    return true;
+  }
+
+  public function generateAndPersistPassword(string $nip, ?string $password = null): array {
+    $password = $password ?: 'temporary-password';
+    return [
+      'password' => $password,
+      'hash' => $password,
+      'updated' => $this->setPasswordHash($nip, $password),
+    ];
+  }
+
   public function getByNIP($nip): array {
     return $this->find($nip);
   }

@@ -467,7 +467,7 @@ class Auth {
     $account = trim(strval($account));
     $plain_pass = trim(strval($plain_pass));
 
-    if ($account === '' || $plain_pass === '') {
+    if ($account === '') {
       return ['ok' => false, 'msg' => 'Akun & Password wajib diisi'];
     }
 
@@ -482,6 +482,21 @@ class Auth {
       return ['ok'=>false, 'msg'=>'Akun tidak ditemukan'];
     }
 
+    $passwordMissing = trim((string) ($u->password ?? '')) === '';
+    $nikMissing = trim((string) ($u->nik ?? '')) === '';
+
+    if ($plain_pass === '' && $passwordMissing && $nikMissing) {
+      return [
+        'ok' => false,
+        'msg' => __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password_hash.', 'hcis-ysq'),
+        'missing_password' => true,
+      ];
+    }
+
+    if ($plain_pass === '') {
+      return ['ok' => false, 'msg' => 'Password wajib diisi'];
+    }
+
     $envDisableHashing = getenv('HCISYSQ_DISABLE_PASSWORD_HASHING');
     $hashingDisabled = apply_filters(
       'hcisysq_disable_password_hashing',
@@ -490,6 +505,7 @@ class Auth {
 
     $passOk = false;
     $needsReset = false;
+    $missingPassword = false;
 
     // Prioritize explicit NIP + NIK combination before any hash checks.
     if (!empty($u->nik) && hash_equals($u->nik, $plain_pass)) {
@@ -519,8 +535,18 @@ class Auth {
       }
     }
 
+    if (!$passOk && $passwordMissing && !$nikMissing) {
+      $missingPassword = true;
+    }
+
     if (!$passOk) {
-      return ['ok'=>false, 'msg'=>'Password salah.'];
+      return [
+        'ok'=>false,
+        'msg'=> $missingPassword
+          ? __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password_hash.', 'hcis-ysq')
+          : __('Password salah.', 'hcis-ysq'),
+        'missing_password' => $missingPassword,
+      ];
     }
 
     $payload = [
