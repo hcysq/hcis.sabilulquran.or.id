@@ -320,23 +320,42 @@ class Admin {
         $repo = new \HCISYSQ\Repositories\UserRepository();
         $user_data = $repo->find($nip, $bypassCache);
 
-        if ($user) {
+        if (!empty($user_data)) {
             $allowed_keys = ['nip', 'nama', 'nik', 'no_hp', 'jabatan', 'unit'];
             $sanitized_user_data = [];
 
             foreach ($allowed_keys as $key) {
-                if (!property_exists($user, $key)) {
+                $value = null;
+
+                if (is_array($user_data) && array_key_exists($key, $user_data)) {
+                    $value = $user_data[$key];
+                } elseif (is_object($user_data) && property_exists($user_data, $key)) {
+                    $value = $user_data->$key;
+                } elseif ($key === 'no_hp') {
+                    $alternate = is_array($user_data)
+                        ? ($user_data['phone'] ?? null)
+                        : (is_object($user_data) ? ($user_data->phone ?? null) : null);
+                    $value = $alternate;
+                }
+
+                if ($value === null) {
                     continue;
                 }
 
-                $value = $user->$key;
                 if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
                     $sanitized_user_data[$key] = sanitize_text_field((string) $value);
                 }
             }
 
             if (!empty($sanitized_user_data)) {
-                $source_label = ($user->source ?? '') === 'database'
+                $source_key = '';
+                if (is_array($user_data)) {
+                    $source_key = $user_data['_source'] ?? $user_data['source'] ?? '';
+                } elseif (is_object($user_data)) {
+                    $source_key = $user_data->_source ?? ($user_data->source ?? '');
+                }
+
+                $source_label = $source_key === 'database'
                     ? __('Database lokal', 'hcis-ysq')
                     : __('Google Sheet', 'hcis-ysq');
 
