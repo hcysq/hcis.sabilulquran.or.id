@@ -199,7 +199,8 @@ class Auth {
     $user->jabatan = $record['jabatan'] ?? ''; // Jabatan might not be in this sheet, but keep for compatibility
     $user->unit = $record['unit'] ?? ''; // Unit might not be in this sheet, but keep for compatibility
     $user->no_hp = $record['phone'] ?? ($record['no_hp'] ?? ''); // Use 'phone' from repository or local 'no_hp'
-    $user->password = $record['password_hash'] ?? ($record['password'] ?? ''); // Use 'password_hash' from repository or local 'password'
+    $user->password = trim((string) ($record['password'] ?? '')); // Explicit password column (may contain hash)
+    $user->password_hash = trim((string) ($record['password_hash'] ?? '')); // Dedicated hash column
     $user->nik = $record['nik'] ?? ''; // Add NIK for default password check
     $user->row = isset($record['row_index']) ? (int)$record['row_index'] + 1 : (int)($record['row'] ?? 0); // row_index is 0-based, sheet rows are 1-based
     $user->source = $record['_source'] ?? $source;
@@ -482,10 +483,20 @@ class Auth {
       return ['ok'=>false, 'msg'=>'Akun tidak ditemukan'];
     }
 
-    $passwordMissing = trim((string) ($u->password ?? '')) === '';
-    $nikMissing = trim((string) ($u->nik ?? '')) === '';
+    $passwordColumn = trim((string) ($u->password ?? ''));
+    $passwordHashColumn = trim((string) ($u->password_hash ?? ''));
+    $nikValue = trim((string) ($u->nik ?? ''));
 
-    if ($plain_pass === '' && $passwordMissing && $nikMissing) {
+    $passwordValues = array_values(array_filter([
+      $passwordColumn,
+      $passwordHashColumn,
+    ], static function ($value) {
+      return trim((string) $value) !== '';
+    }));
+
+    $hasPasswordColumn = !empty($passwordValues);
+
+    if ($plain_pass === '' && !$hasPasswordColumn && $nikValue === '') {
       return [
         'ok' => false,
         'msg' => __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password_hash.', 'hcis-ysq'),
@@ -507,35 +518,33 @@ class Auth {
     $needsReset = false;
     $missingPassword = false;
 
-    // Prioritize explicit NIP + NIK combination before any hash checks.
-    if (!empty($u->nik) && hash_equals($u->nik, $plain_pass)) {
-      $passOk = true;
-      $needsReset = true; // Always force reset when logging in with NIK
-    }
-
-    // Prioritize plaintext comparison first, only falling back to hash verify when explicitly enabled.
-    if (!$passOk && !empty($u->password)) {
-      $hash = strval($u->password);
+    foreach ($passwordValues as $hash) {
+      $hash = strval($hash);
       $looksHashed = self::looks_like_password_hash($hash);
 
-      // Always try plaintext comparison (Google Sheet value/NIK mirror) before hash verification.
       if (hash_equals($hash, $plain_pass)) {
         $passOk = true;
         if (!$looksHashed) {
           $needsReset = true;
         }
+        break;
       }
 
-      // Only verify against hash when explicitly allowed.
-      if (!$passOk && !$hashingDisabled && $looksHashed && self::verify_password_against_hash($plain_pass, $hash)) {
+      if (!$hashingDisabled && $looksHashed && self::verify_password_against_hash($plain_pass, $hash)) {
         $passOk = true;
         if (self::is_password_based_on_phone($hash, $u->no_hp ?? '')) {
           $needsReset = true;
         }
+        break;
       }
     }
 
-    if (!$passOk && $passwordMissing && !$nikMissing) {
+    if (!$passOk && !$hasPasswordColumn && $nikValue !== '' && hash_equals($nikValue, $plain_pass)) {
+      $passOk = true;
+      $needsReset = true; // Always force reset when logging in with NIK fallback
+    }
+
+    if (!$passOk && !$hasPasswordColumn && $nikValue !== '') {
       $missingPassword = true;
     }
 
@@ -663,13 +672,18 @@ class Auth {
           $needsResetSession = !empty($payload['needs_password_reset']);
           $calculatedNeedsReset = $needsResetSession;
 
-          if (!$calculatedNeedsReset && !empty($user->password) && !self::looks_like_password_hash($user->password)) {
+          $passwordForResetCheck = trim((string) ($user->password_hash ?? ''));
+          if ($passwordForResetCheck === '') {
+            $passwordForResetCheck = trim((string) ($user->password ?? ''));
+          }
+
+          if (!$calculatedNeedsReset && $passwordForResetCheck !== '' && !self::looks_like_password_hash($passwordForResetCheck)) {
             $calculatedNeedsReset = true;
           }
 
-          if (!empty($user->password) && self::looks_like_password_hash($user->password)) {
+          if ($passwordForResetCheck !== '' && self::looks_like_password_hash($passwordForResetCheck)) {
             if (!$calculatedNeedsReset) {
-              $calculatedNeedsReset = self::is_password_based_on_phone($user->password, $user->no_hp ?? '');
+              $calculatedNeedsReset = self::is_password_based_on_phone($passwordForResetCheck, $user->no_hp ?? '');
             }
           }
 

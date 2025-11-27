@@ -13,6 +13,7 @@ class UserRepository extends AbstractSheetRepository {
   protected $columns = [
     'nip' => 'NIP',
     'nama' => 'Nama',
+    'password' => 'Password',
     'password_hash' => 'Password Hash',
     'phone' => 'No HP',
     'email' => 'Email',
@@ -42,6 +43,7 @@ class UserRepository extends AbstractSheetRepository {
     $configMap = [
       'nip' => 'user_nip',
       'nama' => 'user_name',
+      'password' => 'user_password',
       'password_hash' => 'user_password_hash',
       'phone' => 'user_phone',
       'email' => 'user_email',
@@ -126,8 +128,9 @@ class UserRepository extends AbstractSheetRepository {
     $missing = [];
 
     foreach ($rows as $row) {
-      $hash = trim((string) ($row['password_hash'] ?? ''));
-      if ($hash !== '') {
+      $passwordHash = trim((string) ($row['password_hash'] ?? ''));
+      $password = trim((string) ($row['password'] ?? ''));
+      if ($passwordHash !== '' || $password !== '') {
         continue;
       }
 
@@ -159,6 +162,7 @@ class UserRepository extends AbstractSheetRepository {
         continue;
       }
 
+      $row['password'] = $hash;
       $row['password_hash'] = $hash;
       return $this->updateByPrimary($row);
     }
@@ -297,6 +301,7 @@ class UserRepository extends AbstractSheetRepository {
       'nip' => $nip,
       'nama' => $user->display_name,
       // WordPress already stores the bcrypt hash in user_pass; persist it as-is.
+      'password' => $user->user_pass,
       'password_hash' => $user->user_pass,
       'phone' => get_user_meta($user_id, 'phone', true) ?: '',
       'email' => $user->user_email,
