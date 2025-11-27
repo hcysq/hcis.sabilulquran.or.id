@@ -23,8 +23,8 @@ class UserRepository {
     $missing = [];
 
     foreach (self::$records as $row) {
-      $hash = trim((string) ($row['password_hash'] ?? ''));
-      if ($hash !== '') {
+      $password = trim((string) ($row['password'] ?? ''));
+      if ($password !== '') {
         continue;
       }
 
@@ -41,22 +41,24 @@ class UserRepository {
     return $missing;
   }
 
-  public function setPasswordHash(string $nip, string $hash): bool {
+  public function setPassword(string $nip, string $password): bool {
     if (!isset(self::$records[$nip])) {
       return false;
     }
 
-    self::$records[$nip]['password'] = $hash;
-    self::$records[$nip]['password_hash'] = $hash;
+    self::$records[$nip]['password'] = $password;
     return true;
+  }
+
+  public function setPasswordHash(string $nip, string $password): bool {
+    return $this->setPassword($nip, $password);
   }
 
   public function generateAndPersistPassword(string $nip, ?string $password = null): array {
     $password = $password ?: 'temporary-password';
     return [
       'password' => $password,
-      'hash' => $password,
-      'updated' => $this->setPasswordHash($nip, $password),
+      'updated' => $this->setPassword($nip, $password),
     ];
   }
 

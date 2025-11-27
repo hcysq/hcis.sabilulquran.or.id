@@ -144,7 +144,7 @@ class UserRepository extends AbstractSheetRepository {
     return $missing;
   }
 
-  public function setPasswordHash(string $nip, string $password): bool {
+  public function setPassword(string $nip, string $password): bool {
     $nip = trim($nip);
     $password = trim($password);
 
@@ -166,12 +166,19 @@ class UserRepository extends AbstractSheetRepository {
     return false;
   }
 
+  /**
+   * @deprecated Use setPassword() instead. Kept for backwards compatibility.
+   */
+  public function setPasswordHash(string $nip, string $password): bool {
+    return $this->setPassword($nip, $password);
+  }
+
   public function generateAndPersistPassword(string $nip, ?string $password = null): array {
     $password = $password ?: wp_generate_password(12, false);
 
     return [
       'password' => $password,
-      'updated' => $this->setPasswordHash($nip, $password),
+      'updated' => $this->setPassword($nip, $password),
     ];
   }
 
