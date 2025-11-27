@@ -4,6 +4,7 @@ namespace HCISYSQ;
 if (!defined('ABSPATH')) exit;
 
 use HCISYSQ\Repositories\AdminRepository;
+use HCISYSQ\SheetCache;
 
 class Auth {
   const ADMIN_OPTION = AdminCredentials::OPTION;
@@ -140,9 +141,13 @@ class Auth {
   }
 
   /** Ambil user by NIP langsung dari Google Sheet menggunakan Repository */
-  public static function get_user_by_nip($nip){
+  public static function get_user_by_nip($nip, bool $refreshCache = false){
+    if ($refreshCache) {
+      SheetCache::flush();
+    }
+
     $repo = new \HCISYSQ\Repositories\UserRepository();
-    $record = $repo->find($nip);
+    $record = $repo->find($nip, $refreshCache);
     $source = 'sheet';
 
     if (!$record || !is_array($record)) {
@@ -456,7 +461,7 @@ class Auth {
     ];
   }
 
-  public static function login($account, $plain_pass){
+  public static function login($account, $plain_pass, bool $refreshCache = false){
     $account = trim(strval($account));
     $plain_pass = trim(strval($plain_pass));
 
@@ -464,7 +469,7 @@ class Auth {
       return ['ok' => false, 'msg' => 'Akun & Password wajib diisi'];
     }
 
-    $u = self::get_user_by_nip($account);
+    $u = self::get_user_by_nip($account, $refreshCache);
     if (!$u) {
       return ['ok'=>false, 'msg'=>'Akun tidak ditemukan'];
     }

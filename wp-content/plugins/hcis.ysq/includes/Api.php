@@ -23,7 +23,8 @@ class Api {
 
     hcisysq_log("Login attempt for account={$account}");
 
-    $res = Auth::login($account, $pw);
+    $refreshRequested = !empty($_REQUEST['refresh']);
+    $res = Auth::login($account, $pw, $refreshRequested);
 
     if ($res['ok']) {
       if (!empty($res['force_password_reset'])) {

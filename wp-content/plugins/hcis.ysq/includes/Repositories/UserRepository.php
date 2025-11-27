@@ -113,12 +113,12 @@ class UserRepository extends AbstractSheetRepository {
     return $this->deleteByPrimary($nip);
   }
 
-  public function getByNIP($nip) {
-    return $this->find($nip);
+  public function getByNIP($nip, bool $refresh = false) {
+    return $this->find($nip, $refresh);
   }
 
-  public function getAll() {
-    return $this->all();
+  public function getAll(bool $refresh = false) {
+    return $this->all($refresh);
   }
 
   public function syncFromWordPress() {

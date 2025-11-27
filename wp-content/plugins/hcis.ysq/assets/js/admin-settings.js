@@ -43,6 +43,10 @@ jQuery(document).ready(function($) {
     function buildConnectionStatusBlocks(data) {
         const blocks = [];
 
+        if (data && data.cache_refreshed) {
+            blocks.push($('<p>').text('Cache Google Sheets di-refresh sebelum pengujian.'));
+        }
+
         const statusDefs = [
             { key: 'google_sheets', label: 'Google Sheets' },
             { key: 'database', label: 'Database' }
@@ -108,7 +112,8 @@ jQuery(document).ready(function($) {
         $.post(hcis_admin.ajax_url, {
             action: 'hcis_test_connection',
             _ajax_nonce: hcis_admin.nonce,
-            nip: nipToTest // Pass NIP
+            nip: nipToTest, // Pass NIP
+            refresh: $('#hcis-refresh-data').is(':checked') ? 1 : 0
         }, function(response) {
             const contentBlocks = buildConnectionStatusBlocks(response.data || {});
 

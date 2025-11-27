@@ -18,8 +18,8 @@ class AdminRepository extends AbstractSheetRepository {
 
   private $requiredColumns = ['username', 'display_name', 'password_hash', 'whatsapp'];
 
-  public function all(): array {
-    $rows = parent::all();
+  public function all(bool $refresh = false): array {
+    $rows = parent::all($refresh);
 
     if (!$this->hasRequiredColumns()) {
       hcisysq_log('AdminRepository::all - Missing required columns in sheet header', 'warning');

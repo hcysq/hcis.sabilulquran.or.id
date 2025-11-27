@@ -25,8 +25,13 @@ abstract class AbstractSheetRepository {
     $this->api->setSpreadsheetId($this->sheet_id);
   }
 
-  public function all(): array {
+  public function all(bool $refresh = false): array {
     $cacheKey = $this->cacheKey('all');
+
+    if ($refresh) {
+      $this->cache->forget($cacheKey);
+    }
+
     return $this->cache->remember($cacheKey, function () {
       $range = GoogleSheetSettings::get_tab_range($this->tab);
       $all_rows = $this->api->getRows($range);
@@ -52,14 +57,19 @@ abstract class AbstractSheetRepository {
     });
   }
 
-  public function find(string $value): array {
+  public function find(string $value, bool $refresh = false): array {
     $cacheKey = $this->cacheKey('find_' . md5($value));
-    $cached = $this->cache->get($cacheKey);
-    if ($cached !== null) {
-      return $cached;
+
+    if ($refresh) {
+      $this->cache->forget($cacheKey);
+    } else {
+      $cached = $this->cache->get($cacheKey);
+      if ($cached !== null) {
+        return $cached;
+      }
     }
 
-    foreach ($this->all() as $row) {
+    foreach ($this->all($refresh) as $row) {
       if (($row[$this->primaryKey] ?? '') === $value) {
         $this->cache->put($cacheKey, $row);
         return $row;

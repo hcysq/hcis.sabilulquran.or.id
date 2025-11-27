@@ -210,6 +210,10 @@ class Admin {
           <input type="text" id="hcis-test-nip" name="hcis_test_nip" class="regular-text" placeholder="<?php esc_attr_e('NIP to Test (optional)', 'hcis-ysq'); ?>" style="width: 200px; margin-right: 10px;">
           <button type="submit" class="button button-primary"><?php esc_html_e('Simpan', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-test-connection" class="button"><?php esc_html_e('Test Connection', 'hcis-ysq'); ?></button>
+          <label for="hcis-refresh-data" style="margin-left: 12px; vertical-align: middle;">
+            <input type="checkbox" id="hcis-refresh-data">
+            <?php esc_html_e('Refresh data (abaikan cache)', 'hcis-ysq'); ?>
+          </label>
           <button type="button" id="hcis-clear-cache" class="button"><?php esc_html_e('Clear Cache', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-setup-sheets" class="button button-secondary"><?php esc_html_e('Setup Database', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-test-wa-connection" class="button"><?php esc_html_e('Test WA Connection', 'hcis-ysq'); ?></button>
@@ -237,6 +241,11 @@ class Admin {
     global $wpdb;
 
     $nip = sanitize_text_field($_POST['nip'] ?? '');
+    $refreshRequested = !empty($_POST['refresh']);
+
+    if ($refreshRequested) {
+        SheetCache::flush();
+    }
 
     $google_status = [
         'success' => false,
@@ -299,10 +308,11 @@ class Admin {
         'connection_status' => $google_status['message'],
         'google_sheets' => $google_status,
         'database' => $database_status,
+        'cache_refreshed' => $refreshRequested,
     ];
 
     if (!empty($nip)) {
-        $user = Auth::get_user_by_nip($nip);
+        $user = Auth::get_user_by_nip($nip, $refreshRequested);
 
         if ($user) {
             $allowed_keys = ['nip', 'nama', 'nik', 'no_hp', 'jabatan', 'unit'];
