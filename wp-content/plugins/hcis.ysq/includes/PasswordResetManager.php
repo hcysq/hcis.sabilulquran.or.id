@@ -202,10 +202,7 @@ class PasswordResetManager {
         }
 
         $user_repo = self::get_user_repository();
-        $success = $user_repo->updateByPrimary([
-            'nip' => $nip,
-            'password' => $new_password,
-        ]);
+        $success = $user_repo->setPassword($nip, $new_password);
 
         if (!$success) {
             return new WP_Error('update_failed', 'Gagal memperbarui password di sistem. Silakan coba lagi.');
