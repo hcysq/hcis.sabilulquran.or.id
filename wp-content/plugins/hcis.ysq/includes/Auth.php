@@ -484,22 +484,14 @@ class Auth {
     }
 
     $passwordColumn = trim((string) ($u->password ?? ''));
-    $passwordHashColumn = trim((string) ($u->password_hash ?? ''));
     $nikValue = trim((string) ($u->nik ?? ''));
 
-    $passwordValues = array_values(array_filter([
-      $passwordColumn,
-      $passwordHashColumn,
-    ], static function ($value) {
-      return trim((string) $value) !== '';
-    }));
-
-    $hasPasswordColumn = !empty($passwordValues);
+    $hasPasswordColumn = $passwordColumn !== '';
 
     if ($plain_pass === '' && !$hasPasswordColumn && $nikValue === '') {
       return [
         'ok' => false,
-        'msg' => __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password_hash.', 'hcis-ysq'),
+        'msg' => __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password.', 'hcis-ysq'),
         'missing_password' => true,
       ];
     }
@@ -508,41 +500,18 @@ class Auth {
       return ['ok' => false, 'msg' => 'Password wajib diisi'];
     }
 
-    $envDisableHashing = getenv('HCISYSQ_DISABLE_PASSWORD_HASHING');
-    $hashingDisabled = apply_filters(
-      'hcisysq_disable_password_hashing',
-      $envDisableHashing === false ? false : $envDisableHashing !== '0'
-    );
-
     $passOk = false;
     $needsReset = false;
     $missingPassword = false;
     $nikLoginDisabled = false;
 
-    foreach ($passwordValues as $hash) {
-      $hash = strval($hash);
-      $looksHashed = self::looks_like_password_hash($hash);
-
-      if (hash_equals($hash, $plain_pass)) {
-        $passOk = true;
-        if (!$looksHashed) {
-          $needsReset = true;
-        }
-        break;
-      }
-
-      if (!$hashingDisabled && $looksHashed && self::verify_password_against_hash($plain_pass, $hash)) {
-        $passOk = true;
-        if (self::is_password_based_on_phone($hash, $u->no_hp ?? '')) {
-          $needsReset = true;
-        }
-        break;
-      }
+    if ($hasPasswordColumn && hash_equals($passwordColumn, $plain_pass)) {
+      $passOk = true;
     }
 
     if (!$passOk && !$hasPasswordColumn && $nikValue !== '' && hash_equals($nikValue, $plain_pass)) {
       $passOk = true;
-      $needsReset = true; // Always force reset when logging in with NIK fallback
+      $needsReset = true; // Always force reset when logging in with NIK fallback when password is missing
     }
 
     if (!$passOk && !$hasPasswordColumn && $nikValue !== '') {
@@ -553,7 +522,7 @@ class Auth {
       return [
         'ok'=>false,
         'msg'=> $missingPassword
-          ? __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password_hash.', 'hcis-ysq')
+          ? __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password.', 'hcis-ysq')
           : ($nikLoginDisabled
             ? __('NIK tidak lagi dapat digunakan sebagai password. Gunakan password baru.', 'hcis-ysq')
             : __('Password salah.', 'hcis-ysq')
@@ -675,22 +644,8 @@ class Auth {
         if ($user) {
           $skipGranted = !empty($payload['reset_skip_granted']);
           $needsResetSession = !empty($payload['needs_password_reset']);
-          $calculatedNeedsReset = $needsResetSession;
-
-          $passwordForResetCheck = trim((string) ($user->password_hash ?? ''));
-          if ($passwordForResetCheck === '') {
-            $passwordForResetCheck = trim((string) ($user->password ?? ''));
-          }
-
-          if (!$calculatedNeedsReset && $passwordForResetCheck !== '' && !self::looks_like_password_hash($passwordForResetCheck)) {
-            $calculatedNeedsReset = true;
-          }
-
-          if ($passwordForResetCheck !== '' && self::looks_like_password_hash($passwordForResetCheck)) {
-            if (!$calculatedNeedsReset) {
-              $calculatedNeedsReset = self::is_password_based_on_phone($passwordForResetCheck, $user->no_hp ?? '');
-            }
-          }
+          $passwordValue = trim((string) ($user->password ?? ''));
+          $calculatedNeedsReset = $needsResetSession && $passwordValue === '';
 
           if ($calculatedNeedsReset === false && !empty($payload['needs_password_reset'])) {
             self::update_current_session(['needs_password_reset' => false]);
