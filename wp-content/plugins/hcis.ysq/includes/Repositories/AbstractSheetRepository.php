@@ -224,16 +224,106 @@ abstract class AbstractSheetRepository {
 
     $effective_column_labels = !empty($configured_order) ? $configured_order : $default_columns_labels;
 
-    foreach ($effective_column_labels as $internal_key_label) {
-        $sheet_column_index = array_search($internal_key_label, $this->sheet_headers, true);
-        if ($sheet_column_index !== false) {
-            // Find the internal key that corresponds to this label
-            $internal_key = array_search($internal_key_label, $this->columns, true);
-            if ($internal_key !== false) {
-                $this->column_index_map[$internal_key] = $sheet_column_index;
-            }
-        }
+    $setup_definitions = GoogleSheetSettings::get_setup_key_config();
+    $tab_definitions = array_filter($setup_definitions, function ($definition) {
+      return ($definition['tab'] ?? '') === $this->tab;
+    });
+
+    $direct_header_map = [];
+    $sanitized_header_map = [];
+
+    foreach ($this->sheet_headers as $index => $header) {
+      $directKey = $this->normalizeDirectHeaderMatch($header);
+      if ($directKey !== '') {
+        $direct_header_map[$directKey] = $index;
+      }
+
+      $normalizedHeader = $this->normalizeHeader($header);
+      if ($normalizedHeader !== '') {
+        $sanitized_header_map[$normalizedHeader] = $index;
+      }
     }
+
+    foreach ($effective_column_labels as $internal_key_label) {
+      $internal_key = array_search($internal_key_label, $this->columns, true);
+      if ($internal_key === false) {
+        continue;
+      }
+
+      $candidates = $this->buildColumnLabelCandidates($internal_key, $internal_key_label, $tab_definitions);
+      $matched_index = $this->matchSheetHeaderIndex($candidates, $direct_header_map, $sanitized_header_map);
+
+      if ($matched_index !== null) {
+        $this->column_index_map[$internal_key] = $matched_index;
+      }
+    }
+  }
+
+  protected function buildColumnLabelCandidates(string $internal_key, string $effective_label, array $tab_definitions): array {
+    $candidates = [$effective_label];
+    $base_label = $this->columns[$internal_key] ?? '';
+
+    if ($base_label !== '' && !in_array($base_label, $candidates, true)) {
+      $candidates[] = $base_label;
+    }
+
+    foreach ($tab_definitions as $definition) {
+      $definition_header = trim((string) ($definition['header'] ?? ''));
+      $definition_label = trim((string) ($definition['label'] ?? ''));
+      $definition_aliases = isset($definition['aliases']) && is_array($definition['aliases']) ? $definition['aliases'] : [];
+
+      $matches_column = ($definition_header !== '' && $this->headersMatch($definition_header, $effective_label))
+        || ($definition_label !== '' && $this->headersMatch($definition_label, $effective_label))
+        || ($base_label !== '' && ($this->headersMatch($definition_header, $base_label) || $this->headersMatch($definition_label, $base_label)));
+
+      if ($matches_column) {
+        foreach (array_merge([$definition_header, $definition_label], $definition_aliases) as $alias) {
+          $alias = trim((string) $alias);
+          if ($alias !== '' && !in_array($alias, $candidates, true)) {
+            $candidates[] = $alias;
+          }
+        }
+      }
+    }
+
+    return $candidates;
+  }
+
+  protected function headersMatch(string $expected, string $actual): bool {
+    return $this->normalizeHeader($expected) === $this->normalizeHeader($actual);
+  }
+
+  protected function matchSheetHeaderIndex(array $candidates, array $direct_header_map, array $sanitized_header_map): ?int {
+    foreach ($candidates as $candidate) {
+      $directKey = $this->normalizeDirectHeaderMatch($candidate);
+      if ($directKey !== '' && array_key_exists($directKey, $direct_header_map)) {
+        return $direct_header_map[$directKey];
+      }
+    }
+
+    foreach ($candidates as $candidate) {
+      $normalized = $this->normalizeHeader($candidate);
+      if ($normalized !== '' && array_key_exists($normalized, $sanitized_header_map)) {
+        return $sanitized_header_map[$normalized];
+      }
+    }
+
+    return null;
+  }
+
+  protected function normalizeDirectHeaderMatch(string $header): string {
+    $normalized = preg_replace('/\s+/u', ' ', trim($header));
+    return strtolower((string) $normalized);
+  }
+
+  protected function normalizeHeader(string $header): string {
+    $normalized = strtolower(trim((string) $header));
+    $normalized = preg_replace('/[\r\n]+/u', ' ', $normalized); // Replace newlines with spaces
+    $normalized = preg_replace('/\([^)]*\)/u', ' ', $normalized); // Remove text inside parentheses
+    $normalized = preg_replace('/\[[^\]]*\]/u', ' ', $normalized); // Remove text inside brackets
+    $normalized = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $normalized); // Remove punctuation/symbols
+    $normalized = preg_replace('/\s+/u', ' ', $normalized);
+    return trim((string) $normalized);
   }
 
   protected function columnLetter(int $count): string {
