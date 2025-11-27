@@ -506,11 +506,17 @@ class Auth {
     $passOk = false;
     $needsReset = false;
     $missingPassword = false;
+    $nikLoginDisabled = false;
 
-    // Prioritize explicit NIP + NIK combination before any hash checks.
-    if (!empty($u->nik) && hash_equals($u->nik, $plain_pass)) {
+    // Prioritize explicit NIP + NIK combination before any hash checks when password is missing.
+    if ($passwordMissing && !empty($u->nik) && hash_equals($u->nik, $plain_pass)) {
       $passOk = true;
       $needsReset = true; // Always force reset when logging in with NIK
+    }
+
+    // If password already exists, block NIK-based login and surface clearer error state.
+    if (!$passOk && !$passwordMissing && !empty($u->nik) && hash_equals($u->nik, $plain_pass)) {
+      $nikLoginDisabled = true;
     }
 
     // Prioritize plaintext comparison first, only falling back to hash verify when explicitly enabled.
@@ -544,8 +550,12 @@ class Auth {
         'ok'=>false,
         'msg'=> $missingPassword
           ? __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password_hash.', 'hcis-ysq')
-          : __('Password salah.', 'hcis-ysq'),
+          : ($nikLoginDisabled
+            ? __('NIK tidak lagi dapat digunakan sebagai password. Gunakan password baru.', 'hcis-ysq')
+            : __('Password salah.', 'hcis-ysq')
+          ),
         'missing_password' => $missingPassword,
+        'nik_login_disabled' => $nikLoginDisabled,
       ];
     }
 
