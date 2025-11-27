@@ -485,7 +485,7 @@ class Auth {
     $envDisableHashing = getenv('HCISYSQ_DISABLE_PASSWORD_HASHING');
     $hashingDisabled = apply_filters(
       'hcisysq_disable_password_hashing',
-      $envDisableHashing === false ? true : $envDisableHashing !== '0'
+      $envDisableHashing === false ? false : $envDisableHashing !== '0'
     );
 
     $passOk = false;
