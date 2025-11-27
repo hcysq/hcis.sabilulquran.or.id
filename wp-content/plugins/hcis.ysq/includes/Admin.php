@@ -14,6 +14,7 @@ class Admin {
     add_action('wp_ajax_hcis_test_wa_connection', [__CLASS__, 'ajax_test_wa_connection']);
     add_action('wp_ajax_hcis_clear_cache', [__CLASS__, 'ajax_clear_cache']);
     add_action('wp_ajax_hcis_setup_sheets', [__CLASS__, 'ajax_setup_sheets']);
+    add_action('wp_ajax_hcis_generate_missing_passwords', [__CLASS__, 'ajax_generate_missing_passwords']);
   }
 
   public static function enqueue_assets($hook) {
@@ -222,6 +223,7 @@ class Admin {
           <button type="button" id="hcis-clear-cache" class="button"><?php esc_html_e('Clear Cache', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-setup-sheets" class="button button-secondary"><?php esc_html_e('Setup Database', 'hcis-ysq'); ?></button>
           <button type="button" id="hcis-test-wa-connection" class="button"><?php esc_html_e('Test WA Connection', 'hcis-ysq'); ?></button>
+          <button type="button" id="hcis-generate-missing-passwords" class="button button-secondary"><?php esc_html_e('Generate Missing Passwords', 'hcis-ysq'); ?></button>
           <label for="hcis-rewrite-headers" style="margin-left: 12px; vertical-align: middle;">
             <input type="checkbox" id="hcis-rewrite-headers">
             <?php esc_html_e('Tulis ulang header tab yang sudah ada', 'hcis-ysq'); ?>
@@ -745,6 +747,78 @@ class Admin {
         'skipped' => $skipped,
         'headers_written' => $headers_written,
     ]);
+  }
+
+  public static function ajax_generate_missing_passwords() {
+    check_ajax_referer('hcis-admin-ajax-nonce');
+
+    if (!current_user_can('manage_hcis_portal') && !current_user_can('manage_options')) {
+        wp_send_json_error(['message' => 'Unauthorized'], 403);
+    }
+
+    try {
+        $repo = new \HCISYSQ\Repositories\UserRepository();
+        $missingRows = $repo->findMissingPasswordRows(PHP_INT_MAX, true);
+        $totalMissing = count($missingRows);
+
+        if ($totalMissing === 0) {
+            wp_send_json_success([
+                'message' => __('Tidak ada baris dengan kolom password_hash kosong.', 'hcis-ysq'),
+                'updated' => [],
+                'failed' => [],
+                'total_missing' => 0,
+                'updated_count' => 0,
+            ]);
+        }
+
+        $updated = [];
+        $failed = [];
+
+        foreach ($missingRows as $row) {
+            $nip = isset($row['nip']) ? trim((string) $row['nip']) : '';
+            $rowNumber = $row['row'] ?? null;
+
+            if ($nip === '') {
+                $failed[] = [
+                    'row' => $rowNumber,
+                    'message' => __('NIP kosong, lewati baris.', 'hcis-ysq'),
+                ];
+                continue;
+            }
+
+            $result = $repo->generateAndPersistPassword($nip);
+
+            if (!empty($result['updated'])) {
+                $updated[] = [
+                    'nip' => $nip,
+                    'row' => $rowNumber,
+                    'password' => $result['password'] ?? '',
+                ];
+            } else {
+                $failed[] = [
+                    'nip' => $nip,
+                    'row' => $rowNumber,
+                    'message' => __('Gagal memperbarui password_hash.', 'hcis-ysq'),
+                ];
+            }
+        }
+
+        $message = sprintf(
+            __('Berhasil membuat password untuk %1$d dari %2$d baris yang kosong.', 'hcis-ysq'),
+            count($updated),
+            $totalMissing
+        );
+
+        wp_send_json_success([
+            'message' => $message,
+            'updated' => $updated,
+            'failed' => $failed,
+            'total_missing' => $totalMissing,
+            'updated_count' => count($updated),
+        ]);
+    } catch (\Exception $e) {
+        wp_send_json_error(['message' => $e->getMessage()], 500);
+    }
   }
 
   public static function ajax_test_wa_connection() {

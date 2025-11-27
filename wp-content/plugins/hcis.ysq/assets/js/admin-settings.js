@@ -151,6 +151,66 @@ jQuery(document).ready(function($) {
         });
     });
 
+    $('#hcis-generate-missing-passwords').on('click', function() {
+        const button = $(this);
+        button.prop('disabled', true);
+        noticeContainer.hide();
+
+        $.post(hcis_admin.ajax_url, {
+            action: 'hcis_generate_missing_passwords',
+            _ajax_nonce: hcis_admin.nonce
+        }, function(response) {
+            const data = response.data || {};
+            const contentBlocks = [];
+
+            const headline = data.message || (response.success
+                ? 'Password sementara berhasil dibuat.'
+                : 'Gagal membuat password sementara.');
+            contentBlocks.push($('<p>').text(headline));
+
+            if (Array.isArray(data.updated) && data.updated.length) {
+                const list = $('<ul>');
+                data.updated.forEach(function(item) {
+                    const details = [];
+                    if (item.nip) details.push('NIP: ' + item.nip);
+                    if (item.row) details.push('Row: ' + item.row);
+                    if (item.password) details.push('Password: ' + item.password);
+
+                    const text = details.length ? details.join(' | ') : 'Baris diperbarui.';
+                    list.append($('<li>').text(text));
+                });
+
+                contentBlocks.push(
+                    $('<div>')
+                        .append($('<strong>').text('Password sementara yang dibuat:'))
+                        .append(list)
+                );
+            }
+
+            if (Array.isArray(data.failed) && data.failed.length) {
+                const failedList = $('<ul>');
+                data.failed.forEach(function(item) {
+                    const rowLabel = item.row ? 'Row ' + item.row : 'Row tidak diketahui';
+                    const nipLabel = item.nip ? 'NIP ' + item.nip : 'NIP kosong';
+                    const reason = item.message || 'Gagal diperbarui.';
+                    failedList.append($('<li>').text(rowLabel + ' (' + nipLabel + '): ' + reason));
+                });
+
+                contentBlocks.push(
+                    $('<div>')
+                        .append($('<strong>').text('Baris yang gagal diperbarui:'))
+                        .append(failedList)
+                );
+            }
+
+            showNotice(contentBlocks, !response.success);
+        }).fail(function() {
+            showNotice('Gagal menghasilkan password sementara.', true);
+        }).always(function() {
+            button.prop('disabled', false);
+        });
+    });
+
     $('#hcis-clear-cache').on('click', function() {
         const button = $(this);
         button.prop('disabled', true);
