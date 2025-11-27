@@ -147,11 +147,11 @@ class UserRepository extends AbstractSheetRepository {
     return $missing;
   }
 
-  public function setPasswordHash(string $nip, string $hash): bool {
+  public function setPasswordHash(string $nip, string $password): bool {
     $nip = trim($nip);
-    $hash = trim($hash);
+    $password = trim($password);
 
-    if ($nip === '' || $hash === '') {
+    if ($nip === '' || $password === '') {
       return false;
     }
 
@@ -162,8 +162,7 @@ class UserRepository extends AbstractSheetRepository {
         continue;
       }
 
-      $row['password'] = $hash;
-      $row['password_hash'] = $hash;
+      $row['password'] = $password;
       return $this->updateByPrimary($row);
     }
 
@@ -172,12 +171,10 @@ class UserRepository extends AbstractSheetRepository {
 
   public function generateAndPersistPassword(string $nip, ?string $password = null): array {
     $password = $password ?: wp_generate_password(12, false);
-    $hash = wp_hash_password($password);
 
     return [
       'password' => $password,
-      'hash' => $hash,
-      'updated' => $this->setPasswordHash($nip, $hash),
+      'updated' => $this->setPasswordHash($nip, $password),
     ];
   }
 

@@ -201,16 +201,10 @@ class PasswordResetManager {
             return $password_requirements;
         }
 
-        $new_password_hash = password_hash($new_password, PASSWORD_DEFAULT);
-        if (!$new_password_hash) {
-            return new WP_Error('hash_failed', 'Gagal memproses password baru.');
-        }
-
         $user_repo = self::get_user_repository();
         $success = $user_repo->updateByPrimary([
             'nip' => $nip,
-            'password' => $new_password_hash,
-            'password_hash' => $new_password_hash,
+            'password' => $new_password,
         ]);
 
         if (!$success) {
