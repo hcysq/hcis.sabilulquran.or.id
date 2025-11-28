@@ -322,38 +322,26 @@ class Admin {
         try {
             $allUsers = $userRepo->all($bypassCache);
             $missingRows = [];
-            $missingTotal = 0;
-
-            $targetMissing = false;
             $passwordColumnPresent = $userRepo->hasMappedColumn('password');
 
             if ($passwordColumnPresent) {
-                foreach ($allUsers as $row) {
-                    $passwordValue = trim((string) ($row['password'] ?? ''));
-                    if ($passwordValue !== '') {
-                        continue;
-                    }
-
-                    $missingTotal++;
-
-                    if (!empty($nip) && !$targetMissing && ($row['nip'] ?? '') === $nip) {
-                        $targetMissing = true;
-                    }
-
-                    if (count($missingRows) < 10) {
-                        $missingRows[] = [
-                            'nip' => $row['nip'] ?? '',
-                            'row' => isset($row['row_index']) ? ((int) $row['row_index']) + 1 : null,
-                        ];
-                    }
-                }
+                $missingRows = $userRepo->findMissingPasswordRows(PHP_INT_MAX, $bypassCache);
+                $missingTotal = count($missingRows);
+                $sampleRows = array_slice($missingRows, 0, 10);
+                $targetMissing = !empty($nip) && array_reduce(
+                    $missingRows,
+                    static function ($carry, $row) use ($nip) {
+                        return $carry || (($row['nip'] ?? '') === $nip);
+                    },
+                    false
+                );
 
                 $password_readiness = [
                     'missing_total' => $missingTotal,
-                    'sample_missing_rows' => $missingRows,
+                    'sample_missing_rows' => $sampleRows,
                     'message' => $missingTotal > 0
-                        ? __('Beberapa akun belum memiliki password di Google Sheet. Harap isi sebelum login.', 'hcis-ysq')
-                        : __('Semua akun memiliki password terisi.', 'hcis-ysq'),
+                        ? __('Beberapa akun belum memiliki password di Google Sheet. Harap isi kolom password (plaintext) sebelum login.', 'hcis-ysq')
+                        : __('Semua akun memiliki kolom password terisi.', 'hcis-ysq'),
                 ];
 
                 if (!empty($nip)) {
@@ -363,7 +351,7 @@ class Admin {
                 $password_readiness = [
                     'missing_total' => 0,
                     'sample_missing_rows' => [],
-                    'message' => __('Kolom password tidak ditemukan pada Google Sheet pengguna. Tambahkan kolom terlebih dahulu.', 'hcis-ysq'),
+                    'message' => __('Kolom password (plaintext) tidak ditemukan pada Google Sheet pengguna. Tambahkan kolom terlebih dahulu.', 'hcis-ysq'),
                 ];
             }
         } catch (\Exception $e) {
@@ -771,7 +759,7 @@ class Admin {
 
         if (!$repo->hasMappedColumn('password')) {
             wp_send_json_error([
-                'message' => __('Kolom password tidak ditemukan di tab pengguna. Tambahkan kolom terlebih dahulu.', 'hcis-ysq'),
+                'message' => __('Kolom password (plaintext) tidak ditemukan di tab pengguna. Tambahkan kolom terlebih dahulu.', 'hcis-ysq'),
             ], 400);
         }
 
