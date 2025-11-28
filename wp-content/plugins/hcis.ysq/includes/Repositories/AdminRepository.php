@@ -10,16 +10,19 @@ class AdminRepository extends AbstractSheetRepository {
   protected $tab = 'admins';
   protected $primaryKey = 'username';
   protected $columns = [
-    'username' => 'Username',
+    'username'     => 'Username',
     'display_name' => 'Display Name',
-    'password' => 'Password',
-    'whatsapp' => 'WhatsApp',
+    'password'     => 'Password',
+    'whatsapp'     => 'WhatsApp',
   ];
 
   /**
    * Admin rows must include plaintext password values (no password_hash column support).
+   * Only the username and password columns are required.
+   *
+   * @var string[]
    */
-  private $requiredColumns = ['username', 'password'];
+  protected $requiredColumns = ['username', 'password'];
 
   public function all(bool $bypassCache = false): array {
     $rows = parent::all($bypassCache);
