@@ -677,7 +677,7 @@ class GoogleSheetSettings {
   }
 
   public static function get_setup_key_definitions(): array {
-    return self::DEFAULT_SETUP_KEYS;
+    return self::filter_password_hash_setup_keys(self::DEFAULT_SETUP_KEYS);
   }
 
   public static function get_setup_key_config(): array {
@@ -746,7 +746,7 @@ class GoogleSheetSettings {
   }
 
   public static function get_effective_setup_keys(): array {
-    $definitions = self::get_setup_key_definitions();
+    $definitions = self::filter_password_hash_setup_keys(self::get_setup_key_definitions());
     $overrides = get_option(self::OPT_SETUP_KEYS, []);
 
     if (!is_array($overrides)) {
@@ -775,8 +775,9 @@ class GoogleSheetSettings {
         }
 
         $header = trim((string) ($config['header'] ?? ''));
-        if ($header !== '') {
-          $validHeaders[strtolower($header)] = true;
+        $normalizedHeader = self::normalize_password_header($tab, $header);
+        if ($normalizedHeader !== '') {
+          $validHeaders[strtolower($normalizedHeader)] = true;
         }
       }
 
@@ -797,7 +798,8 @@ class GoogleSheetSettings {
             continue;
           }
 
-          if (strcasecmp($configHeader, $header) === 0) {
+          $normalizedConfigHeader = self::normalize_password_header($tab, $configHeader);
+          if (strcasecmp($normalizedConfigHeader, $header) === 0) {
             $definitions[$configKey]['order'] = $index + 1;
             $matchedKeys[$configKey] = true;
           }
@@ -830,7 +832,7 @@ class GoogleSheetSettings {
       }
     }
 
-    return $definitions;
+    return self::filter_password_hash_setup_keys($definitions);
   }
 
   private static function get_tab_column_order_option(string $tab): array {
@@ -897,6 +899,24 @@ class GoogleSheetSettings {
 
   private static function is_password_tab(string $tab): bool {
     return in_array($tab, ['users', 'admins'], true);
+  }
+
+  private static function filter_password_hash_setup_keys(array $definitions): array {
+    foreach (['user_password_hash', 'admin_password_hash'] as $deprecatedKey) {
+      unset($definitions[$deprecatedKey]);
+    }
+
+    foreach ($definitions as $configKey => $config) {
+      $tab = $config['tab'] ?? '';
+      $header = trim((string) ($config['header'] ?? ''));
+      $normalizedHeader = self::normalize_password_header($tab, $header);
+
+      if ($normalizedHeader !== $header) {
+        $definitions[$configKey]['header'] = $normalizedHeader;
+      }
+    }
+
+    return $definitions;
   }
 
   public static function record_tab_metrics(string $tab, array $data): void {
