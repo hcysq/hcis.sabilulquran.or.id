@@ -247,7 +247,7 @@ class GoogleSheetSettings {
       'gid' => '',
       'requires_gid' => false,
     ],
-    'admin_password_hash' => [
+    'admin_password' => [
       'label' => 'Password',
       'tab' => 'admins',
       'header' => 'Password',
@@ -679,8 +679,9 @@ class GoogleSheetSettings {
   public static function get_setup_key_definitions(): array {
     $definitions = self::DEFAULT_SETUP_KEYS;
 
-    // Drop deprecated user password hash mapping to enforce single plaintext password column.
+    // Drop deprecated password hash mappings to enforce single plaintext password column for all tabs.
     unset($definitions['user_password_hash']);
+    unset($definitions['admin_password_hash']);
 
     return $definitions;
   }
