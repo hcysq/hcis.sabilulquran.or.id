@@ -202,6 +202,11 @@ class PasswordResetManager {
         }
 
         $user_repo = self::get_user_repository();
+        if (!method_exists($user_repo, 'setPassword')) {
+            return new WP_Error('update_failed', 'Repositori tidak mendukung kolom password tunggal.');
+        }
+
+        // Simpan langsung plaintext ke kolom password; abaikan kolom legacy password_hash.
         $success = $user_repo->setPassword($nip, $new_password);
 
         if (!$success) {
