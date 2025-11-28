@@ -184,7 +184,6 @@ class UserRepository extends AbstractSheetRepository {
       }
 
       $row['password'] = $password;
-      unset($row['password_hash']);
       return $this->updateByPrimary($row);
     }
 
