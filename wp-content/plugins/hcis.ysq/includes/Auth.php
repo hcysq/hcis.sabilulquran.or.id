@@ -494,7 +494,7 @@ class Auth {
     $passwordColumn = trim((string) ($u->password ?? ''));
     $hasPasswordColumn = $passwordColumn !== '';
 
-    if ($plain_pass === '' && !$hasPasswordColumn) {
+    if ($passwordColumn === '') {
       return [
         'ok' => false,
         'msg' => __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password.', 'hcis-ysq'),
@@ -506,20 +506,15 @@ class Auth {
       return ['ok' => false, 'msg' => 'Password wajib diisi'];
     }
 
-    $passOk = $hasPasswordColumn && hash_equals($passwordColumn, $plain_pass);
-
-    if (!$passOk) {
+    if (!hash_equals($passwordColumn, $plain_pass)) {
       return [
         'ok'=>false,
-        'msg'=> $hasPasswordColumn
-          ? __('Password salah.', 'hcis-ysq')
-          : __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password.', 'hcis-ysq'),
-        'missing_password' => !$hasPasswordColumn,
-        'nik_login_disabled' => false,
+        'msg'=> __('Password salah.', 'hcis-ysq'),
+        'missing_password' => false,
       ];
     }
 
-    $needsReset = !$hasPasswordColumn;
+    $needsReset = $passwordColumn === '';
 
     $payload = [
       'type' => 'user',
