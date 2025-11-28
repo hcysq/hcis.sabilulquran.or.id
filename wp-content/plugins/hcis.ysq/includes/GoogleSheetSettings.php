@@ -680,7 +680,6 @@ class GoogleSheetSettings {
     $definitions = self::DEFAULT_SETUP_KEYS;
 
     // Drop deprecated password hash mappings to enforce single plaintext password column for all tabs.
-    unset($definitions['user_password_hash']);
     unset($definitions['admin_password_hash']);
 
     return $definitions;
@@ -768,6 +767,11 @@ class GoogleSheetSettings {
 
     foreach (self::TAB_MAP as $tab => $_config) {
       $customOrder = self::get_tab_column_order_option($tab);
+      if ($tab === 'users') {
+        $customOrder = array_map(function ($header) {
+          return strcasecmp($header, 'Password Hash') === 0 ? 'Password' : $header;
+        }, $customOrder);
+      }
       if (empty($customOrder)) {
         continue;
       }
