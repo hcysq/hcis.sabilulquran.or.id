@@ -442,7 +442,7 @@ class Auth {
       ];
     }
 
-    if (!hash_equals($storedPassword, $plain_pass)) {
+    if ($storedPassword !== $plain_pass) {
       return ['ok' => false, 'msg' => __('Password salah.', 'hcis-ysq')];
     }
 
