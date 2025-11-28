@@ -108,6 +108,18 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
     $this->assertSame(['custom' => true], get_option(GoogleSheetSettings::OPT_SETUP_KEYS));
   }
 
+  public function test_password_hash_definitions_are_removed(): void {
+    GoogleSheetSettings::save_settings(
+      $this->valid_credentials,
+      'spreadsheet-123'
+    );
+
+    $config = GoogleSheetSettings::get_setup_key_config();
+
+    $this->assertArrayNotHasKey('user_password_hash', $config);
+    $this->assertArrayNotHasKey('admin_password_hash', $config);
+  }
+
   public function test_tab_column_order_overrides_are_respected(): void {
     update_option('hcis_gs_tab_col_order_users', ['Full Name', 'Employee ID'], false);
 
@@ -129,6 +141,19 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
 
     $headers = GoogleSheetSettings::get_tab_column_map('users');
     $this->assertSame(['Full Name', 'Employee ID'], array_slice($headers, 0, 2));
+  }
+
+  public function test_password_hash_headers_are_normalized_for_users_and_admins(): void {
+    update_option('hcis_gs_tab_col_order_users', ['Password Hash', 'NIP'], false);
+    update_option('hcis_gs_tab_col_order_admins', ['Username', 'Password Hash'], false);
+
+    $userHeaders = GoogleSheetSettings::get_tab_column_map('users');
+    $this->assertSame('Password', $userHeaders[0]);
+    $this->assertNotContains('Password Hash', $userHeaders);
+
+    $adminHeaders = GoogleSheetSettings::get_tab_column_map('admins');
+    $this->assertSame(['Username', 'Password', 'Display Name', 'WhatsApp'], $adminHeaders);
+    $this->assertNotContains('Password Hash', $adminHeaders);
   }
 
   public function test_save_settings_persists_gids_and_resolver_prefers_saved_option(): void {

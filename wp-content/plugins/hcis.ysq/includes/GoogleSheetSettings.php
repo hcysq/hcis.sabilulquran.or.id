@@ -680,6 +680,7 @@ class GoogleSheetSettings {
     $definitions = self::DEFAULT_SETUP_KEYS;
 
     // Drop deprecated password hash mappings to enforce single plaintext password column for all tabs.
+    unset($definitions['user_password_hash']);
     unset($definitions['admin_password_hash']);
 
     return $definitions;
@@ -697,6 +698,7 @@ class GoogleSheetSettings {
         continue;
       }
       $header = trim((string) ($config['header'] ?? ''));
+      $header = self::normalize_password_header($tab, $header);
       if ($header === '') {
         continue;
       }
@@ -706,7 +708,7 @@ class GoogleSheetSettings {
       ];
     }
     if (empty($columns)) {
-      return self::DEFAULT_TAB_HEADERS[$tab] ?? [];
+      return self::normalize_tab_headers($tab, self::DEFAULT_TAB_HEADERS[$tab] ?? []);
     }
     usort($columns, function ($a, $b) {
       $orderSort = ($a['order'] <=> $b['order']);
@@ -715,9 +717,9 @@ class GoogleSheetSettings {
       }
       return strcasecmp($a['header'], $b['header']);
     });
-    return array_values(array_map(function ($column) {
+    return self::normalize_tab_headers($tab, array_values(array_map(function ($column) {
       return $column['header'];
-    }, $columns));
+    }, $columns)));
   }
 
   public static function get_tab_range(string $tab): string {
@@ -767,11 +769,7 @@ class GoogleSheetSettings {
 
     foreach (self::TAB_MAP as $tab => $_config) {
       $customOrder = self::get_tab_column_order_option($tab);
-      if ($tab === 'users') {
-        $customOrder = array_map(function ($header) {
-          return strcasecmp($header, 'Password Hash') === 0 ? 'Password' : $header;
-        }, $customOrder);
-      }
+      $customOrder = self::normalize_tab_headers($tab, $customOrder);
       if (empty($customOrder)) {
         continue;
       }
@@ -865,6 +863,31 @@ class GoogleSheetSettings {
       $count = (int) (($count - 1) / 26);
     }
     return $letter;
+  }
+
+  private static function normalize_tab_headers(string $tab, array $headers): array {
+    $normalized = [];
+    $seen = [];
+
+    foreach ($headers as $header) {
+      $normalizedHeader = self::normalize_password_header($tab, (string) $header);
+      $key = strtolower($normalizedHeader);
+      if (isset($seen[$key])) {
+        continue;
+      }
+      $seen[$key] = true;
+      $normalized[] = $normalizedHeader;
+    }
+
+    return $normalized;
+  }
+
+  private static function normalize_password_header(string $tab, string $header): string {
+    if (in_array($tab, ['users', 'admins'], true) && strcasecmp($header, 'Password Hash') === 0) {
+      return 'Password';
+    }
+
+    return $header;
   }
 
   public static function record_tab_metrics(string $tab, array $data): void {
