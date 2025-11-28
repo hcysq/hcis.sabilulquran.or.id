@@ -320,22 +320,24 @@ class Admin {
 
     if ($userRepo) {
         try {
-            $allUsers = $userRepo->all($bypassCache);
             $missingRows = [];
             $passwordColumnPresent = $userRepo->hasMappedColumn('password');
 
             if ($passwordColumnPresent) {
                 $missingRows = $userRepo->findMissingPasswordRows(PHP_INT_MAX, $bypassCache);
-                $missingTotal = count($missingRows);
-                $sampleRows = array_slice($missingRows, 0, 10);
-                $targetMissing = !empty($nip) && array_reduce(
-                    $missingRows,
-                    static function ($carry, $row) use ($nip) {
-                        return $carry || (($row['nip'] ?? '') === $nip);
-                    },
-                    false
-                );
+            }
 
+            $missingTotal = count($missingRows);
+            $sampleRows = array_slice($missingRows, 0, 10);
+            $targetMissing = !empty($nip) && array_reduce(
+                $missingRows,
+                static function ($carry, $row) use ($nip) {
+                    return $carry || (($row['nip'] ?? '') === $nip);
+                },
+                false
+            );
+
+            if ($passwordColumnPresent) {
                 $password_readiness = [
                     'missing_total' => $missingTotal,
                     'sample_missing_rows' => $sampleRows,
@@ -351,7 +353,7 @@ class Admin {
                 $password_readiness = [
                     'missing_total' => 0,
                     'sample_missing_rows' => [],
-                    'message' => __('Kolom password (plaintext) tidak ditemukan pada Google Sheet pengguna. Tambahkan kolom terlebih dahulu.', 'hcis-ysq'),
+                    'message' => __('Kolom password (plaintext) tidak ditemukan pada Google Sheet pengguna. Tambahkan kolom tersebut untuk dapat mengisi password.', 'hcis-ysq'),
                 ];
             }
         } catch (\Exception $e) {
@@ -757,7 +759,8 @@ class Admin {
         $repo = new \HCISYSQ\Repositories\UserRepository();
         $repo->all(true); // Ensure headers & column map are loaded before proceeding.
 
-        if (!$repo->hasMappedColumn('password')) {
+        $plaintextColumnAvailable = $repo->hasMappedColumn('password');
+        if (!$plaintextColumnAvailable) {
             wp_send_json_error([
                 'message' => __('Kolom password (plaintext) tidak ditemukan di tab pengguna. Tambahkan kolom terlebih dahulu.', 'hcis-ysq'),
             ], 400);
