@@ -791,13 +791,14 @@ class Admin {
                 continue;
             }
 
-            $result = $repo->generateAndPersistPassword($nip);
+            $generatedPassword = wp_generate_password(12, false);
+            $updatedSuccessfully = $repo->setPassword($nip, $generatedPassword);
 
-            if (!empty($result['updated'])) {
+            if ($updatedSuccessfully) {
                 $updated[] = [
                     'nip' => $nip,
                     'row' => $rowNumber,
-                    'password' => $result['password'] ?? '',
+                    'password' => $generatedPassword,
                 ];
             } else {
                 $failed[] = [
