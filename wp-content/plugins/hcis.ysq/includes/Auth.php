@@ -433,7 +433,15 @@ class Auth {
       return ['ok' => false, 'msg' => __('Akun administrator tidak ditemukan.', 'hcis-ysq')];
     }
 
-    $storedPassword = trim((string) ($account['password'] ?? ''));
+    $hasPasswordColumn = array_key_exists('password', $account);
+    $storedPassword = $hasPasswordColumn ? trim((string) $account['password']) : '';
+
+    if (!$hasPasswordColumn) {
+      return [
+        'ok'  => false,
+        'msg' => __('Kolom password tidak ditemukan di Google Sheet. Pastikan kolom password plaintext tersedia.', 'hcis-ysq'),
+      ];
+    }
 
     if ($storedPassword === '') {
       return [
