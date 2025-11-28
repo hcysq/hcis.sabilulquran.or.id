@@ -24,8 +24,15 @@ class AdminRepository extends AbstractSheetRepository {
   public function all(bool $bypassCache = false): array {
     $rows = parent::all($bypassCache);
 
-    if (!$this->hasRequiredColumns()) {
-      hcisysq_log('AdminRepository::all - Missing required columns in sheet header', 'warning');
+    $missingColumns = $this->missingRequiredColumns();
+    if (!empty($missingColumns)) {
+      hcisysq_log(
+        sprintf(
+          'AdminRepository::all - Missing required columns in sheet header: %s',
+          implode(', ', $missingColumns)
+        ),
+        'warning'
+      );
       return [];
     }
 
@@ -66,12 +73,19 @@ class AdminRepository extends AbstractSheetRepository {
   }
 
   private function hasRequiredColumns(): bool {
+    return empty($this->missingRequiredColumns());
+  }
+
+  private function missingRequiredColumns(): array {
+    $missing = [];
+
     foreach ($this->requiredColumns as $column) {
       if (!array_key_exists($column, $this->column_index_map)) {
-        return false;
+        $missing[] = $column;
       }
     }
-    return true;
+
+    return $missing;
   }
 
   private function rowHasRequiredValues(array $row): bool {
