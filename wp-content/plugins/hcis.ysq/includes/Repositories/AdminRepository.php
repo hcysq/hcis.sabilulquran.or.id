@@ -12,10 +12,13 @@ class AdminRepository extends AbstractSheetRepository {
   protected $columns = [
     'username' => 'Username',
     'display_name' => 'Display Name',
-    'password' => 'Password (plaintext)',
+    'password' => 'Password',
     'whatsapp' => 'WhatsApp',
   ];
 
+  /**
+   * Admin rows must include plaintext password values (no password_hash column support).
+   */
   private $requiredColumns = ['username', 'password'];
 
   public function all(bool $bypassCache = false): array {
