@@ -677,13 +677,7 @@ class GoogleSheetSettings {
   }
 
   public static function get_setup_key_definitions(): array {
-    $definitions = self::DEFAULT_SETUP_KEYS;
-
-    // Drop deprecated password hash mappings to enforce single plaintext password column for all tabs.
-    unset($definitions['user_password_hash']);
-    unset($definitions['admin_password_hash']);
-
-    return $definitions;
+    return self::DEFAULT_SETUP_KEYS;
   }
 
   public static function get_setup_key_config(): array {
@@ -871,6 +865,9 @@ class GoogleSheetSettings {
 
     foreach ($headers as $header) {
       $normalizedHeader = self::normalize_password_header($tab, (string) $header);
+      if (!self::should_allow_password_header($tab, $normalizedHeader)) {
+        continue;
+      }
       $key = strtolower($normalizedHeader);
       if (isset($seen[$key])) {
         continue;
@@ -883,11 +880,23 @@ class GoogleSheetSettings {
   }
 
   private static function normalize_password_header(string $tab, string $header): string {
-    if (in_array($tab, ['users', 'admins'], true) && strcasecmp($header, 'Password Hash') === 0) {
+    if (self::is_password_tab($tab) && strcasecmp($header, 'Password Hash') === 0) {
       return 'Password';
     }
 
     return $header;
+  }
+
+  private static function should_allow_password_header(string $tab, string $header): bool {
+    if (!self::is_password_tab($tab) && strcasecmp($header, 'Password') === 0) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private static function is_password_tab(string $tab): bool {
+    return in_array($tab, ['users', 'admins'], true);
   }
 
   public static function record_tab_metrics(string $tab, array $data): void {

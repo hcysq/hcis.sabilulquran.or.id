@@ -156,6 +156,15 @@ class GoogleSheetSettingsTest extends \WP_UnitTestCase {
     $this->assertNotContains('Password Hash', $adminHeaders);
   }
 
+  public function test_password_headers_are_ignored_for_non_password_tabs(): void {
+    update_option('hcis_gs_tab_col_order_keluarga', ['Password', 'NIP'], false);
+
+    $keluargaHeaders = GoogleSheetSettings::get_tab_column_map('keluarga');
+
+    $this->assertSame('NIP', $keluargaHeaders[0]);
+    $this->assertNotContains('Password', $keluargaHeaders);
+  }
+
   public function test_save_settings_persists_gids_and_resolver_prefers_saved_option(): void {
     $status = GoogleSheetSettings::save_settings(
       $this->valid_credentials,
