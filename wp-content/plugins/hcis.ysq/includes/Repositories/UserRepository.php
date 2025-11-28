@@ -13,6 +13,7 @@ class UserRepository extends AbstractSheetRepository {
   protected $columns = [
     'nip' => 'NIP',
     'nama' => 'Nama',
+    // Single plaintext password column; no password_hash column is defined or persisted.
     'password' => 'Password',
     'phone' => 'No HP',
     'email' => 'Email',
@@ -42,6 +43,7 @@ class UserRepository extends AbstractSheetRepository {
     $configMap = [
       'nip' => 'user_nip',
       'nama' => 'user_name',
+      // Only the plaintext password column is supported in the sheet mapping.
       'password' => 'user_password',
       'phone' => 'user_phone',
       'email' => 'user_email',
@@ -126,6 +128,7 @@ class UserRepository extends AbstractSheetRepository {
     $missing = [];
 
     foreach ($rows as $row) {
+      // Readiness only depends on the plaintext password column; any legacy hash column is ignored.
       $password = trim((string) ($row['password'] ?? ''));
       if ($password !== '') {
         continue;
@@ -145,6 +148,27 @@ class UserRepository extends AbstractSheetRepository {
   }
 
   public function setPassword(string $nip, string $password): bool {
+    return $this->persistPlainPassword($nip, $password);
+  }
+
+  /**
+   * @deprecated Use setPassword() instead. Kept for backwards compatibility.
+   */
+  public function setPasswordHash(string $nip, string $password): bool {
+    // Alias maintained for compatibility; writes the plaintext password column.
+    return $this->persistPlainPassword($nip, $password);
+  }
+
+  public function generateAndPersistPassword(string $nip, ?string $password = null): array {
+    $password = $password ?: wp_generate_password(12, false);
+
+    return [
+      'password' => $password,
+      'updated' => $this->persistPlainPassword($nip, $password),
+    ];
+  }
+
+  private function persistPlainPassword(string $nip, string $password): bool {
     $nip = trim($nip);
     $password = trim($password);
 
@@ -160,26 +184,11 @@ class UserRepository extends AbstractSheetRepository {
       }
 
       $row['password'] = $password;
+      unset($row['password_hash']);
       return $this->updateByPrimary($row);
     }
 
     return false;
-  }
-
-  /**
-   * @deprecated Use setPassword() instead. Kept for backwards compatibility.
-   */
-  public function setPasswordHash(string $nip, string $password): bool {
-    return $this->setPassword($nip, $password);
-  }
-
-  public function generateAndPersistPassword(string $nip, ?string $password = null): array {
-    $password = $password ?: wp_generate_password(12, false);
-
-    return [
-      'password' => $password,
-      'updated' => $this->setPassword($nip, $password),
-    ];
   }
 
   public function syncFromWordPress() {
