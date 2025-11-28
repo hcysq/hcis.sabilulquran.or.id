@@ -320,24 +320,20 @@ class Admin {
 
     if ($userRepo) {
         try {
-            $missingRows = [];
-            $passwordColumnPresent = $userRepo->hasMappedColumn('password');
+            $plaintextPasswordColumnPresent = $userRepo->hasMappedColumn('password');
 
-            if ($passwordColumnPresent) {
+            if ($plaintextPasswordColumnPresent) {
                 $missingRows = $userRepo->findMissingPasswordRows(PHP_INT_MAX, $bypassCache);
-            }
+                $missingTotal = count($missingRows);
+                $sampleRows = array_slice($missingRows, 0, 10);
+                $targetMissing = !empty($nip) && array_reduce(
+                    $missingRows,
+                    static function ($carry, $row) use ($nip) {
+                        return $carry || (($row['nip'] ?? '') === $nip);
+                    },
+                    false
+                );
 
-            $missingTotal = count($missingRows);
-            $sampleRows = array_slice($missingRows, 0, 10);
-            $targetMissing = !empty($nip) && array_reduce(
-                $missingRows,
-                static function ($carry, $row) use ($nip) {
-                    return $carry || (($row['nip'] ?? '') === $nip);
-                },
-                false
-            );
-
-            if ($passwordColumnPresent) {
                 $password_readiness = [
                     'missing_total' => $missingTotal,
                     'sample_missing_rows' => $sampleRows,
@@ -351,7 +347,7 @@ class Admin {
                 }
             } else {
                 $password_readiness = [
-                    'missing_total' => 0,
+                    'missing_total' => null,
                     'sample_missing_rows' => [],
                     'message' => __('Kolom password (plaintext) tidak ditemukan pada Google Sheet pengguna. Tambahkan kolom tersebut untuk dapat mengisi password.', 'hcis-ysq'),
                 ];
@@ -776,6 +772,7 @@ class Admin {
                 'failed' => [],
                 'total_missing' => 0,
                 'updated_count' => 0,
+                'column_used' => 'password',
             ]);
         }
 
@@ -823,6 +820,7 @@ class Admin {
             'failed' => $failed,
             'total_missing' => $totalMissing,
             'updated_count' => count($updated),
+            'column_used' => 'password',
         ]);
     } catch (\Exception $e) {
         wp_send_json_error(['message' => $e->getMessage()], 500);
