@@ -325,46 +325,46 @@ class Admin {
             $missingTotal = 0;
 
             $targetMissing = false;
+            $passwordColumnPresent = $userRepo->hasMappedColumn('password');
 
-            $passwordField = 'password';
-            if (!empty($allUsers)) {
-                if (array_key_exists('password', $allUsers[0])) {
-                    $passwordField = 'password';
-                } elseif (array_key_exists('password_hash', $allUsers[0])) {
-                    $passwordField = 'password_hash';
+            if ($passwordColumnPresent) {
+                foreach ($allUsers as $row) {
+                    $passwordValue = trim((string) ($row['password'] ?? ''));
+                    if ($passwordValue !== '') {
+                        continue;
+                    }
+
+                    $missingTotal++;
+
+                    if (!empty($nip) && !$targetMissing && ($row['nip'] ?? '') === $nip) {
+                        $targetMissing = true;
+                    }
+
+                    if (count($missingRows) < 10) {
+                        $missingRows[] = [
+                            'nip' => $row['nip'] ?? '',
+                            'row' => isset($row['row_index']) ? ((int) $row['row_index']) + 1 : null,
+                        ];
+                    }
                 }
-            }
 
-            foreach ($allUsers as $row) {
-                $passwordValue = trim((string) ($row[$passwordField] ?? ''));
-                if ($passwordValue !== '') {
-                    continue;
+                $password_readiness = [
+                    'missing_total' => $missingTotal,
+                    'sample_missing_rows' => $missingRows,
+                    'message' => $missingTotal > 0
+                        ? __('Beberapa akun belum memiliki password di Google Sheet. Harap isi sebelum login.', 'hcis-ysq')
+                        : __('Semua akun memiliki password terisi.', 'hcis-ysq'),
+                ];
+
+                if (!empty($nip)) {
+                    $password_readiness['target_missing'] = $targetMissing;
                 }
-
-                $missingTotal++;
-
-                if (!empty($nip) && !$targetMissing && ($row['nip'] ?? '') === $nip) {
-                    $targetMissing = true;
-                }
-
-                if (count($missingRows) < 10) {
-                    $missingRows[] = [
-                        'nip' => $row['nip'] ?? '',
-                        'row' => isset($row['row_index']) ? ((int) $row['row_index']) + 1 : null,
-                    ];
-                }
-            }
-
-            $password_readiness = [
-                'missing_total' => $missingTotal,
-                'sample_missing_rows' => $missingRows,
-                'message' => $missingTotal > 0
-                    ? __('Beberapa akun belum memiliki password di Google Sheet. Harap isi sebelum login.', 'hcis-ysq')
-                    : __('Semua akun memiliki password terisi.', 'hcis-ysq'),
-            ];
-
-            if (!empty($nip)) {
-                $password_readiness['target_missing'] = $targetMissing;
+            } else {
+                $password_readiness = [
+                    'missing_total' => 0,
+                    'sample_missing_rows' => [],
+                    'message' => __('Kolom password tidak ditemukan pada Google Sheet pengguna. Tambahkan kolom terlebih dahulu.', 'hcis-ysq'),
+                ];
             }
         } catch (\Exception $e) {
             $password_readiness = [
@@ -767,6 +767,14 @@ class Admin {
 
     try {
         $repo = new \HCISYSQ\Repositories\UserRepository();
+        $repo->all(true); // Ensure headers & column map are loaded before proceeding.
+
+        if (!$repo->hasMappedColumn('password')) {
+            wp_send_json_error([
+                'message' => __('Kolom password tidak ditemukan di tab pengguna. Tambahkan kolom terlebih dahulu.', 'hcis-ysq'),
+            ], 400);
+        }
+
         $missingRows = $repo->findMissingPasswordRows(PHP_INT_MAX, true);
         $totalMissing = count($missingRows);
 
