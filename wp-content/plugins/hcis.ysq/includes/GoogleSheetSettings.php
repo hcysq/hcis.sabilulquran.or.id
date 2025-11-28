@@ -248,11 +248,11 @@ class GoogleSheetSettings {
       'requires_gid' => false,
     ],
     'admin_password_hash' => [
-      'label' => 'Password Hash',
+      'label' => 'Password',
       'tab' => 'admins',
-      'header' => 'Password Hash',
+      'header' => 'Password',
       'order' => 3,
-      'description' => 'Hash kata sandi admin.',
+      'description' => 'Kata sandi admin (plaintext).',
       'gid' => '',
       'requires_gid' => false,
     ],
@@ -538,7 +538,7 @@ class GoogleSheetSettings {
     'admins' => [
       'Username',
       'Display Name',
-      'Password Hash',
+      'Password',
       'WhatsApp',
     ],
     'keluarga' => [
