@@ -433,8 +433,16 @@ class Auth {
       return ['ok' => false, 'msg' => __('Akun administrator tidak ditemukan.', 'hcis-ysq')];
     }
 
-    $hash = strval($account['password_hash'] ?? '');
-    if (!self::looks_like_password_hash($hash) || !password_verify($plain_pass, $hash)) {
+    $storedPassword = trim((string) ($account['password'] ?? ''));
+
+    if ($storedPassword === '') {
+      return [
+        'ok' => false,
+        'msg' => __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password.', 'hcis-ysq'),
+      ];
+    }
+
+    if (!hash_equals($storedPassword, $plain_pass)) {
       return ['ok' => false, 'msg' => __('Password salah.', 'hcis-ysq')];
     }
 

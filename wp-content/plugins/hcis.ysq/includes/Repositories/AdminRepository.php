@@ -12,11 +12,11 @@ class AdminRepository extends AbstractSheetRepository {
   protected $columns = [
     'username' => 'Username',
     'display_name' => 'Display Name',
-    'password_hash' => 'Password Hash',
+    'password' => 'Password',
     'whatsapp' => 'WhatsApp',
   ];
 
-  private $requiredColumns = ['username', 'display_name', 'password_hash', 'whatsapp'];
+  private $requiredColumns = ['username', 'display_name', 'password', 'whatsapp'];
 
   public function all(bool $bypassCache = false): array {
     $rows = parent::all($bypassCache);
