@@ -198,6 +198,15 @@ abstract class AbstractSheetRepository {
     return $this->getEffectiveColumnLabels();
   }
 
+  public function hasMappedColumn(string $key): bool {
+    if (empty($this->column_index_map)) {
+      // Ensure headers are loaded and column map is built.
+      $this->all();
+    }
+
+    return array_key_exists($key, $this->column_index_map);
+  }
+
   public function getTabRange(): string {
     return GoogleSheetSettings::get_tab_range($this->tab);
   }
