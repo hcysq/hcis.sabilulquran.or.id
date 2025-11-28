@@ -677,7 +677,12 @@ class GoogleSheetSettings {
   }
 
   public static function get_setup_key_definitions(): array {
-    return self::DEFAULT_SETUP_KEYS;
+    $definitions = self::DEFAULT_SETUP_KEYS;
+
+    // Drop deprecated user password hash mapping to enforce single plaintext password column.
+    unset($definitions['user_password_hash']);
+
+    return $definitions;
   }
 
   public static function get_setup_key_config(): array {
@@ -765,6 +770,22 @@ class GoogleSheetSettings {
       if (empty($customOrder)) {
         continue;
       }
+
+      $validHeaders = [];
+      foreach ($definitions as $config) {
+        if (($config['tab'] ?? '') !== $tab) {
+          continue;
+        }
+
+        $header = trim((string) ($config['header'] ?? ''));
+        if ($header !== '') {
+          $validHeaders[strtolower($header)] = true;
+        }
+      }
+
+      $customOrder = array_values(array_filter($customOrder, function ($header) use ($validHeaders) {
+        return isset($validHeaders[strtolower($header)]);
+      }));
 
       $matchedKeys = [];
 
