@@ -199,9 +199,8 @@ class Auth {
     $user->jabatan = $record['jabatan'] ?? ''; // Jabatan might not be in this sheet, but keep for compatibility
     $user->unit = $record['unit'] ?? ''; // Unit might not be in this sheet, but keep for compatibility
     $user->no_hp = $record['phone'] ?? ($record['no_hp'] ?? ''); // Use 'phone' from repository or local 'no_hp'
-    $user->password = trim((string) ($record['password'] ?? '')); // Explicit password column (may contain hash)
-    $user->password_hash = trim((string) ($record['password_hash'] ?? '')); // Dedicated hash column
-    $user->nik = $record['nik'] ?? ''; // Add NIK for default password check
+    $user->password = trim((string) ($record['password'] ?? '')); // Explicit password column
+    $user->nik = $record['nik'] ?? '';
     $user->row = isset($record['row_index']) ? (int)$record['row_index'] + 1 : (int)($record['row'] ?? 0); // row_index is 0-based, sheet rows are 1-based
     $user->source = $record['_source'] ?? $source;
 
@@ -350,76 +349,6 @@ class Auth {
     ];
   }
 
-  private static function is_wordpress_password_hash($hash) {
-    $hash = (string) $hash;
-    return (strpos($hash, '$P$') === 0 || strpos($hash, '$S$') === 0);
-  }
-
-  private static function looks_like_password_hash($hash) {
-    $hash = (string) $hash;
-    if ($hash === '') return false;
-
-    return (
-      strpos($hash, '$2y$') === 0 ||
-      strpos($hash, '$argon2') === 0 ||
-      self::is_wordpress_password_hash($hash)
-    );
-  }
-
-  private static function verify_password_against_hash(string $password, string $hash): bool {
-    if ($hash === '') {
-      return false;
-    }
-
-    if (self::is_wordpress_password_hash($hash)) {
-      return wp_check_password($password, $hash);
-    }
-
-    if (self::looks_like_password_hash($hash)) {
-      return password_verify($password, $hash);
-    }
-
-    // Fallback to WordPress password checker for unexpected hash formats
-    return wp_check_password($password, $hash);
-  }
-
-  private static function is_password_based_on_phone($hash, $phoneRaw) {
-    if (!self::looks_like_password_hash($hash)) {
-      return false;
-    }
-
-    $candidates = [];
-    $trimmed = trim((string) $phoneRaw);
-    if ($trimmed !== '') {
-      $candidates[] = $trimmed;
-    }
-
-    $digitsOnly = preg_replace('/\D+/', '', $trimmed);
-    if ($digitsOnly !== '' && !in_array($digitsOnly, $candidates, true)) {
-      $candidates[] = $digitsOnly;
-    }
-
-    $normalized = self::norm_phone($trimmed);
-    if ($normalized !== '' && !in_array($normalized, $candidates, true)) {
-      $candidates[] = $normalized;
-    }
-
-    if ($normalized !== '') {
-      $plusNormalized = '+' . ltrim($normalized, '+');
-      if (!in_array($plusNormalized, $candidates, true)) {
-        $candidates[] = $plusNormalized;
-      }
-    }
-
-    foreach ($candidates as $candidate) {
-      if (self::verify_password_against_hash($candidate, $hash)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
   public static function login_admin($username, $plain_pass){
     $username = sanitize_user($username, true);
     $plain_pass = trim(strval($plain_pass));
@@ -500,9 +429,9 @@ class Auth {
     }
 
     $passwordColumn = trim((string) ($u->password ?? ''));
-    $hasPasswordColumn = $passwordColumn !== '';
+    $needsReset = $passwordColumn === '';
 
-    if ($passwordColumn === '') {
+    if ($needsReset) {
       return [
         'ok' => false,
         'msg' => __('Password belum disetel di Google Sheet. Minta admin mengisi kolom password.', 'hcis-ysq'),
@@ -521,8 +450,6 @@ class Auth {
         'missing_password' => false,
       ];
     }
-
-    $needsReset = $passwordColumn === '';
 
     $payload = [
       'type' => 'user',
