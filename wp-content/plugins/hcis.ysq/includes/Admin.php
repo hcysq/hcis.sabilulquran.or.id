@@ -212,7 +212,7 @@ class Admin {
             <th scope="row"><?php esc_html_e('Status Kredensial Admin', 'hcis-ysq'); ?></th>
             <td>
               <p><?php esc_html_e('Kredensial admin kini diambil dari tab “Admin” pada Google Sheet. Perubahan user/nomor WhatsApp dilakukan langsung di sheet.', 'hcis-ysq'); ?></p>
-              <p class="description"><?php esc_html_e('Pastikan tab Admin memiliki baris admin yang lengkap (username, password hash, nomor WhatsApp) agar login & notifikasi berjalan.', 'hcis-ysq'); ?></p>
+              <p class="description"><?php esc_html_e('Pastikan tab Admin memiliki baris admin yang lengkap (username, password, nomor WhatsApp) agar login & notifikasi berjalan.', 'hcis-ysq'); ?></p>
             </td>
           </tr>
           </table>
@@ -326,9 +326,18 @@ class Admin {
 
             $targetMissing = false;
 
+            $passwordField = 'password';
+            if (!empty($allUsers)) {
+                if (array_key_exists('password', $allUsers[0])) {
+                    $passwordField = 'password';
+                } elseif (array_key_exists('password_hash', $allUsers[0])) {
+                    $passwordField = 'password_hash';
+                }
+            }
+
             foreach ($allUsers as $row) {
-                $hash = trim((string) ($row['password_hash'] ?? ''));
-                if ($hash !== '') {
+                $passwordValue = trim((string) ($row[$passwordField] ?? ''));
+                if ($passwordValue !== '') {
                     continue;
                 }
 
@@ -350,8 +359,8 @@ class Admin {
                 'missing_total' => $missingTotal,
                 'sample_missing_rows' => $missingRows,
                 'message' => $missingTotal > 0
-                    ? __('Beberapa akun belum memiliki password_hash di Google Sheet. Harap isi sebelum login.', 'hcis-ysq')
-                    : __('Semua akun memiliki password_hash terisi.', 'hcis-ysq'),
+                    ? __('Beberapa akun belum memiliki password di Google Sheet. Harap isi sebelum login.', 'hcis-ysq')
+                    : __('Semua akun memiliki password terisi.', 'hcis-ysq'),
             ];
 
             if (!empty($nip)) {
@@ -763,7 +772,7 @@ class Admin {
 
         if ($totalMissing === 0) {
             wp_send_json_success([
-                'message' => __('Tidak ada baris dengan kolom password_hash kosong.', 'hcis-ysq'),
+                'message' => __('Tidak ada baris dengan kolom password kosong.', 'hcis-ysq'),
                 'updated' => [],
                 'failed' => [],
                 'total_missing' => 0,
@@ -798,7 +807,7 @@ class Admin {
                 $failed[] = [
                     'nip' => $nip,
                     'row' => $rowNumber,
-                    'message' => __('Gagal memperbarui password_hash.', 'hcis-ysq'),
+                    'message' => __('Gagal memperbarui password.', 'hcis-ysq'),
                 ];
             }
         }
