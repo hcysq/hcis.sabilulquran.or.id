@@ -13,6 +13,7 @@ class Shortcodes {
     add_shortcode('hcis_ysq_reset_password', [__CLASS__, 'reset_password']);
     add_shortcode('hcis_lupa_password_form', [__CLASS__, 'lupa_password_form']);
     add_shortcode('hcis_reset_password_form', [__CLASS__, 'reset_password_form']);
+    add_shortcode('hcis_ysq_admin_login', [__CLASS__, 'admin_login']);
 
     add_shortcode('hcisysq_login', [__CLASS__, 'login']);
     add_shortcode('hcisysq_dashboard', [__CLASS__, 'dashboard']);
@@ -21,6 +22,7 @@ class Shortcodes {
     add_shortcode('hcisysq_reset_password', [__CLASS__, 'reset_password']);
     add_shortcode('hcisysq_lupa_password_form', [__CLASS__, 'lupa_password_form']);
     add_shortcode('hcisysq_reset_password_form', [__CLASS__, 'reset_password_form']);
+    add_shortcode('hcisysq_admin_login', [__CLASS__, 'admin_login']);
 
     add_shortcode('hrissq_login', [__CLASS__, 'login']);
     add_shortcode('hrissq_dashboard', [__CLASS__, 'dashboard']);
@@ -29,11 +31,14 @@ class Shortcodes {
     add_shortcode('hrissq_reset_password', [__CLASS__, 'reset_password']);
     add_shortcode('hrissq_lupa_password_form', [__CLASS__, 'lupa_password_form']);
     add_shortcode('hrissq_reset_password_form', [__CLASS__, 'reset_password_form']);
+    add_shortcode('hrissq_admin_login', [__CLASS__, 'admin_login']);
 
     add_filter('the_content', [__CLASS__, 'fix_dot_shortcodes'], 9);
     add_filter('the_content', [__CLASS__, 'ensure_login_content'], 1);
+    add_filter('the_content', [__CLASS__, 'ensure_admin_login_content'], 1);
 
     add_action('template_redirect', [__CLASS__, 'render_login_when_missing_page'], 1);
+    add_action('template_redirect', [__CLASS__, 'render_admin_login_when_missing_page'], 1);
   }
 
   public static function fix_dot_shortcodes($content) {
@@ -83,6 +88,10 @@ class Shortcodes {
     return View::login();
   }
 
+  public static function admin_login($atts) {
+    return View::admin_login();
+  }
+
   public static function dashboard($atts) {
     return View::dashboard();
   }
@@ -110,6 +119,32 @@ class Shortcodes {
 
   public static function reset_password_form($atts) {
     return View::reset_password_form();
+  }
+
+  public static function ensure_admin_login_content($content) {
+    if (!is_page(HCISYSQ_ADMIN_LOGIN_SLUG)) return $content;
+
+    $aliases = [
+      'hcis_ysq_admin_login',
+      'hcisysq_admin_login',
+      'hrissq_admin_login',
+    ];
+
+    foreach ($aliases as $alias) {
+      $pattern = '/\[(\/?)' . preg_quote($alias, '/') . '\b/';
+      if (preg_match($pattern, $content)) {
+        return $content;
+      }
+    }
+
+    foreach ($aliases as $alias) {
+      $pattern = '/\[(\/?)' . preg_quote(str_replace('_', '.', $alias), '/') . '\b/';
+      if (preg_match($pattern, $content)) {
+        return $content;
+      }
+    }
+
+    return View::admin_login();
   }
 
   public static function render_login_when_missing_page() {
@@ -152,6 +187,58 @@ class Shortcodes {
     echo '</head>';
     echo '<body ';
     body_class('hcisysq-login-fallback');
+    echo '>';
+    echo '<main class="hcisysq-login-fallback__content">' . $content . '</main>';
+    wp_footer();
+    echo '</body></html>';
+    exit;
+  }
+
+  public static function render_admin_login_when_missing_page() {
+    if (is_admin() || wp_doing_ajax()) return;
+
+    $slug = trim(HCISYSQ_ADMIN_LOGIN_SLUG, '/');
+    if ($slug === '') return;
+
+    $loginSlug = trim(HCISYSQ_LOGIN_SLUG, '/');
+    if ($slug === $loginSlug) {
+      $slug = $slug . '-admin';
+    }
+
+    global $wp, $wp_query;
+    $requested = '';
+    if (isset($wp->request)) {
+      $requested = trim($wp->request, '/');
+    } elseif (!empty($_SERVER['REQUEST_URI'])) {
+      $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+      $requested = trim($path, '/');
+    }
+
+    if ($requested !== $slug) return;
+
+    if ($wp_query && $wp_query->post_count > 0 && !$wp_query->is_404()) {
+      return;
+    }
+
+    self::output_admin_login_document();
+  }
+
+  protected static function output_admin_login_document() {
+    status_header(200);
+    nocache_headers();
+
+    $content = View::admin_login();
+
+    echo '<!DOCTYPE html><html ';
+    language_attributes();
+    echo '>';
+    echo '<head>';
+    echo '<meta charset="' . esc_attr(get_bloginfo('charset')) . '">';
+    echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
+    wp_head();
+    echo '</head>';
+    echo '<body ';
+    body_class('hcisysq-admin-login-fallback');
     echo '>';
     echo '<main class="hcisysq-login-fallback__content">' . $content . '</main>';
     wp_footer();
