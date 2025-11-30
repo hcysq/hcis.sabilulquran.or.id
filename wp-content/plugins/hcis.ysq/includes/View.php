@@ -29,8 +29,48 @@ class View {
           <?= Security::render_captcha_placeholder('login'); ?>
           <button type="submit" class="btn-primary">Masuk</button>
           <a id="hcisysq-forgot" class="link-forgot" href="<?= esc_url(wp_lostpassword_url()) ?>">Lupa password?</a>
-          <a class="link-forgot" href="<?= esc_url(home_url('/' . trim(HCISYSQ_ADMIN_LOGIN_SLUG, '/') . '/')) ?>">Masuk sebagai admin?</a>
+          <a class="link-forgot" href="<?= esc_url(home_url('/' . trim(HCISYSQ_ADMIN_LOGIN_SLUG, '/') . '/')) ?>">Login admin?</a>
           <div class="msg" aria-live="polite"></div>
+        </form>
+      </div>
+    </div>
+    <?php
+    return ob_get_clean();
+  }
+
+  public static function admin_login(){
+    wp_enqueue_style('hcisysq-login');
+    wp_enqueue_script('hcisysq-login');
+
+    $notices = Legacy_Admin_Bridge::get_notices();
+
+    ob_start(); ?>
+    <div class="hcisysq-auth-wrap">
+      <div class="auth-card">
+        <div class="auth-header">
+          <h2>Masuk Administrator</h2>
+        </div>
+
+        <form class="auth-form" method="post" action="<?= esc_url(home_url('/' . trim(HCISYSQ_ADMIN_LOGIN_SLUG, '/') . '/')) ?>" autocomplete="off">
+          <?php wp_nonce_field('ysq_admin_login', 'ysq_admin_login_nonce'); ?>
+          <input type="hidden" name="ysq_admin_login" value="1">
+
+          <label for="ysq-admin-username">Username Administrator <span class="req">*</span></label>
+          <input id="ysq-admin-username" type="text" name="ysq_admin_username" placeholder="Masukkan username administrator" autocomplete="username" required>
+
+          <label for="ysq-admin-password">Password <span class="req">*</span></label>
+          <div class="pw-row">
+            <input id="ysq-admin-password" type="password" name="ysq_admin_password" placeholder="Masukkan password administrator" autocomplete="current-password" required>
+            <button type="button" class="eye" data-toggle="ysq-admin-password">lihat</button>
+          </div>
+
+          <?= Security::render_captcha_placeholder('admin_login'); ?>
+          <button type="submit" class="btn-primary">Masuk</button>
+          <div class="msg" aria-live="polite">
+            <?php foreach ($notices as $notice): ?>
+              <p class="<?= esc_attr($notice['type']); ?>"><?= esc_html($notice['message']); ?></p>
+            <?php endforeach; ?>
+          </div>
         </form>
       </div>
     </div>
