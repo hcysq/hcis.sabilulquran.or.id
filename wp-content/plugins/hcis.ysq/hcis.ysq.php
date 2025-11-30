@@ -45,6 +45,7 @@ if (!defined('HCISYSQ_URL')) define('HCISYSQ_URL', plugin_dir_url(__FILE__));
 
 // Slug halaman
 if (!defined('HCISYSQ_LOGIN_SLUG'))     define('HCISYSQ_LOGIN_SLUG', 'masuk');
+if (!defined('HCISYSQ_ADMIN_LOGIN_SLUG')) define('HCISYSQ_ADMIN_LOGIN_SLUG', 'masuk-admin');
 if (!defined('HCISYSQ_DASHBOARD_SLUG')) define('HCISYSQ_DASHBOARD_SLUG', 'dashboard');
 if (!defined('HCISYSQ_FORM_SLUG'))      define('HCISYSQ_FORM_SLUG', 'pelatihan');
 if (!defined('HCISYSQ_RESET_SLUG'))     define('HCISYSQ_RESET_SLUG', 'ganti-password');
@@ -137,6 +138,7 @@ add_action('plugins_loaded', function(){
 });
 
 add_action('init', ['HCISYSQ\\Installer', 'maybe_ensure_login_page'], 1);
+add_action('init', ['HCISYSQ\\Installer', 'maybe_ensure_admin_login_page'], 1);
 
 /* =======================================================
  *  Init modules

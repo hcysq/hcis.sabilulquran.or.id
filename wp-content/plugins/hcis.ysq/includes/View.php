@@ -29,6 +29,7 @@ class View {
           <?= Security::render_captcha_placeholder('login'); ?>
           <button type="submit" class="btn-primary">Masuk</button>
           <a id="hcisysq-forgot" class="link-forgot" href="<?= esc_url(wp_lostpassword_url()) ?>">Lupa password?</a>
+          <a class="link-forgot" href="<?= esc_url(home_url('/' . trim(HCISYSQ_ADMIN_LOGIN_SLUG, '/') . '/')) ?>">Masuk sebagai admin?</a>
           <div class="msg" aria-live="polite"></div>
         </form>
       </div>
@@ -72,6 +73,41 @@ class View {
         </div>
     </div>
     <?php
+    return ob_get_clean();
+  }
+
+  public static function admin_login() {
+    wp_enqueue_style('hcisysq-login');
+    wp_enqueue_script('hcisysq-login');
+
+    ob_start(); ?>
+    <div class="hcisysq-auth-wrap">
+      <div class="auth-card">
+        <div class="auth-header">
+          <h2>Masuk ke Admin</h2>
+          <p>Gunakan akun administrator untuk mengelola portal.</p>
+        </div>
+
+        <form id="hcisysq-admin-login-form" class="auth-form" method="post" autocomplete="off">
+          <?php wp_nonce_field('ysq_admin_login', 'ysq_admin_login_nonce'); ?>
+          <label for="hcisysq-admin-username">Username Admin <span class="req">*</span></label>
+          <input id="hcisysq-admin-username" type="text" name="ysq_admin_username" placeholder="Masukkan username admin" required autocomplete="username">
+
+          <label for="hcisysq-admin-password">Password <span class="req">*</span></label>
+          <div class="pw-row">
+            <input id="hcisysq-admin-password" type="password" name="ysq_admin_password" placeholder="Masukkan password admin" required autocomplete="current-password">
+            <button type="button" class="eye" data-toggle="hcisysq-admin-password">lihat</button>
+          </div>
+
+          <?= Security::render_captcha_placeholder('login'); ?>
+          <button type="submit" name="ysq_admin_login" class="btn-primary">Masuk</button>
+          <a class="link-forgot" href="<?= esc_url(home_url('/' . trim(HCISYSQ_LOGIN_SLUG, '/') . '/')) ?>">Kembali ke login pegawai</a>
+          <div class="msg" aria-live="polite"></div>
+        </form>
+      </div>
+    </div>
+    <?php
+
     return ob_get_clean();
   }
 
