@@ -13,6 +13,7 @@ class Shortcodes {
     add_shortcode('hcis_ysq_reset_password', [__CLASS__, 'reset_password']);
     add_shortcode('hcis_lupa_password_form', [__CLASS__, 'lupa_password_form']);
     add_shortcode('hcis_reset_password_form', [__CLASS__, 'reset_password_form']);
+    add_shortcode('hcis_ysq_admin_login', [__CLASS__, 'admin_login']);
 
     add_shortcode('hcisysq_login', [__CLASS__, 'login']);
     add_shortcode('hcisysq_dashboard', [__CLASS__, 'dashboard']);
@@ -21,6 +22,7 @@ class Shortcodes {
     add_shortcode('hcisysq_reset_password', [__CLASS__, 'reset_password']);
     add_shortcode('hcisysq_lupa_password_form', [__CLASS__, 'lupa_password_form']);
     add_shortcode('hcisysq_reset_password_form', [__CLASS__, 'reset_password_form']);
+    add_shortcode('hcisysq_admin_login', [__CLASS__, 'admin_login']);
 
     add_shortcode('hrissq_login', [__CLASS__, 'login']);
     add_shortcode('hrissq_dashboard', [__CLASS__, 'dashboard']);
@@ -29,6 +31,7 @@ class Shortcodes {
     add_shortcode('hrissq_reset_password', [__CLASS__, 'reset_password']);
     add_shortcode('hrissq_lupa_password_form', [__CLASS__, 'lupa_password_form']);
     add_shortcode('hrissq_reset_password_form', [__CLASS__, 'reset_password_form']);
+    add_shortcode('hrissq_admin_login', [__CLASS__, 'admin_login']);
 
     add_filter('the_content', [__CLASS__, 'fix_dot_shortcodes'], 9);
     add_filter('the_content', [__CLASS__, 'ensure_login_content'], 1);
@@ -81,6 +84,10 @@ class Shortcodes {
 
   public static function login($atts) {
     return View::login();
+  }
+
+  public static function admin_login($atts) {
+    return View::admin_login();
   }
 
   public static function dashboard($atts) {
