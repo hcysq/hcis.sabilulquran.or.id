@@ -216,12 +216,16 @@ class Auth {
 
     if ($username !== null) {
       $normalized = sanitize_user($username, true);
-      if ($normalized !== '') {
-        $found = $repo->getByUsername($normalized);
-        if (!empty($found)) {
-          return $found;
-        }
+      if ($normalized === '') {
+        return null;
       }
+
+      $found = $repo->getByUsername($normalized);
+      if (!empty($found)) {
+        return $found;
+      }
+
+      return null;
     }
 
     return $repo->getPrimaryAdmin();
