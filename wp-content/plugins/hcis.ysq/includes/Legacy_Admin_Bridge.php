@@ -135,6 +135,14 @@ class Legacy_Admin_Bridge {
       ? wp_unslash($_POST['ysq_admin_password'])
       : '';
 
+    $security = Security::enforce('admin_login', [
+      'captcha_action' => 'login',
+    ]);
+    if (is_wp_error($security)) {
+      self::add_notice('error', $security->get_error_message());
+      self::redirect();
+    }
+
     $result = Auth::login_admin($username, $password);
     if (!$result || empty($result['ok'])) {
       $message = is_array($result) && !empty($result['msg'])
