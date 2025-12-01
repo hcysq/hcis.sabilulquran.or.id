@@ -4,7 +4,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 36px 16px;
+  padding: 36px clamp(16px, 5vw, 56px);
   background: var(--hcis-surface-muted, #f8fafc);
   background: color-mix(in srgb, var(--ysq-header-bg, #f8fafc) 55%, var(--hcis-surface-muted, #f8fafc) 45%);
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
@@ -12,8 +12,8 @@
 }
 
 .auth-card {
-  width: min(92vw, 640px);
-  max-width: 640px;
+  width: min(96vw, 760px);
+  max-width: 760px;
   padding: 14px 16px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--ysq-header-bg, #ffffff) 70%, var(--hcis-surface, #ffffff) 30%);
@@ -30,7 +30,7 @@
 }
 
 .hcisysq-reset-page .auth-card {
-  max-width: 420px;
+  max-width: 520px;
   padding: 16px 18px 18px;
 }
 
@@ -291,11 +291,21 @@
 
 @media (min-width: 768px) {
   .hcisysq-auth-wrap {
-    padding: 48px 24px;
+    padding: 52px clamp(24px, 4vw, 72px);
   }
 
   .auth-card {
-    width: min(88vw, 720px);
+    width: min(90vw, 920px);
+  }
+}
+
+@media (min-width: 1200px) {
+  .auth-card {
+    width: min(84vw, 1040px);
+  }
+
+  .hcisysq-reset-page .auth-card {
+    max-width: 640px;
   }
 }
 
