@@ -154,6 +154,7 @@ class Legacy_Admin_Bridge {
     } else {
       self::add_notice('success', __('Login administrator berhasil.', 'ysq'));
       self::redirect($dashboard_url);
+      return;
     }
 
     self::redirect();
