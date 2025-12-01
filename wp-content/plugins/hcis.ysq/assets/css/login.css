@@ -4,7 +4,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 36px clamp(16px, 5vw, 56px);
+  padding: 36px 16px;
   background: var(--hcis-surface-muted, #f8fafc);
   background: color-mix(in srgb, var(--ysq-header-bg, #f8fafc) 55%, var(--hcis-surface-muted, #f8fafc) 45%);
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
@@ -12,8 +12,8 @@
 }
 
 .auth-card {
-  width: min(96vw, 760px);
-  max-width: 760px;
+  width: min(92vw, 640px);
+  max-width: 640px;
   padding: 14px 16px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--ysq-header-bg, #ffffff) 70%, var(--hcis-surface, #ffffff) 30%);
@@ -30,7 +30,7 @@
 }
 
 .hcisysq-reset-page .auth-card {
-  max-width: 520px;
+  max-width: 420px;
   padding: 16px 18px 18px;
 }
 
