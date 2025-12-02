@@ -198,7 +198,7 @@ class ProfileWizard {
 
     update_user_meta($user_id, 'profile_complete', 1);
 
-    wp_safe_redirect(home_url('/dashboard'));
+    wp_safe_redirect(home_url('/' . trim(HCISYSQ_DASHBOARD_SLUG, '/') . '/'));
     exit;
   }
 

@@ -138,6 +138,7 @@ add_action('plugins_loaded', function(){
 });
 
 add_action('init', ['HCISYSQ\\Installer', 'maybe_ensure_login_page'], 1);
+add_action('init', ['HCISYSQ\\Installer', 'maybe_ensure_dashboard_page'], 1);
 add_action('init', ['HCISYSQ\\Installer', 'maybe_ensure_admin_login_page'], 1);
 
 /* =======================================================
@@ -390,7 +391,7 @@ add_action('template_redirect', function () {
 
 /**
  * Memblokir akses ke area /wp-admin untuk peran 'hcis_admin'
- * dan mengalihkan mereka ke /dashboard.
+ * dan mengalihkan mereka ke halaman dashboard frontend.
  * Ini menggantikan fungsi hcisysq_hide_admin_menus yang lama.
  */
 function hcisysq_block_wp_admin_access() {
@@ -402,7 +403,8 @@ function hcisysq_block_wp_admin_access() {
     // Kondisi: Punya peran 'hcis_admin' TAPI BUKAN 'administrator'
     if (in_array('hcis_admin', (array) $user->roles, true) && !in_array('administrator', (array) $user->roles, true)) {
       // Alihkan paksa ke halaman dashboard frontend
-      wp_redirect(home_url('/dashboard'));
+      $dashboard_url = home_url('/' . trim(HCISYSQ_DASHBOARD_SLUG, '/') . '/');
+      wp_redirect($dashboard_url);
       exit;
     }
   }
