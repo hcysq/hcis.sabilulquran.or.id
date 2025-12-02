@@ -65,7 +65,7 @@ class NipAuthentication {
     }
 
     if (in_array('hcis_admin', (array) $user->roles, true)) {
-      return home_url('/dashboard');
+      return home_url('/' . trim(HCISYSQ_DASHBOARD_SLUG, '/') . '/');
     }
 
     return $redirect_to;
