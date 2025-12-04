@@ -67,7 +67,13 @@
   }
 
   function initPasswordToggleButtons() {
-    const $forms = $('#hcisysq-login-form, #hcisysq-admin-login-form, #hcisysq-reset-password-form');
+    const formSelectors = [
+      '#hcisysq-login-form',
+      '#hcisysq-admin-login-form',
+      '#hcisysq-reset-password-form',
+    ];
+
+    const $forms = $(formSelectors.join(', '));
     if (!$forms.length) {
       return;
     }
