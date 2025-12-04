@@ -51,7 +51,13 @@ class View {
           <h2>Masuk Administrator</h2>
         </div>
 
-        <form id="hcisysq-admin-login-form" class="auth-form" method="post" action="<?= esc_url(home_url('/' . trim(HCISYSQ_ADMIN_LOGIN_SLUG, '/') . '/')) ?>" autocomplete="off">
+        <form
+          id="hcisysq-admin-login-form"
+          class="auth-form"
+          method="post"
+          action="<?= esc_url(home_url('/' . trim(HCISYSQ_ADMIN_LOGIN_SLUG, '/') . '/')) ?>"
+          autocomplete="off"
+        >
           <?php wp_nonce_field('ysq_admin_login', 'ysq_admin_login_nonce'); ?>
           <input type="hidden" name="ysq_admin_login" value="1">
 
