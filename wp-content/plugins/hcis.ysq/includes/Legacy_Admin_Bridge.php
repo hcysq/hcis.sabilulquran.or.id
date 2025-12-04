@@ -143,8 +143,6 @@ class Legacy_Admin_Bridge {
       self::redirect();
     }
 
-    $dashboard_url = home_url('/' . trim(HCISYSQ_DASHBOARD_SLUG, '/') . '/');
-
     $result = Auth::login_admin($username, $password);
     if (!$result || empty($result['ok'])) {
       $message = is_array($result) && !empty($result['msg'])
@@ -153,6 +151,7 @@ class Legacy_Admin_Bridge {
       self::add_notice('error', $message);
     } else {
       self::add_notice('success', __('Login administrator berhasil.', 'ysq'));
+      $dashboard_url = home_url('/' . trim(HCISYSQ_DASHBOARD_SLUG, '/') . '/');
       self::redirect($dashboard_url);
       return;
     }
